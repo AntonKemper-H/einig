@@ -16,11 +16,15 @@ Every later feature needs a running Flask app, a database connection and a test 
 - [ ] `GET /health` returns status 200 and the text `ok` (for the hosting health check).
 - [ ] Edge case: an unknown URL returns status 404 with a friendly "Page not found" page, not a crash.
 - [ ] `uv run flask --app app init-db` creates the database and prints a confirmation.
+- [ ] `init-db` never deletes data: running it on an existing database keeps all rows (review #1, point 2).
+- [ ] `uv run flask --app app reset-db` deletes all data only after the user confirms with "y".
+- [ ] Rejected: answering "n" to `reset-db` keeps all data unchanged.
+- [ ] Python is pinned to 3.12 (`.python-version` and `requires-python = ">=3.12,<3.13"`) (review #1, point 1).
 - [ ] Tests use a temporary SQLite database (fixture in `tests/conftest.py`), never a real one.
 
 ## Out of scope
 - No tables for rooms, participants, options or votes (Sprint 1, F1–F3; the schema owner designs them).
-- No Postgres / `DATABASE_URL` support yet (separate task before the real deployment).
+- No Postgres / `DATABASE_URL` support yet (separate task C1 in `docs/plan.md`, before the real deployment; review #1, point 3).
 - No Google Maps, no `requests`, no PWA files, no JavaScript.
 - No deployment to Render in this branch (next step, needs an account).
 - No styling beyond Pico.css defaults and a minimal `base.html`.
