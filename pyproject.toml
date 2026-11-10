@@ -1,0 +1,19 @@
+[project]
+name = "einig"
+version = "0.1.0"
+description = "Group decision app – team project, Introduction to Programming"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "flask==3.1.3",
+    "gunicorn==27.0.0",
+    "python-dotenv==1.2.4",
+]
+
+[dependency-groups]
+dev = [
+    "pytest==9.2.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

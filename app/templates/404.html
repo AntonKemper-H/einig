@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+
+{% block title %}Page not found – Einig{% endblock %}
+
+{% block content %}
+  <h1>Page not found</h1>
+  <p>This page does not exist. Maybe the link is incomplete or the room was deleted.</p>
+  <p><a href="{{ url_for('main.home') }}">Back to the start page</a></p>
+{% endblock %}

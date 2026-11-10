@@ -55,8 +55,11 @@ Read before working:
 uv sync
 cp .env.example .env               # a human does this and fills in the keys
 
-# Create or reset the local database
+# Create missing tables (safe: never deletes data)
 uv run flask --app app init-db
+
+# Delete all data and start empty (asks for confirmation)
+uv run flask --app app reset-db
 
 # Run locally
 uv run flask --app app run --debug
@@ -81,6 +84,7 @@ app/
   db.py                # connection handling and all SQL queries
   schema.sql           # table definitions
   routes/
+    main.py            # home page and /health check
     rooms.py           # create, join, options, voting, veto, close, result
     pwa.py             # manifest, service worker, place photo proxy
   services/
