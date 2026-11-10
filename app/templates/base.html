@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Einig{% endblock %}</title>
+  {# Pico.css is stored locally: no external resources (privacy rule in AGENTS.md). #}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/pico.classless.min.css') }}">
+</head>
+<body>
+  <header>
+    <strong>Einig</strong>
+  </header>
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

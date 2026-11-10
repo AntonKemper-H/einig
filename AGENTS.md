@@ -81,6 +81,7 @@ app/
   db.py                # connection handling and all SQL queries
   schema.sql           # table definitions
   routes/
+    main.py            # home page and /health check
     rooms.py           # create, join, options, voting, veto, close, result
     pwa.py             # manifest, service worker, place photo proxy
   services/
