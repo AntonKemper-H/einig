@@ -25,6 +25,9 @@ uv run flask --app app init-db
 uv run flask --app app run --debug
 ```
 
+`init-db` works once the data model task has added `app/db.py` and `schema.sql`; the skeleton
+runs without it.
+
 ## Run the tests
 
 ```bash

@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <!-- Mobile first: lay the page out at the real device width, no zooming out. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{% block title %}Einig{% endblock %}</title>
+    <!-- Pico.css (classless) is served from this repository, not from a CDN. -->
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/pico.classless.min.css') }}"
+    />
+  </head>
+  <body>
+    <header>
+      <h1>Einig</h1>
+    </header>
+    <main>
+      {% block content %}{% endblock %}
+    </main>
+  </body>
+</html>

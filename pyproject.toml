@@ -1,0 +1,16 @@
+[project]
+name = "einig"
+version = "0.1.0"
+description = "A mobile-first web app that helps groups decide what to do."
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "flask==3.1.3",
+    "pytest==9.2.0",
+    "python-dotenv==1.2.4",
+    "requests==2.34.2",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# Let the tests import the "app" package from the project root.
+pythonpath = ["."]
