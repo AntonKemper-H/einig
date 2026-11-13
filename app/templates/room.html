@@ -11,6 +11,38 @@
     <p>Invite your friends with this link:</p>
     <p><input type="text" readonly value="{{ invite_url }}" aria-label="Invite link"></p>
     <p><a href="{{ invite_url }}">{{ invite_url }}</a></p>
+
+    <h2>Options</h2>
+    {% if options %}
+      <ol>
+        {% for option in options %}
+          <li>{{ option.label }}</li>
+        {% endfor %}
+      </ol>
+    {% else %}
+      <p>No options yet.</p>
+    {% endif %}
+
+    {% if option_errors %}
+      <ul role="alert">
+        {% for error in option_errors %}
+          <li>{{ error }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+
+    {% if room.status == "collecting" %}
+      <form action="{{ url_for('rooms.add_option', room_id=room.id) }}" method="post">
+        <label>
+          Add an option
+          <input type="text" name="label" maxlength="80" required
+                 placeholder="Pizza place" value="{{ option_label }}">
+        </label>
+        <button type="submit">Add option</button>
+      </form>
+    {% else %}
+      <p>Options can no longer be added.</p>
+    {% endif %}
   {% else %}
     <h2>Join this room</h2>
 
