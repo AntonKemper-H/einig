@@ -7,7 +7,7 @@ bp = Blueprint("main", __name__)
 
 @bp.get("/")
 def home():
-    """Home page. Later this becomes the 'create a room' screen (F1)."""
+    """Home page with the "create a room" form (F1)."""
     return render_template("home.html")
 
 

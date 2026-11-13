@@ -1,7 +1,48 @@
 {% extends "base.html" %}
 
+{# Used by main.home (empty form) and rooms.create_room (form shown again with errors). #}
+{% set form = form or {} %}
+{% set modes = modes or ["manual", "nearby", "surprise"] %}
+{% set mode_labels = {"manual": "Enter options myself", "nearby": "Places nearby", "surprise": "Surprise me"} %}
+
 {% block content %}
   <h1>Einig</h1>
   <p>Decide together – pick the option everyone can live with.</p>
-  <p><em>Coming soon: create a room and invite your friends.</em></p>
+
+  <h2>Create a room</h2>
+
+  {% if errors %}
+    <ul role="alert">
+      {% for error in errors %}
+        <li>{{ error }}</li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+
+  <form action="{{ url_for('rooms.create_room') }}" method="post">
+    <label>
+      What do you want to decide?
+      <input type="text" name="title" maxlength="80" required
+             placeholder="Dinner on Friday" value="{{ form.title or '' }}">
+    </label>
+
+    <fieldset>
+      <legend>Where do the options come from?</legend>
+      {% for mode in modes %}
+        <label>
+          <input type="radio" name="mode" value="{{ mode }}"
+                 {% if form.mode == mode or (not form.mode and mode == "manual") %}checked{% endif %}>
+          {{ mode_labels[mode] }}
+        </label>
+      {% endfor %}
+    </fieldset>
+
+    <label>
+      Your nickname
+      <input type="text" name="nickname" maxlength="30" required
+             placeholder="Anna" value="{{ form.nickname or '' }}">
+    </label>
+
+    <button type="submit">Create room</button>
+  </form>
 {% endblock %}

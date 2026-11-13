@@ -56,6 +56,37 @@ def reset_db() -> None:
     init_db()
 
 
+def create_room_with_creator(
+    room_id: str, title: str, mode: str, nickname: str, session_token: str
+) -> bool:
+    """Save a new room and its creator in one transaction. Return False if an id or token already exists."""
+    connection = get_db()
+    try:
+        # "with connection" commits both inserts together, or rolls both back on an error,
+        # so there is never a room without its creator.
+        with connection:
+            connection.execute(
+                "INSERT INTO rooms (id, title, mode) VALUES (?, ?, ?)",
+                (room_id, title, mode),
+            )
+            connection.execute(
+                "INSERT INTO participants (room_id, nickname, session_token, is_creator)"
+                " VALUES (?, ?, ?, 1)",
+                (room_id, nickname, session_token),
+            )
+    except sqlite3.IntegrityError:
+        # A duplicate room id or session token (extremely unlikely with random tokens).
+        return False
+    return True
+
+
+def get_room(room_id: str) -> sqlite3.Row | None:
+    """Return the room with this id, or None if it does not exist."""
+    return get_db().execute(
+        "SELECT id, title, mode, status FROM rooms WHERE id = ?", (room_id,)
+    ).fetchone()
+
+
 @click.command("init-db")
 @with_appcontext  # gives the command access to the app config and get_db()
 def init_db_command() -> None:
