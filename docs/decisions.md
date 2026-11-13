@@ -2,14 +2,14 @@
 
 Decisions the team has made so far, with the reason for each. When a decision changes, update this file and `AGENTS.md` in the same pull request.
 
-Last updated: 2026-11-10
+Last updated: 2026-11-12
 
 ---
 
 ## Project facts
 
 - Course: Introduction to Programming, Nova SBE 2026/27 (full requirements: `docs/course-briefing.md`)
-- Team: 3 members, all with GitHub accounts. Task split is decided later.
+- Team: 3 members, all with GitHub accounts. Task split: see D10.
 - **Deadline: repo link on Moodle by 2026-11-23, 23:59.** Commits after that are ignored.
 - Presentation: 24 Nov or 04 Dec (live demo at the public URL + repository walkthrough)
 - Grading: works 20% · UI/UX 20% · scope 20% · tests 10% · security 10% · walkthrough 20%
@@ -22,7 +22,7 @@ A group decision app (full concept: `docs/concept.md`). We do not extend a solo 
 
 - **Why:** we want a better-looking, mobile-first interface than Streamlit offers. Flask with server-rendered HTML is still Python, is listed on the course site as an alternative ("FastAPI/Flask + HTML"), and lets us check permissions on the server where each action happens.
 - **Not chosen:** Streamlit (weak UI control, reruns on every click), NiceGUI (middle ground), React/JS frontend (needs staff approval, two languages, two deployments; too much for 3 weeks).
-- **To do:** send a short email to the teaching staff to confirm Flask instead of Streamlit is fine.
+- **Approved** by the teaching staff (2026-11-12): Flask instead of Streamlit is fine.
 
 ## D3 – Tooling follows the course: uv + pytest
 
@@ -84,10 +84,25 @@ Concept priorities M/S/C apply, with this cut for the submission:
 
 Split work **by feature**. Shared files (database schema, `app/__init__.py`, `AGENTS.md`) have one owner each, decided when tasks are assigned.
 
+## D10 – Task split (2026-11-12)
+
+| Track | Owner (GitHub) | Also owns |
+|---|---|---|
+| A – Rooms & participants | AntonKemper-H | Database schema (`app/schema.sql`) |
+| B – Voting & result | Timonhio | `app/services/scoring.py` |
+| C – Online & places | mkim-nova | Deployment, hosting config, Google Cloud account and keys |
+
+Reviews go in a circle: A reviews B, B reviews C, C reviews A.
+
+## D11 – Unrated options count as "Fine with me" (2026-11-12)
+
+- A participant who rated **at least one** option counts as a voter. For every option this voter did **not** rate, the algorithm uses "ok" (+1).
+- A participant who rated **no** option is not counted at all (matches F11: non-voters are not counted). If nobody rated anything, there is no winner.
+- **Why:** silence means "I can live with it". This way every voter contributes to every option, so all options are compared on equal terms.
+  Example, 3 voters: A is rated only by P1 ("yes"), B is rated "ok" by all three. With the rule: A = 2 + 1 + 1 = 4, B = 1 + 1 + 1 = 3, so A wins – the same result as if P2 and P3 had pressed "Fine with me" on A.
+- Vetoes are unaffected: a missing rating is never a veto.
+
 ## Open questions
 
 - Final app name.
-- Task split between the three members.
-- Who owns the Google Cloud account.
-- **Algorithm gap:** how are options counted that a participant did not rate (e.g. left early or deadline passed)? Example: A gets 1× yes = 2, B gets 3× ok = 3. Decide before writing the scoring tests.
-- Final point values and fairness adjustments after test runs.
+- Final point values after test runs.
