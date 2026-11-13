@@ -38,12 +38,32 @@ def validate_new_room(
     if cleaned["mode"] not in MODES:
         errors.append("Please choose a valid mode.")
 
-    if not cleaned["nickname"]:
-        errors.append("Please enter a nickname.")
-    elif len(cleaned["nickname"]) > NICKNAME_MAX_LENGTH:
-        errors.append(f"The nickname can be at most {NICKNAME_MAX_LENGTH} characters.")
+    errors.extend(nickname_errors(cleaned["nickname"]))
 
     return cleaned, errors
+
+
+def nickname_errors(nickname: str) -> list[str]:
+    """Check an already cleaned nickname for being empty or too long (used by create and join)."""
+    if not nickname:
+        return ["Please enter a nickname."]
+    if len(nickname) > NICKNAME_MAX_LENGTH:
+        return [f"The nickname can be at most {NICKNAME_MAX_LENGTH} characters."]
+    return []
+
+
+def join_errors(nickname: str, room_status: str, nickname_taken: bool) -> list[str]:
+    """Check whether someone may join a room with this cleaned nickname (F2).
+
+    The route looks up the room status and whether the nickname is taken,
+    so this function stays free of database code.
+    """
+    if room_status == "closed":
+        return ["This room is closed. You can no longer join."]
+    errors = nickname_errors(nickname)
+    if not errors and nickname_taken:
+        errors.append("This nickname is already taken in this room. Please choose another one.")
+    return errors
 
 
 def new_room_id() -> str:

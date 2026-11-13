@@ -87,6 +87,41 @@ def get_room(room_id: str) -> sqlite3.Row | None:
     ).fetchone()
 
 
+def get_participant(room_id: str, session_token: str | None) -> sqlite3.Row | None:
+    """Return the participant of this room with this session token, or None."""
+    if not session_token:
+        return None
+    return get_db().execute(
+        "SELECT id, nickname, is_creator, has_finished FROM participants"
+        " WHERE room_id = ? AND session_token = ?",
+        (room_id, session_token),
+    ).fetchone()
+
+
+def is_nickname_taken(room_id: str, nickname: str) -> bool:
+    """Return True if someone in this room already uses this nickname, ignoring upper/lower case."""
+    row = get_db().execute(
+        "SELECT 1 FROM participants WHERE room_id = ? AND lower(nickname) = lower(?)",
+        (room_id, nickname),
+    ).fetchone()
+    return row is not None
+
+
+def add_participant(room_id: str, nickname: str, session_token: str) -> bool:
+    """Save a new (non-creator) participant. Return False if the database refuses it."""
+    connection = get_db()
+    try:
+        with connection:
+            connection.execute(
+                "INSERT INTO participants (room_id, nickname, session_token) VALUES (?, ?, ?)",
+                (room_id, nickname, session_token),
+            )
+    except sqlite3.IntegrityError:
+        # Duplicate token, or the same nickname saved by another request a moment earlier.
+        return False
+    return True
+
+
 @click.command("init-db")
 @with_appcontext  # gives the command access to the app config and get_db()
 def init_db_command() -> None:
