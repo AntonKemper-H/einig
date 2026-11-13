@@ -86,7 +86,7 @@ def join_room(room_id: str):
 
     nickname = room_rules.clean_text(request.form.get("nickname"))
     errors = room_rules.join_errors(
-        nickname, room["status"], db.is_nickname_taken(room_id, nickname)
+        nickname, room["status"], db.get_nicknames(room_id)
     )
     if errors:
         return render_room_page(room, None, nickname, errors), 400

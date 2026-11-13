@@ -98,13 +98,12 @@ def get_participant(room_id: str, session_token: str | None) -> sqlite3.Row | No
     ).fetchone()
 
 
-def is_nickname_taken(room_id: str, nickname: str) -> bool:
-    """Return True if someone in this room already uses this nickname, ignoring upper/lower case."""
-    row = get_db().execute(
-        "SELECT 1 FROM participants WHERE room_id = ? AND lower(nickname) = lower(?)",
-        (room_id, nickname),
-    ).fetchone()
-    return row is not None
+def get_nicknames(room_id: str) -> list[str]:
+    """Return the nicknames of all participants in this room."""
+    rows = get_db().execute(
+        "SELECT nickname FROM participants WHERE room_id = ?", (room_id,)
+    ).fetchall()
+    return [row["nickname"] for row in rows]
 
 
 def add_participant(room_id: str, nickname: str, session_token: str) -> bool:
