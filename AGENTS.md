@@ -33,7 +33,7 @@ Read before working:
 - **Config and secrets:** environment variables, loaded locally from `.env` via `python-dotenv`
 - **Styling:** plain CSS plus Pico.css (classless), stored locally in `app/static/css/`
 - **Tests:** `pytest`
-- **Hosting:** Render (proposed)
+- **Hosting:** Render (proposed). Flask instead of Streamlit is approved by the teaching staff.
 - **App type:** mobile web app, installable as a Progressive Web App (manifest + minimal service worker)
 
 ### Hard rules for the stack
@@ -132,7 +132,7 @@ Parked: **F14–F21.** Do not build parked features, and do not prepare code "fo
 - If nobody voted, return no winner.
 - `scoring.py` must not import Flask, `db.py`, or `requests`. It takes plain Python data and returns plain Python data.
 - The test cases in section 6.4 of `docs/concept.md` must exist as tests.
-- Open question: how unrated options are counted (see `docs/decisions.md`). Ask if a task depends on it.
+- **Unrated options** (decision D11): a participant who rated at least one option counts as a voter, and every option they did not rate counts as "ok" (+1). A participant who rated nothing is not counted. A missing rating is never a veto.
 
 ### Rules for simultaneous actions
 
