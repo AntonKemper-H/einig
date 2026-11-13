@@ -1,8 +1,7 @@
 {% extends "base.html" %}
 
-{# Used by main.home (empty form) and rooms.create_room (form shown again with errors). #}
-{% set form = form or {} %}
-{% set modes = modes or ["manual", "nearby", "surprise"] %}
+{# Used by main.home (empty form) and rooms.create_room (form shown again with errors).
+   Both pass form, errors and modes; the list of modes lives only in services/rooms.py. #}
 {% set mode_labels = {"manual": "Enter options myself", "nearby": "Places nearby", "surprise": "Surprise me"} %}
 
 {% block content %}
@@ -32,7 +31,7 @@
         <label>
           <input type="radio" name="mode" value="{{ mode }}"
                  {% if form.mode == mode or (not form.mode and mode == "manual") %}checked{% endif %}>
-          {{ mode_labels[mode] }}
+          {{ mode_labels.get(mode, mode) }}
         </label>
       {% endfor %}
     </fieldset>
