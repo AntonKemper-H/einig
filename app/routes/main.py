@@ -2,13 +2,15 @@
 
 from flask import Blueprint, render_template
 
+from app.services import rooms as room_rules
+
 bp = Blueprint("main", __name__)
 
 
 @bp.get("/")
 def home():
-    """Home page. Later this becomes the 'create a room' screen (F1)."""
-    return render_template("home.html")
+    """Home page with the "create a room" form (F1)."""
+    return render_template("home.html", form={}, errors=[], modes=room_rules.MODES)
 
 
 @bp.get("/health")
