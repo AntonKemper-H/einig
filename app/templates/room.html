@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+
+{% block title %}{{ room.title }} – Einig{% endblock %}
+
+{% block content %}
+  <h1>{{ room.title }}</h1>
+
+  <p>Invite your friends with this link:</p>
+  <p><input type="text" readonly value="{{ invite_url }}" aria-label="Invite link"></p>
+  <p><a href="{{ invite_url }}">{{ invite_url }}</a></p>
+{% endblock %}
