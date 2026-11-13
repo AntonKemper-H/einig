@@ -29,7 +29,7 @@ F2 in `docs/concept.md`: open the link, enter a nickname, store a session token 
 |---|---|
 | nickname not empty | `Please enter a nickname.` |
 | at most 30 characters (same limit as A2) | `The nickname can be at most 30 characters.` |
-| not already used in this room, **ignoring upper/lower case** ("anna" is taken if "Anna" exists); the entered spelling is stored | `This nickname is already taken in this room. Please choose another one.` |
+| not already used in this room, **ignoring upper/lower case**, also for letters like Ä, É, Ł ("anna" is taken if "Anna" exists); compared in Python with `casefold()`, so SQLite and Postgres behave the same; the entered spelling is stored | `This nickname is already taken in this room. Please choose another one.` |
 | room is not `closed` (joining while `collecting` or `voting` is allowed) | `This room is closed. You can no longer join.` |
 | a generated token already exists, or the database refuses the insert (e.g. two phones pick the same name at the same moment) | `Something went wrong while joining. Please try again.` |
 
@@ -49,6 +49,7 @@ Checks (one line = one test):
 - [ ] Rejected: empty, missing or whitespace-only nickname – message, status 400, data and session unchanged.
 - [ ] Rejected: nickname over 30 characters – message, data unchanged.
 - [ ] Rejected: nickname already used in the room, exactly or with other upper/lower case, or with extra whitespace – message, data unchanged.
+- [ ] Rejected: the upper/lower case rule also holds for non-ASCII letters ("ärger" is taken if "Ärger" exists, "élodie" if "Élodie" exists). Added after review of #9, tests in `tests/test_join_review_fixes.py`.
 - [ ] Rejected: the form is shown again with the entered nickname.
 - [ ] Rejected: joining a `closed` room – message, data unchanged.
 - [ ] Rejected: joining an unknown room – 404, nothing saved.
