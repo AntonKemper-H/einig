@@ -31,7 +31,7 @@ Must be true (one line = one test):
 - [ ] D11: a participant who rated no option is not counted.
 - [ ] D11 example: A rated only by P1 ("yes"), B rated "ok" by P1–P3 → A = 4, B = 3, A wins.
 - [ ] §6.4: A 3× yes + 1× no, B 4× ok → A = 2, B = 4, B wins.
-- [ ] §6.4: same score, A has one "no", B has none → B wins.
+- [ ] §6.4: same score, A has one "no", B has none → B wins, whatever the seed of `rng` and whatever the order of `option_ids`.
 - [ ] Full tie → random choice; with the same seeded `rng` the result is always the same, and across seeds each tied option can win.
 - [ ] An option with at least one veto is excluded, even if it has the highest score.
 - [ ] §6.4: every option has a veto → fewest vetoes wins, then best score.
@@ -41,8 +41,12 @@ Must be true (one line = one test):
 - [ ] A missing rating is never a veto.
 - [ ] Rejected: an unknown rating value raises `ValueError`.
 - [ ] Ratings for an option id that is not in `option_ids` are ignored.
+- [ ] A participant whose only ratings are for option ids not in `option_ids` is not a voter.
+- [ ] A veto for an option id that is not in `option_ids` is ignored: it excludes nothing and does not count towards "every option has a veto".
 - [ ] The functions do not change the data passed in.
-- [ ] `scoring.py` does not import Flask, `app.db` or `requests`.
+- [ ] `scoring.py` does not import Flask, `app.db` or `requests`, in any form (`import app.db`, `from app import db`, `from app.db import …`), and uses no relative imports. The test finds the file from its own location, so it works from any working directory.
+
+Every option has a veto, with the same veto count and the same score: the normal tie-break applies (fewer "no", then more "yes", then random). This follows from the rules above, so it has no test of its own.
 
 (No "survives a restart" line: these functions store nothing.)
 
