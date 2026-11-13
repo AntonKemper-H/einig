@@ -10,6 +10,7 @@ import pytest
 from app.services.scoring import POINTS, pick_winner, score_options
 
 A, B, C = 1, 2, 3
+SCORING_FILE = Path(__file__).resolve().parents[1] / "app" / "services" / "scoring.py"
 
 
 # --- Points and scores -------------------------------------------------------
@@ -60,7 +61,10 @@ def test_tie_fewer_no_wins():
     votes = {10 + i: {A: "yes", B: "ok"} for i in range(5)}
     votes[15] = {A: "no", B: "ok"}
     assert score_options([A, B], votes) == {A: 6, B: 6}
-    assert pick_winner([A, B], votes, []) == B
+    # Seeded rng and both option orders, so neither luck nor "first option wins" can pass.
+    for seed in range(20):
+        assert pick_winner([A, B], votes, [], rng=random.Random(seed)) == B
+        assert pick_winner([B, A], votes, [], rng=random.Random(seed)) == B
 
 
 def test_full_tie_is_random_but_reproducible_with_seed():
@@ -123,6 +127,21 @@ def test_rating_for_unknown_option_is_ignored():
     assert pick_winner([A], votes, []) == A
 
 
+def test_participant_with_only_unknown_option_ratings_is_not_a_voter():
+    # P11 rated only option 99, which is not in the room. If P11 counted as a
+    # voter, B would get +1 ("ok") and the scores would be A = 3, B = 2.
+    votes = {10: {A: "yes"}, 11: {99: "no"}}
+    assert score_options([A, B], votes) == {A: 2, B: 1}
+
+
+def test_veto_for_unknown_option_is_ignored():
+    # The vetoes for 99 must neither exclude anything nor make "every option
+    # has a veto" true: A is vetoed, B is not, so B wins.
+    votes = {10: {A: "yes", B: "ok"}}
+    assert pick_winner([A, B], votes, [A, 99, 99]) == B
+    assert pick_winner([A, B], votes, [99]) == A
+
+
 def test_input_data_is_not_changed():
     option_ids = [A, B]
     votes = {10: {A: "yes"}, 11: {}}
@@ -134,13 +153,18 @@ def test_input_data_is_not_changed():
 
 
 def test_scoring_module_has_no_forbidden_imports():
-    source = Path("app/services/scoring.py").read_text(encoding="utf-8")
+    # Path from this test file, so the test works from any working directory.
+    source = SCORING_FILE.read_text(encoding="utf-8")
     imported = set()
     for node in ast.walk(ast.parse(source)):
         if isinstance(node, ast.Import):
             imported.update(alias.name for alias in node.names)
-        elif isinstance(node, ast.ImportFrom) and node.module:
+        elif isinstance(node, ast.ImportFrom):
+            # scoring.py never needs a relative import, and one could hide app.db.
+            assert node.level == 0, f"relative import on line {node.lineno}"
             imported.add(node.module)
+            # "from app import db" names the module only through the alias.
+            imported.update(f"{node.module}.{alias.name}" for alias in node.names)
     for name in imported:
-        assert name.split(".")[0] not in {"flask", "requests"}
-        assert name != "app.db"
+        assert name.split(".")[0] not in {"flask", "requests"}, name
+        assert name != "app.db" and not name.startswith("app.db."), name
