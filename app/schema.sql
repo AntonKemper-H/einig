@@ -13,7 +13,11 @@ CREATE TABLE IF NOT EXISTS app_info (
     key   TEXT PRIMARY KEY,
     value TEXT NOT NULL
 );
-INSERT OR IGNORE INTO app_info (key, value) VALUES ('schema_version', '0');
+INSERT OR IGNORE INTO app_info (key, value) VALUES ('schema_version', '1');
+-- Older databases still say '0'. Updating one value deletes nothing.
+-- Note: CREATE TABLE IF NOT EXISTS never changes an existing table, so new
+-- CHECK rules only reach an old database after reset-db (decided in C1).
+UPDATE app_info SET value = '1' WHERE key = 'schema_version';
 
 
 -- One decision. The id is a random token from the app, never a counter.
@@ -23,10 +27,12 @@ CREATE TABLE IF NOT EXISTS rooms (
     mode              TEXT NOT NULL CHECK (mode IN ('manual', 'nearby', 'surprise')),
     status            TEXT NOT NULL DEFAULT 'collecting'
                       CHECK (status IN ('collecting', 'voting', 'closed')),
-    deadline          TEXT,      -- optional, UTC time as ISO text (F11)
-    search_center_lat REAL,      -- optional, rounded (F8, F12)
-    search_center_lng REAL,
-    radius_m          INTEGER,
+    -- All times are UTC text 'YYYY-MM-DD HH:MM:SS' (the CURRENT_TIMESTAMP format),
+    -- so they compare correctly as text.
+    deadline          TEXT,      -- optional (F11)
+    search_center_lat REAL CHECK (search_center_lat BETWEEN -90 AND 90),   -- optional, rounded (F8, F12)
+    search_center_lng REAL CHECK (search_center_lng BETWEEN -180 AND 180),
+    radius_m          INTEGER CHECK (radius_m > 0),
     filters           TEXT,      -- optional JSON: category, price level, minimum rating ...
     -- Stored when the room closes, so closing again returns the same winner.
     -- No foreign key: rooms and options would point at each other, which
@@ -63,7 +69,7 @@ CREATE TABLE IF NOT EXISTS options (
     -- Exactly one of label / place_id is filled, depending on the source.
     CHECK (
         (source = 'manual' AND label IS NOT NULL AND trim(label) <> '' AND place_id IS NULL)
-        OR (source = 'google' AND place_id IS NOT NULL AND label IS NULL)
+        OR (source = 'google' AND place_id IS NOT NULL AND trim(place_id) <> '' AND label IS NULL)
     ),
     UNIQUE (room_id, label),
     UNIQUE (room_id, place_id),
