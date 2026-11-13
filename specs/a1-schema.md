@@ -14,8 +14,8 @@ Tables in `app/schema.sql`, based on `docs/concept.md` §7, reduced to what F1�
 - `title` TEXT, not empty
 - `mode` TEXT, one of `manual` / `nearby` / `surprise` (`blind`, `fate` are parked F14/F15)
 - `status` TEXT, one of `collecting` / `voting` / `closed`, default `collecting`
-- `deadline` TEXT, optional, UTC time as ISO text (F11)
-- `search_center_lat`, `search_center_lng` REAL, optional; `radius_m` INTEGER, optional (F8, F12)
+- `deadline` TEXT, optional, UTC time in the time format below (F11)
+- `search_center_lat` REAL, optional, between -90 and 90; `search_center_lng` REAL, optional, between -180 and 180; `radius_m` INTEGER, optional, greater than 0 (F8, F12)
 - `filters` TEXT, optional, JSON (category, price level, minimum rating …) (F8, F12)
 - `winner_option_id` INTEGER, optional, stored when the room closes so closing again returns the same result (no foreign key, see Out of scope)
 - `created_at` TEXT, set automatically (for the 7-day cleanup)
@@ -28,7 +28,7 @@ Tables in `app/schema.sql`, based on `docs/concept.md` §7, reduced to what F1�
 **options** – one thing to choose (F3, F8, F12, F13)
 - `id` INTEGER primary key; `room_id` → rooms
 - `source` TEXT, one of `manual` / `google`
-- `label` TEXT for manual options; `place_id` TEXT for Google options. Exactly one of the two is filled: a Google option stores **only** the `place_id` (Google terms).
+- `label` TEXT for manual options; `place_id` TEXT for Google options. Exactly one of the two is filled and it is not empty: a Google option stores **only** the `place_id` (Google terms).
 - `category` TEXT, optional (sub-category, so surprise mode can mix cuisines)
 - `is_replaced` 0/1, default 0 ("Been there", F13)
 
@@ -39,6 +39,12 @@ Tables in `app/schema.sql`, based on `docs/concept.md` §7, reduced to what F1�
 **vetoes** – the joker (F10)
 - `id`; `room_id`; `participant_id`; `option_id`
 - Participant and option must both belong to `room_id`.
+
+**Time format (review #5, point 3).** Every time (`created_at`, `deadline`) is UTC text in the form `YYYY-MM-DD HH:MM:SS`, e.g. `2026-11-13 10:38:29` – the same format SQLite's `CURRENT_TIMESTAMP` writes. Only then do times compare correctly as text. In Python: `datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")`.
+
+**Empty text (review #5, point 2).** The database only rejects text that is empty after removing spaces (SQLite's `trim()` strips spaces only). Text made of tabs or line breaks passes the database, so A2–A4 must clean input in Python with `.strip()` before saving.
+
+**Schema version.** `app_info.schema_version` is `1` after this task. `init-db` updates it without deleting anything. How later column changes reach an existing database is decided in C1.
 
 Checks (one line = one test):
 - [ ] After `init-db` the tables `rooms`, `participants`, `options`, `votes`, `vetoes` exist.
@@ -66,6 +72,13 @@ Checks (one line = one test):
 - [ ] Persistence: `init-db` on an existing database keeps all rows in the new tables.
 - [ ] `reset-db` answered with "y" leaves all new tables empty (and still usable).
 
+Added after review #5 (tests in `tests/test_schema_review_fixes.py`, because reviewed tests are never edited):
+- [ ] Rejected: Google option with an empty or space-only `place_id` – data unchanged.
+- [ ] Rejected: room with `radius_m` of 0 or below – data unchanged.
+- [ ] Rejected: room with `search_center_lat` outside -90…90 or `search_center_lng` outside -180…180 – data unchanged.
+- [ ] Accepted: room with a valid search center and radius.
+- [ ] After `init-db`, `schema_version` is `1`, also on an existing database that still says `0`, and other rows are kept.
+
 ## Out of scope
 - No routes, templates or services; no query helpers in `app/db.py` unless a test needs one (A2+ add them).
 - Parked tables/columns: groups, group members, place history, fairness weights, participant locations (F16–F19), `blind`/`fate` modes.
@@ -76,6 +89,6 @@ Checks (one line = one test):
 - Scoring rules (D11: unrated options count as "ok") – not stored, computed in `services/scoring.py`.
 
 ## Done when
-- All tests in `tests/test_schema.py` and all earlier tests pass (`uv run pytest`), output pasted.
+- All tests in `tests/test_schema.py`, `tests/test_schema_review_fixes.py` and all earlier tests pass (`uv run pytest`), output pasted.
 - `uv run flask --app app init-db` on an existing database creates the new tables and keeps all data.
 - Work is on branch `feature-a1-schema`, pushed, pull request opened with mkim-nova as reviewer.
