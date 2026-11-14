@@ -21,6 +21,7 @@ CLOSED_MESSAGE = "This room is closed. You can no longer vote."
 INVALID_RATING_MESSAGE = "Please choose one of the three ratings."
 UNKNOWN_OPTION_MESSAGE = "This option does not exist in this room."
 ALL_RATED_MESSAGE = "You have rated all options."
+NO_OPTIONS_MESSAGE = "There are no options to rate yet."
 LABELS = ["Pizza", "Sushi", "Tacos"]
 VOTING_FILE = Path(__file__).resolve().parents[1] / "app" / "services" / "voting.py"
 
@@ -44,12 +45,14 @@ def add_option(app, room_id, label, is_replaced=0):
     """Insert a manual option directly (adding options is A4) and return its id."""
     with app.app_context():
         connection = get_db()
-        cursor = connection.execute(
-            "INSERT INTO options (room_id, source, label, is_replaced) VALUES (?, 'manual', ?, ?)",
+        # RETURNING id instead of lastrowid, as C1 asks (Postgres has no lastrowid).
+        row = connection.execute(
+            "INSERT INTO options (room_id, source, label, is_replaced)"
+            " VALUES (?, 'manual', ?, ?) RETURNING id",
             (room_id, label, is_replaced),
-        )
+        ).fetchone()
         connection.commit()
-        return cursor.lastrowid
+        return row["id"]
 
 
 def set_room_status(app, room_id, status):
@@ -79,7 +82,11 @@ def vote_rows(app, room_id=None):
         if room_id is not None:
             sql += " WHERE room_id = ?"
             params = (room_id,)
-        return [tuple(row) for row in get_db().execute(sql + " ORDER BY id", params).fetchall()]
+        rows = get_db().execute(sql + " ORDER BY id", params).fetchall()
+        # Read by column name, as C1 asks (Postgres rows have no positions).
+        return [
+            (row["room_id"], row["participant_id"], row["option_id"], row["rating"]) for row in rows
+        ]
 
 
 def has_finished(app, participant_id):
@@ -180,6 +187,17 @@ def test_has_finished_after_rating_every_option(app, client, room):
     assert has_finished(app, participant) == 1
 
 
+def test_room_without_options_has_nothing_to_rate(app, client):
+    room_id = create_room(client)
+    set_room_status(app, room_id, "voting")
+    html = page(client, room_id)
+    assert NO_OPTIONS_MESSAGE in html
+    assert ALL_RATED_MESSAGE not in html
+    assert shown_option_ids(html) == set()
+    participant = participant_id_of(app, room_id, token_of(client, room_id))
+    assert has_finished(app, participant) == 0
+
+
 def test_get_votes_has_the_shape_the_winner_algorithm_takes(app, client, room):
     other = app.test_client()
     join(other, room["id"], "Ben")
@@ -214,6 +232,11 @@ def test_rating_order_is_the_same_for_the_same_seed():
     assert rating_order(option_ids, "token-a") == rating_order(option_ids, "token-a")
     # The order of the input list must not matter either.
     assert rating_order(option_ids, "token-a") == rating_order(list(reversed(option_ids)), "token-a")
+
+
+def test_rating_order_is_the_same_in_every_process():
+    """A fixed expected list: a seed built with hash() would differ between processes."""
+    assert rating_order([1, 2, 3, 4, 5, 6], "fixed-token") == [2, 4, 6, 5, 1, 3]
 
 
 def test_rating_order_differs_between_seeds():
@@ -423,5 +446,6 @@ def test_save_vote_updates_a_row_saved_a_moment_earlier(app, room):
             (room["id"], participant, option_id),
         )
         connection.commit()
-        db.save_vote(room["id"], participant, option_id, "no")  # must not raise
+        with db.transaction():
+            db.save_vote(room["id"], participant, option_id, "no")  # must not raise
     assert vote_rows(app) == [(room["id"], participant, option_id, "no")]
