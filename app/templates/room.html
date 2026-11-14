@@ -5,7 +5,30 @@
 {% block content %}
   <h1>{{ room.title }}</h1>
 
-  <p>Invite your friends with this link:</p>
-  <p><input type="text" readonly value="{{ invite_url }}" aria-label="Invite link"></p>
-  <p><a href="{{ invite_url }}">{{ invite_url }}</a></p>
+  {% if participant %}
+    <p>You joined as {{ participant.nickname }}.</p>
+
+    <p>Invite your friends with this link:</p>
+    <p><input type="text" readonly value="{{ invite_url }}" aria-label="Invite link"></p>
+    <p><a href="{{ invite_url }}">{{ invite_url }}</a></p>
+  {% else %}
+    <h2>Join this room</h2>
+
+    {% if errors %}
+      <ul role="alert">
+        {% for error in errors %}
+          <li>{{ error }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+
+    <form action="{{ url_for('rooms.join_room', room_id=room.id) }}" method="post">
+      <label>
+        Your nickname
+        <input type="text" name="nickname" maxlength="30" required
+               placeholder="Ben" value="{{ join_nickname }}">
+      </label>
+      <button type="submit">Join</button>
+    </form>
+  {% endif %}
 {% endblock %}
