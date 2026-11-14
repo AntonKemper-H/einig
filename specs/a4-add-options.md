@@ -23,6 +23,7 @@ F3 in `docs/concept.md`: all participants can add options as long as the rating 
   - invalid → the room page again with status 400, the message and the entered text; nothing saved;
   - valid → saves an option (`source = 'manual'`, the cleaned `label`, `place_id` and `category` empty, `is_replaced = 0`) and redirects (302 or 303) to `GET /rooms/<room_id>`.
 - The label is cleaned with `.strip()` before checking and saving.
+- `db.add_manual_option` saves inside C1's `db.transaction()` and catches `db.INTEGRITY_ERRORS`, so it works on SQLite and Postgres.
 - Duplicates are found in Python, like nicknames in A3: `db.get_option_labels(room_id)` returns the labels of the room, and `app/services/options.py` compares them with `casefold()`, so SQLite and Postgres behave the same.
 
 **Rules and messages** (length counted after `.strip()`; checked in this order, only the first matching message is shown):
@@ -63,7 +64,6 @@ Checks (one line = one test):
 - Starting the rating phase (A5 sets `voting`); the rating itself (B2).
 - Remembering who added an option (the schema has no column for it).
 - Unicode normalisation (NFC/NFD) of labels and nicknames – noted in review of #9, separate follow-up if wanted.
-- Switching `app/db.py` to C1's `db.transaction()` / `db.INTEGRITY_ERRORS` (follow-up after C1, as for A2/A3).
 - CSRF protection (team decision pending).
 - No changes to `app/schema.sql` or to existing tests.
 

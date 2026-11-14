@@ -240,7 +240,7 @@ def add_participant(room_id: str, nickname: str, session_token: str) -> bool:
     return True
 
 
-def get_options(room_id: str) -> list[sqlite3.Row]:
+def get_options(room_id: str) -> list[sqlite3.Row | dict]:
     """Return all options of a room in the order they were added."""
     return get_db().execute(
         "SELECT id, label FROM options WHERE room_id = ? ORDER BY id",
@@ -258,14 +258,14 @@ def get_option_labels(room_id: str) -> list[str]:
 
 def add_manual_option(room_id: str, label: str) -> bool:
     """Save a manually entered option. Return False if the database refuses it."""
-    connection = get_db()
     try:
-        with connection:
+        # db.transaction() instead of "with connection:", which would close a Postgres connection.
+        with transaction() as connection:
             connection.execute(
                 "INSERT INTO options (room_id, source, label) VALUES (?, 'manual', ?)",
                 (room_id, label),
             )
-    except sqlite3.IntegrityError:
+    except INTEGRITY_ERRORS:
         # The same label saved by another request a moment earlier (UNIQUE room_id, label).
         return False
     return True
