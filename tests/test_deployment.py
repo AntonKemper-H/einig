@@ -330,6 +330,28 @@ def test_create_room_with_creator_returns_false_on_postgres_duplicate(fake_postg
     assert connection.commit_count == 0
 
 
+def test_add_participant_works_on_postgres(fake_postgres, postgres_app):
+    """F2 join (merged from main) must also use db.transaction(), not "with connection:"."""
+    connection = fake_postgres["connection"]
+    with postgres_app.app_context():
+        added = db.add_participant("room-a", "Anna", "token-2")
+        get_db().execute("SELECT 1")  # the connection is still open for the rest of the request
+    assert added is True
+    assert "INSERT INTO participants" in connection.all_sql()
+    assert connection.commit_count == 1
+
+
+def test_add_participant_returns_false_on_postgres_duplicate(fake_postgres, postgres_app):
+    """Rejected: the same nickname saved a moment earlier is caught on Postgres, not a crash."""
+    connection = fake_postgres["connection"]
+    connection.fail_on = "INSERT INTO participants"
+    with postgres_app.app_context():
+        added = db.add_participant("room-a", "Anna", "token-2")
+    assert added is False
+    assert connection.rollback_count == 1
+    assert connection.commit_count == 0
+
+
 # --- The same interface on SQLite -------------------------------------------------
 
 def test_integrity_errors_cover_both_databases():

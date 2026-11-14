@@ -206,7 +206,7 @@ def get_room(room_id: str) -> sqlite3.Row | dict | None:
     ).fetchone()
 
 
-def get_participant(room_id: str, session_token: str | None) -> sqlite3.Row | None:
+def get_participant(room_id: str, session_token: str | None) -> sqlite3.Row | dict | None:
     """Return the participant of this room with this session token, or None."""
     if not session_token:
         return None
@@ -227,14 +227,14 @@ def get_nicknames(room_id: str) -> list[str]:
 
 def add_participant(room_id: str, nickname: str, session_token: str) -> bool:
     """Save a new (non-creator) participant. Return False if the database refuses it."""
-    connection = get_db()
     try:
-        with connection:
+        # db.transaction() instead of "with connection:", which would close a Postgres connection.
+        with transaction() as connection:
             connection.execute(
                 "INSERT INTO participants (room_id, nickname, session_token) VALUES (?, ?, ?)",
                 (room_id, nickname, session_token),
             )
-    except sqlite3.IntegrityError:
+    except INTEGRITY_ERRORS:
         # Duplicate token, or the same nickname saved by another request a moment earlier.
         return False
     return True
