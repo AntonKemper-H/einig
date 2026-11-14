@@ -21,7 +21,7 @@ Pages and form:
 Pure helpers in `app/services/voting.py` (type hints, no Flask, no database):
 
 - `RATING_LABELS = {"yes": "Rather yes", "ok": "Fine with me", "no": "Rather not"}`
-- `rating_order(option_ids, seed) -> list[int]` – the participant's own random order
+- `rating_order(option_ids, seed) -> list[int]` – the participant's own random order: the ids sorted ascending, then shuffled with `random.Random(seed)`, where `seed` is the session token **as a string**. Never `hash(token)`: Python's string hash changes with every process, so the order would change after a restart and between Render's workers.
 - `next_option_to_rate(order, rated_option_ids) -> int | None` – first option in the order that is not rated yet
 - `vote_errors(room_status, rating, option_id, rateable_option_ids) -> list[str]` – messages for a rejected vote (empty list = accepted)
 
@@ -33,12 +33,14 @@ Must be true (one line = one test):
 - [ ] The rating page shows exactly one option card (the next unrated option) with the three buttons "Rather yes", "Fine with me", "Rather not".
 - [ ] After a rating, the page shows the next unrated option in the participant's order.
 - [ ] When every option is rated, the page says "You have rated all options." and lists every option with the participant's own rating ("Your rating: …") and the buttons to change it.
+- [ ] A room in `voting` status with no rateable options: the page says "There are no options to rate yet." (no card, no "You have rated all options."), and `has_finished` stays 0.
 - [ ] When the participant has rated every option, `participants.has_finished` becomes 1 (the lobby, A5, shows who is done). Changing a rating afterwards keeps it at 1.
 - [ ] `db.get_votes(room_id)` returns the saved ratings in the shape `score_options` / `pick_winner` take (`{participant_id: {option_id: rating}}`), so B3 can call B1 without converting.
 
 ### Random order (F4)
 - [ ] `rating_order` returns every option id exactly once.
 - [ ] The same seed always gives the same order, so a reload does not reshuffle the cards.
+- [ ] The order is the same in every Python process: `rating_order([1, 2, 3, 4, 5, 6], "fixed-token")` is always `[2, 4, 6, 5, 1, 3]` (a fixed expected list, so a `hash()`-based seed fails).
 - [ ] Different seeds give different orders (with 6 options, more than one order appears across 50 seeds), so the first card is not the same for everyone.
 - [ ] On the page, the order is stable for a participant across reloads; the seed is the participant's session token, which nobody else knows.
 - [ ] `next_option_to_rate` returns the first unrated option in the order, and `None` when all are rated.
@@ -61,10 +63,11 @@ Must be true (one line = one test):
 ### Code rules
 - [ ] `services/voting.py` imports neither Flask nor `app.db` nor `requests`.
 - [ ] `db.save_vote(room_id, participant_id, option_id, rating)` inserts or updates in one statement (`INSERT … ON CONFLICT (participant_id, option_id) DO UPDATE SET rating = excluded.rating`, works on SQLite and Postgres). So if another request saved a row for the same option a moment earlier, it updates that row instead of failing: two simultaneous clicks end in one row.
+- [ ] On a successful POST, the vote and (if it is the last unrated option) the `has_finished` update are written inside one `db.transaction()` (C1), never `with connection:` (that closes the Postgres connection). Database errors are caught through `db.INTEGRITY_ERRORS`, never a bare `sqlite3.IntegrityError`. (Checked in review; the Postgres path itself is covered by C1's fake-connection tests.)
 
 ## Out of scope
 
-- **Starting the rating phase** (switching the room from `collecting` to `voting`). No task in `docs/plan.md` owns it yet; the tests set the status directly in the database, like `tests/test_join.py` does. Open question for the team (see PR).
+- **Starting the rating phase** (switching the room from `collecting` to `voting`). Proposed for A5 (lobby) in the PR #11 review, to be confirmed by Track A in `docs/plan.md`. The tests set the status directly in the database, like `tests/test_join.py` does.
 - Adding options (A4): the tests insert options directly in the database.
 - Linking the room page or lobby to the rating page (A5).
 - The result page and closing the room (B3), the joker / veto (B4), the deadline (B5).
