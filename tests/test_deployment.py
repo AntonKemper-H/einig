@@ -40,18 +40,26 @@ class FakePostgresConnection:
         self.statements = []
         self.table_names = list(table_names)
         self.closed = False
+        self.commit_count = 0
+        self.rollback_count = 0
+        # If set, any statement containing this text fails like a broken UNIQUE rule.
+        self.fail_on = None
 
     def execute(self, sql, params=None):
+        if self.closed:
+            raise psycopg.OperationalError("the connection is closed")
         self.statements.append((sql, params))
+        if self.fail_on and self.fail_on in sql:
+            raise psycopg.IntegrityError("fake duplicate key")
         if "information_schema.tables" in sql:
             return FakeCursor([{"table_name": name} for name in self.table_names])
         return FakeCursor([])
 
     def commit(self):
-        pass
+        self.commit_count += 1
 
     def rollback(self):
-        pass
+        self.rollback_count += 1
 
     def close(self):
         self.closed = True
@@ -187,11 +195,22 @@ def test_schema_comments_are_removed():
     assert "CREATE TABLE IF NOT EXISTS a (key TEXT);" in translated
 
 
+def test_schema_current_timestamp_becomes_utc_text_on_postgres():
+    """Times must be 'YYYY-MM-DD HH:MM:SS' UTC text on both databases, so they compare as text."""
+    script = "CREATE TABLE IF NOT EXISTS rooms (\n    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP\n);"
+    translated = db.schema_to_postgres(script)
+    assert (
+        "created_at TEXT NOT NULL DEFAULT to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS')"
+        in translated
+    )
+
+
 def test_real_schema_has_no_sqlite_only_syntax_after_translation():
     script = (PROJECT_ROOT / "app" / "schema.sql").read_text(encoding="utf-8")
     translated = db.schema_to_postgres(script)
     assert "INSERT OR IGNORE" not in translated
     assert "INTEGER PRIMARY KEY" not in translated.replace("AS IDENTITY PRIMARY KEY", "")
+    assert "CURRENT_TIMESTAMP" not in translated
 
 
 # --- The Postgres path through get_db(), init-db and reset-db ---------------------
@@ -243,6 +262,74 @@ def test_reset_db_on_postgres_drops_tables_without_sqlite_commands(fake_postgres
     assert "PRAGMA" not in sent
 
 
+# --- Transactions (review of PR #7, point 2) ------------------------------------------
+
+def test_transaction_commits_without_closing_on_postgres(fake_postgres, postgres_app):
+    connection = fake_postgres["connection"]
+    with postgres_app.app_context():
+        with db.transaction():
+            get_db().execute("INSERT INTO app_info (key, value) VALUES (?, ?)", ("a", "1"))
+        get_db().execute("SELECT 1")  # still usable after the block
+    assert connection.commit_count == 1
+    assert connection.rollback_count == 0
+
+
+def test_transaction_rolls_back_on_error_on_postgres(fake_postgres, postgres_app):
+    connection = fake_postgres["connection"]
+    connection.fail_on = "INSERT"
+    with postgres_app.app_context():
+        with pytest.raises(db.INTEGRITY_ERRORS):
+            with db.transaction():
+                get_db().execute("INSERT INTO app_info (key, value) VALUES (?, ?)", ("a", "1"))
+        get_db().execute("SELECT 1")  # still usable after the rollback
+    assert connection.rollback_count == 1
+    assert connection.commit_count == 0
+
+
+def test_transaction_commits_and_keeps_connection_open_on_sqlite(app):
+    with app.app_context():
+        with db.transaction():
+            get_db().execute("INSERT INTO app_info (key, value) VALUES (?, ?)", ("in_transaction", "yes"))
+        get_db().rollback()  # a commit already happened, so nothing is undone
+        row = get_db().execute("SELECT value FROM app_info WHERE key = ?", ("in_transaction",)).fetchone()
+    assert row["value"] == "yes"
+
+
+def test_transaction_rolls_back_every_statement_on_error_on_sqlite(app):
+    """Rejected: if the second statement fails, the first one is undone too."""
+    with app.app_context():
+        with pytest.raises(db.INTEGRITY_ERRORS):
+            with db.transaction():
+                get_db().execute("INSERT INTO app_info (key, value) VALUES (?, ?)", ("first", "1"))
+                get_db().execute("INSERT INTO app_info (key, value) VALUES (?, ?)", ("first", "2"))
+        row = get_db().execute("SELECT value FROM app_info WHERE key = ?", ("first",)).fetchone()
+    assert row is None
+
+
+def test_create_room_with_creator_works_on_postgres(fake_postgres, postgres_app):
+    connection = fake_postgres["connection"]
+    with postgres_app.app_context():
+        created = db.create_room_with_creator("room-a", "Dinner", "manual", "Mika", "token-1")
+        get_db().execute("SELECT 1")  # the connection is still open for the rest of the request
+    assert created is True
+    sent = connection.all_sql()
+    assert "INSERT INTO rooms" in sent
+    assert "INSERT INTO participants" in sent
+    assert "?" not in sent
+    assert connection.commit_count == 1
+
+
+def test_create_room_with_creator_returns_false_on_postgres_duplicate(fake_postgres, postgres_app):
+    """Rejected: a duplicate on Postgres is caught, rolled back, and reported as False."""
+    connection = fake_postgres["connection"]
+    connection.fail_on = "INSERT INTO participants"
+    with postgres_app.app_context():
+        created = db.create_room_with_creator("room-a", "Dinner", "manual", "Mika", "token-1")
+    assert created is False
+    assert connection.rollback_count == 1
+    assert connection.commit_count == 0
+
+
 # --- The same interface on SQLite -------------------------------------------------
 
 def test_integrity_errors_cover_both_databases():
@@ -264,15 +351,18 @@ def test_duplicate_key_is_rejected_and_data_unchanged(app):
     """Rejected: a broken UNIQUE rule raises a catchable error and keeps the saved row."""
     with app.app_context():
         connection = get_db()
+        # Own row, so the test does not depend on the schema version (review of PR #7, point 1).
+        connection.execute("INSERT INTO app_info (key, value) VALUES (?, ?)", ("duplicate_check", "original"))
+        connection.commit()
         with pytest.raises(db.INTEGRITY_ERRORS):
             connection.execute(
-                "INSERT INTO app_info (key, value) VALUES (?, ?)", ("schema_version", "changed")
+                "INSERT INTO app_info (key, value) VALUES (?, ?)", ("duplicate_check", "changed")
             )
         connection.rollback()
         row = connection.execute(
-            "SELECT value FROM app_info WHERE key = ?", ("schema_version",)
+            "SELECT value FROM app_info WHERE key = ?", ("duplicate_check",)
         ).fetchone()
-        assert row["value"] == "0"
+        assert row["value"] == "original"
 
 
 def test_accepted_rows_survive_a_restart(app):
