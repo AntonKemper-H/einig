@@ -4,6 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Einig{% endblock %}</title>
+  {# Pages can add tags here, e.g. the lobby's meta refresh. #}
+  {% block head %}{% endblock %}
   {# Pico.css is stored locally: no external resources (privacy rule in AGENTS.md). #}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/pico.classless.min.css') }}">
 </head>
