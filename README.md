@@ -4,7 +4,7 @@ A mobile-first web app that helps groups decide what to do. Everyone rates the o
 
 Team project for *Introduction to Programming*, Nova SBE 2026/27.
 
-**Deployed URL:** _coming soon_
+**Deployed URL:** https://nod-lqeq.onrender.com (free plan: the first visit after a quiet period can take up to a minute)
 
 ## Team
 

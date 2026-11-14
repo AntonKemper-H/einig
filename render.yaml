@@ -16,7 +16,8 @@ services:
     # Python version comes from .python-version (3.12). --frozen installs exactly uv.lock.
     buildCommand: uv sync --frozen --no-dev
     # init-db only creates missing tables and never deletes data, so it is safe on every start.
-    startCommand: uv run flask --app app init-db && uv run gunicorn --bind 0.0.0.0:$PORT "app:create_app()"
+    # --no-dev: without it, "uv run" would install pytest & co. on the server at every start.
+    startCommand: uv run --no-dev flask --app app init-db && uv run --no-dev gunicorn --bind 0.0.0.0:$PORT "app:create_app()"
     healthCheckPath: /health
     envVars:
       - key: SECRET_KEY
