@@ -3,7 +3,7 @@
 How we get from the skeleton to the submission on **2026-11-23, 23:59**.
 Scope and reasons: `docs/decisions.md`. Feature details: `docs/concept.md`.
 
-Last updated: 2026-11-12. Tick boxes as work is merged into `main`.
+Last updated: 2026-11-14. Tick boxes as work is merged into `main`.
 
 ---
 
@@ -39,7 +39,7 @@ Each line is one task: own spec in `specs/`, own branch, own pull request, fresh
 
 ### Track C – Online & places – mkim-nova
 
-- [ ] C1 Deployment on Render + hosted Postgres (`DATABASE_URL`, review of PR #1 point 3) – **can start immediately**
+- [x] C1 Deployment on Render + hosted Postgres (`DATABASE_URL`, review of PR #1 point 3) – live at https://nod-lqeq.onrender.com with Neon (PR #7)
 - [ ] C2 F8 Places from Google (built and tested with fake responses first, real key later)
 - [ ] C3 F9 Map and route to the winner
 - [ ] C4 F12 Surprise mode
