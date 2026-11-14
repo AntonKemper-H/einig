@@ -8,6 +8,9 @@ services:
     name: einig
     runtime: python
     plan: free
+    # Same region as the Neon database (AWS Europe, Frankfurt), so every query stays short.
+    # Render cannot move a service to another region later.
+    region: frankfurt
     branch: main
     # Python version comes from .python-version (3.12). --frozen installs exactly uv.lock.
     buildCommand: uv sync --frozen --no-dev
