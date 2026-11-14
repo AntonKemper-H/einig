@@ -63,6 +63,7 @@ Checks (one line = one test):
 - Editing or deleting options; a maximum number of options per room.
 - Starting the rating phase (A5 sets `voting`); the rating itself (B2).
 - Remembering who added an option (the schema has no column for it).
+- A database guarantee for the case-insensitive duplicate rule: it is checked in Python only. `UNIQUE (room_id, label)` catches only an identical spelling, so if two people add case variants (`Pizza place` / `PIZZA PLACE`) at the same moment, both are saved – same accepted race as `Anna`/`anna` in A3 (noted in review of #14).
 - Unicode normalisation (NFC/NFD) of labels and nicknames – noted in review of #9, separate follow-up if wanted.
 - CSRF protection (team decision pending).
 - No changes to `app/schema.sql` or to existing tests.
