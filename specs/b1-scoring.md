@@ -50,7 +50,7 @@ Every option has a veto, with the same veto count and the same score: the normal
 
 (No "survives a restart" line: these functions store nothing.)
 
-**Note for review – the "more yes" tie-break can never decide.** With D11 every voter counts for every option, and every weight is 1. So for n voters an option's score is `n + yes − 5 × no`. Two options with the same score and the same number of "no" therefore always have the same number of "yes", and the order goes straight from "fewer no" to random. The code keeps the "more yes" step because `AGENTS.md` and `concept.md` §6.2 name it (it would matter if fairness weights come back), but no test can reach it, so there is no line for it above. Team: keep it, or drop it from the rules?
+**Note for review – the "more yes" tie-break can never decide.** With D11 every voter counts for every option, and every weight is 1. So for n voters an option's score is `n + yes − 5 × no`. Two options with the same score and the same number of "no" therefore always have the same number of "yes", and the order goes straight from "fewer no" to random. The code keeps the "more yes" step because `AGENTS.md` and `concept.md` §6.2 name it (it would matter if fairness weights come back), but no test can reach it, so there is no line for it above. **Decided:** keep it (`docs/decisions.md`, D12).
 
 ## Out of scope
 
