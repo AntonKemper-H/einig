@@ -13,8 +13,11 @@ ALREADY_STARTED_MESSAGE = "Voting has already started."
 
 
 def status_text(room_status: str) -> str:
-    """Return the sentence the lobby shows for this room status."""
-    return STATUS_TEXTS[room_status]
+    """Return the sentence the lobby shows for this room status ("" for an unknown one).
+
+    The fallback keeps the lobby working if a later task adds a new status.
+    """
+    return STATUS_TEXTS.get(room_status, "")
 
 
 def start_errors(room_status: str, option_count: int) -> list[str]:

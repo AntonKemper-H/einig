@@ -73,6 +73,8 @@ Checks (one line = one test):
 - [ ] Rejected: unknown room – 404.
 - [ ] Rejected: the rejected start page refreshes to the lobby URL, not to `/start`.
 - [ ] Edge case: if the database finds the room already started (status check bypassed, as in a race), the second start shows `Voting has already started.`, does not crash and the room stays `voting`. The test replaces `db.get_room` to simulate the race.
+- [ ] Review #15: while `collecting`, the creator with fewer than 2 options sees `Add at least 2 options before starting the voting.` on the lobby page itself (next to the button), so it survives the refresh; nobody else sees it, and a rejected start shows the message only once.
+- [ ] Review #15: an unknown room status gives an empty status text instead of an error, so the lobby still loads.
 - [ ] Persistence: after an app restart, the lobby still shows the participants, `done` marks and the `voting` status.
 
 ## Out of scope

@@ -58,13 +58,20 @@ def render_lobby(room, participant, errors: list[str] | None = None):
     """Render the lobby: who has joined, who is done, the room status and the creator's start button."""
     participants = db.get_participants(room["id"])
     finished_count = sum(1 for person in participants if person["has_finished"])
+    option_count = len(db.get_options(room["id"]))
+    # The creator sees why "Start voting" would be rejected, on the normal lobby
+    # page, so the hint survives the refresh. Skipped when an error is already shown.
+    start_hints = []
+    if participant["is_creator"] and room["status"] == "collecting" and not errors:
+        start_hints = lobby_rules.start_errors(room["status"], option_count)
     return render_template(
         "lobby.html",
         room=room,
         participant=participant,
         participants=participants,
         finished_count=finished_count,
-        option_count=len(db.get_options(room["id"])),
+        option_count=option_count,
+        start_hints=start_hints,
         status_text=lobby_rules.status_text(room["status"]),
         errors=errors or [],
     )

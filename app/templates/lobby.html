@@ -40,6 +40,9 @@
 
   {% if room.status == "collecting" %}
     {% if participant.is_creator %}
+      {% for hint in start_hints %}
+        <p>{{ hint }}</p>
+      {% endfor %}
       <form action="{{ url_for('rooms.start_voting', room_id=room.id) }}" method="post">
         <button type="submit">Start voting</button>
       </form>
@@ -47,7 +50,7 @@
       <p>Waiting for the creator to start the voting.</p>
     {% endif %}
   {% elif room.status == "voting" %}
-    {# The rating page is built in B2. #}
+    {# The rating page is built in B2 (#11). Switch this to url_for() once B2 is merged. #}
     <p><a href="/rooms/{{ room.id }}/vote">Rate the options</a></p>
   {% endif %}
 
