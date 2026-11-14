@@ -240,6 +240,37 @@ def add_participant(room_id: str, nickname: str, session_token: str) -> bool:
     return True
 
 
+def get_options(room_id: str) -> list[sqlite3.Row]:
+    """Return all options of a room in the order they were added."""
+    return get_db().execute(
+        "SELECT id, label FROM options WHERE room_id = ? ORDER BY id",
+        (room_id,),
+    ).fetchall()
+
+
+def get_option_labels(room_id: str) -> list[str]:
+    """Return the labels of all manual options in this room (used for the duplicate check)."""
+    rows = get_db().execute(
+        "SELECT label FROM options WHERE room_id = ? AND label IS NOT NULL", (room_id,)
+    ).fetchall()
+    return [row["label"] for row in rows]
+
+
+def add_manual_option(room_id: str, label: str) -> bool:
+    """Save a manually entered option. Return False if the database refuses it."""
+    connection = get_db()
+    try:
+        with connection:
+            connection.execute(
+                "INSERT INTO options (room_id, source, label) VALUES (?, 'manual', ?)",
+                (room_id, label),
+            )
+    except sqlite3.IntegrityError:
+        # The same label saved by another request a moment earlier (UNIQUE room_id, label).
+        return False
+    return True
+
+
 @click.command("init-db")
 @with_appcontext  # gives the command access to the app config and get_db()
 def init_db_command() -> None:

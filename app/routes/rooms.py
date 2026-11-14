@@ -1,14 +1,17 @@
-"""Room pages: create a room (F1), show it and join it (F2). The lobby follows in A5."""
+"""Room pages: create a room (F1), show and join it (F2), add options (F3). The lobby follows in A5."""
 
 from flask import Blueprint, abort, redirect, render_template, request, session, url_for
 
 from app import db
+from app.services import options as option_rules
 from app.services import rooms as room_rules
 
 bp = Blueprint("rooms", __name__)
 
 CREATE_COLLISION_MESSAGE = "Something went wrong while creating the room. Please try again."
 JOIN_COLLISION_MESSAGE = "Something went wrong while joining. Please try again."
+NOT_JOINED_MESSAGE = "Please join the room before adding options."
+OPTION_REFUSED_MESSAGE = "Something went wrong while adding the option. Please try again."
 
 
 def session_token_for(room_id: str) -> str | None:
@@ -24,9 +27,18 @@ def remember_token(room_id: str, session_token: str) -> None:
     session["participant_tokens"] = tokens
 
 
-def render_room_page(room, participant, join_nickname: str = "", errors: list[str] | None = None):
-    """Render the room page: join form for visitors, 'you joined' for participants."""
+def render_room_page(
+    room,
+    participant,
+    join_nickname: str = "",
+    errors: list[str] | None = None,
+    option_label: str = "",
+    option_errors: list[str] | None = None,
+):
+    """Render the room page: join form for visitors; options and add form for participants."""
     invite_url = url_for("rooms.show_room", room_id=room["id"], _external=True)
+    # Only participants may see the options, so visitors get an empty list.
+    options = db.get_options(room["id"]) if participant else []
     return render_template(
         "room.html",
         room=room,
@@ -34,6 +46,9 @@ def render_room_page(room, participant, join_nickname: str = "", errors: list[st
         invite_url=invite_url,
         join_nickname=join_nickname,
         errors=errors or [],
+        options=options,
+        option_label=option_label,
+        option_errors=option_errors or [],
     )
 
 
@@ -96,4 +111,29 @@ def join_room(room_id: str):
         return render_room_page(room, None, nickname, [JOIN_COLLISION_MESSAGE]), 400
 
     remember_token(room_id, session_token)
+    return redirect(url_for("rooms.show_room", room_id=room_id), code=303)
+
+
+@bp.post("/rooms/<room_id>/options")
+def add_option(room_id: str):
+    """F3: a participant adds an option while the room is collecting, then redirect (Post/Redirect/Get)."""
+    room = db.get_room(room_id)
+    if room is None:
+        abort(404)
+
+    # Permission check on the server: hiding the form is not enough.
+    participant = db.get_participant(room_id, session_token_for(room_id))
+    if participant is None:
+        return render_room_page(room, None, errors=[NOT_JOINED_MESSAGE]), 403
+
+    label = room_rules.clean_text(request.form.get("label"))
+    errors = option_rules.option_errors(label, room["status"], db.get_option_labels(room_id))
+    if errors:
+        return render_room_page(room, participant, option_label=label, option_errors=errors), 400
+
+    if not db.add_manual_option(room_id, label):
+        return render_room_page(
+            room, participant, option_label=label, option_errors=[OPTION_REFUSED_MESSAGE]
+        ), 400
+
     return redirect(url_for("rooms.show_room", room_id=room_id), code=303)
