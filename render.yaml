@@ -1,0 +1,25 @@
+# Render Blueprint for Einig (spec: specs/c1-deployment.md).
+# Render reads this file when the service is created via "New > Blueprint".
+# Secrets are only listed by name here; their values are entered in Render's
+# dashboard and never stored in the repository.
+
+services:
+  - type: web
+    name: einig
+    runtime: python
+    plan: free
+    branch: main
+    # Python version comes from .python-version (3.12). --frozen installs exactly uv.lock.
+    buildCommand: uv sync --frozen --no-dev
+    # init-db only creates missing tables and never deletes data, so it is safe on every start.
+    startCommand: uv run flask --app app init-db && uv run gunicorn --bind 0.0.0.0:$PORT "app:create_app()"
+    healthCheckPath: /health
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true   # Render creates a random key once
+      - key: DATABASE_URL
+        sync: false           # paste the Neon/Supabase connection string in the dashboard
+      - key: GOOGLE_MAPS_API_KEY
+        sync: false
+      - key: GOOGLE_MAPS_EMBED_KEY
+        sync: false
