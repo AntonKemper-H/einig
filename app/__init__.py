@@ -21,10 +21,24 @@ def create_app(test_config: dict | None = None) -> Flask:
         # Real run: read .env locally (on the host, variables are set in its settings).
         load_dotenv()
         app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY")
-        app.config["DATABASE"] = os.path.join(app.instance_path, "einig.sqlite")
+        # Deployed: hosted Postgres from the secret DATABASE_URL (Render's disk is wiped on
+        # every restart). Locally the variable is empty, so a SQLite file is used instead.
+        database_url = os.environ.get("DATABASE_URL", "").strip()
+        if database_url:
+            app.config["DATABASE_URL"] = database_url
+        else:
+            app.config["DATABASE"] = os.path.join(app.instance_path, "einig.sqlite")
     else:
         # Tests: use exactly what the test passes in, ignore the environment.
         app.config.update(test_config)
+
+    # Catch a wrong value early. The message never repeats the URL: it contains the password.
+    database_url = app.config.get("DATABASE_URL")
+    if database_url and not database_url.startswith(("postgresql://", "postgres://")):
+        raise RuntimeError(
+            "DATABASE_URL must start with postgresql:// or postgres://. "
+            "Check the value in the hosting settings."
+        )
 
     # The secret key signs the session cookie that identifies participants.
     # A hard-coded fallback would let anyone forge sessions, so we refuse to start.
