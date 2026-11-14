@@ -137,10 +137,11 @@ def test_max_price_level_drops_expensive_and_keeps_unknown(fake_google):
                 place("expensive", price_level="PRICE_LEVEL_EXPENSIVE"),
                 place("very", price_level="PRICE_LEVEL_VERY_EXPENSIVE"),
                 place("unknown"),
+                place("unspecified", price_level="PRICE_LEVEL_UNSPECIFIED"),
             ]
         }
     )
-    assert search(max_price_level=2) == ["free", "cheap", "moderate", "unknown"]
+    assert search(max_price_level=2) == ["free", "cheap", "moderate", "unknown", "unspecified"]
 
 
 def test_min_rating_drops_lower_and_unrated_keeps_exact(fake_google):

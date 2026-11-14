@@ -23,7 +23,7 @@ F8 in `docs/concept.md` and "Google Maps integration" in `AGENTS.md`.
 - Headers: `Content-Type: application/json`, `X-Goog-Api-Key: <api_key>`, `X-Goog-FieldMask: places.id,places.rating,places.priceLevel` (constant `SEARCH_FIELD_MASK`; never `*`). Rating and price level are requested because the filters below need them and C2b shows them.
 - JSON body: `includedTypes: [category]`, `maxResultCount: 15`, `locationRestriction.circle.center.latitude/longitude` and `locationRestriction.circle.radius` (the radius as a number in metres).
 - Filters run in Python on the results, because Nearby Search has no price or rating parameter:
-  - `max_price_level` (`None` or 1–4): Google's `priceLevel` text is turned into a number (`PRICE_LEVEL_FREE` 0, `INEXPENSIVE` 1, `MODERATE` 2, `EXPENSIVE` 3, `VERY_EXPENSIVE` 4). Places above the maximum are dropped. **Places without a price level are kept** (many places have none; dropping them would empty the list).
+  - `max_price_level` (`None` or 1–4): Google's `priceLevel` text is turned into a number (`PRICE_LEVEL_FREE` 0, `INEXPENSIVE` 1, `MODERATE` 2, `EXPENSIVE` 3, `VERY_EXPENSIVE` 4). Places above the maximum are dropped. **Places without a price level are kept** (many places have none; dropping them would empty the list). `PRICE_LEVEL_UNSPECIFIED` and any other unknown text count as "no price level", so these places are kept too (added after review of #12).
   - `min_rating` (`None` or a number): places with a lower `rating` are dropped. **Places without a rating are dropped** when a minimum is set (they cannot prove they meet it).
   - Without filters every result is kept.
 - A response without `places` (Google sends `{}` when nothing is found) returns `[]`.
@@ -63,12 +63,14 @@ Cleaned values: `category` (text), `radius_m` (int), `latitude` and `longitude` 
 | `GOOGLE_MAPS_API_KEY` is not set (empty) | 503 | `Place suggestions are not available right now. You can still add options yourself.` | nothing; Google is not called |
 | `search_nearby` raises `PlacesError` | 503 | same message as above | nothing |
 | Google finds nothing (after the filters) | 200 | `No places found. Try a larger radius or fewer filters.`; the search form is shown again | nothing |
-| the database refuses the insert (e.g. the same search sent twice at the same moment) | 400 | `Places have already been suggested for this room.` | nothing from this request |
+| another search claimed the room first, or the database refuses the insert (e.g. two searches sent at the same moment) | 400 | `Places have already been suggested for this room.` | nothing from this request |
 | valid and places found | 303 redirect to `GET /rooms/<room_id>` | – | see below |
 
 - Saved on success, in **one transaction** (all or nothing, via `db.transaction()` so it works on Postgres):
-  - one option per place id: `source = 'google'`, `place_id`, `label` empty (NULL), `category` = the chosen category, `is_replaced = 0`, in Google's order;
-  - on the room: `search_center_lat`, `search_center_lng` (rounded), `radius_m`, and `filters` as JSON text `{"category": …, "min_rating": …, "max_price_level": …}` (C2b needs the centre for the distance, C4 the filters).
+  - first the room is **claimed**: `UPDATE rooms SET search_center_lat = ?, search_center_lng = ?, radius_m = ?, filters = ? WHERE id = ? AND radius_m IS NULL` stores the rounded centre, the radius and `filters` as JSON text `{"category": …, "min_rating": …, "max_price_level": …}` (C2b needs the centre for the distance, C4 the filters);
+  - only if this updated **exactly one row**, one option per place id is inserted: `source = 'google'`, `place_id`, `label` empty (NULL), `category` = the chosen category, `is_replaced = 0`, in Google's order;
+  - if it updated no row, another search already claimed the room: everything is rolled back and the "already suggested" message is shown.
+  - Why: the `has_google_options` check before calling Google is not enough on its own. Two searches sent at the same moment (two tabs, a double tap after changing the radius) can both pass it, and if Google returns different places for them, `UNIQUE (room_id, place_id)` would not stop the second batch. The claim on the room row lets exactly one search win, whatever Google returns (added after review of #12).
 - **Never stored:** names, ratings, price levels or anything else from Google except the place id (Google terms, AGENTS.md).
 - The API key is read from `app.config["GOOGLE_MAPS_API_KEY"]`, which `create_app()` fills from the environment variable of the same name. It never appears in a page, a message or a log.
 - Until C2b, the option list shows a Google option as `Place from Google Maps` (no name is stored to show). Manual options still show their label; manual adding (A4) keeps working in `nearby` rooms, before and after the search.
@@ -82,7 +84,7 @@ Checks (one line = one test):
 - [ ] Returns the place ids in Google's order.
 - [ ] A response without `places` returns `[]`.
 - [ ] Results without an id and duplicate ids are skipped.
-- [ ] `max_price_level` drops more expensive places and keeps places without a price level.
+- [ ] `max_price_level` drops more expensive places and keeps places without a price level or with `PRICE_LEVEL_UNSPECIFIED`.
 - [ ] `min_rating` drops lower-rated places and places without a rating; a rating exactly at the minimum is kept.
 - [ ] Without filters, all results are kept.
 - [ ] A timeout, a connection error, a non-200 status and an invalid JSON body each raise `PlacesError`.
@@ -114,6 +116,7 @@ Checks (one line = one test):
 - [ ] Rejected: a room that is `voting` or `closed` – message, Google not called, nothing saved.
 - [ ] Rejected: unknown room – 404, Google not called.
 - [ ] Edge case: if the database refuses the insert (simulated by making the "already suggested" check return False although Google options exist), the app shows the message, does not crash and leaves the data unchanged.
+- [ ] Edge case: a second search that passes the "already suggested" check (simulated as above) and gets **different** place ids from Google is rejected by the claim on the room row – message, no new options, the room keeps the first search's settings.
 - [ ] Security: the API key never appears in any page (search form, success, error).
 - [ ] Persistence: after an app restart, the Google options and the room's search settings are still stored and shown.
 

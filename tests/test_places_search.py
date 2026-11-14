@@ -4,6 +4,7 @@ These tests never call Google: `requests.post` is replaced by a fake for every t
 """
 
 import json
+import re
 
 import pytest
 
@@ -140,6 +141,19 @@ def assert_nothing_saved(app, room_id):
 
 def suggest_action(room_id):
     return f'action="/rooms/{room_id}/suggest"'
+
+
+def is_selected(html, select_name, value):
+    """True if the <select name=select_name> has an <option value=value> marked as selected.
+
+    Looks at whole tags, so it works whatever order the attributes are written in.
+    """
+    select = re.search(rf'<select[^>]*name="{select_name}"[^>]*>(.*?)</select>', html, re.DOTALL)
+    assert select is not None, f"no <select> named {select_name}"
+    for option_tag in re.findall(r"<option\b[^>]*>", select.group(1)):
+        if f'value="{value}"' in option_tag and re.search(r"\bselected\b", option_tag):
+            return True
+    return False
 
 
 @pytest.fixture
@@ -354,8 +368,8 @@ def test_invalid_form_shows_messages_and_values(app, client, room_id, google):
     assert CATEGORY_MESSAGE in html
     assert LOCATION_MESSAGE in html
     assert suggest_action(room_id) in html
-    # The entered radius is selected again.
-    assert 'value="2000" selected' in html
+    # The entered radius is selected again (attribute order does not matter).
+    assert is_selected(html, "radius_m", "2000")
     assert google.calls == []
     assert_nothing_saved(app, room_id)
 
@@ -437,6 +451,28 @@ def test_database_refusal_shows_message_and_changes_nothing(app, client, room_id
     assert ALREADY_SUGGESTED_MESSAGE in response.data.decode()
     assert [tuple(row) for row in options(app, room_id)] == before_options
     assert tuple(room_row(app, room_id)) == before_room
+
+
+def test_second_search_with_different_places_loses_the_claim(
+    app, client, room_id, google, monkeypatch
+):
+    suggest(client, room_id)
+    before_options = [tuple(row) for row in options(app, room_id)]
+    before_room = tuple(room_row(app, room_id))
+
+    # Simulate two searches at the same moment: the second one passes the
+    # "already suggested" check and Google returns completely different places,
+    # so UNIQUE (room_id, place_id) cannot stop it. Only the claim on the room row can.
+    from app import db
+
+    monkeypatch.setattr(db, "has_google_options", lambda room_id: False)
+    google.response = FakeResponse(body={"places": [{"id": "other-1"}, {"id": "other-2"}]})
+    response = suggest(client, room_id, category="bar", radius_m="5000")
+    assert response.status_code == 400
+    assert ALREADY_SUGGESTED_MESSAGE in response.data.decode()
+    assert [tuple(row) for row in options(app, room_id)] == before_options
+    assert tuple(room_row(app, room_id)) == before_room
+    assert room_row(app, room_id)["radius_m"] == 1000
 
 
 # --- Security --------------------------------------------------------------
