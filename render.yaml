@@ -11,7 +11,8 @@ services:
     # Same region as the Neon database (AWS Europe, Frankfurt), so every query stays short.
     # Render cannot move a service to another region later.
     region: frankfurt
-    branch: main
+    # No "branch:" here: Render deploys the branch chosen when the Blueprint is created
+    # (feature-c1-deployment for the first test, main after the merge).
     # Python version comes from .python-version (3.12). --frozen installs exactly uv.lock.
     buildCommand: uv sync --frozen --no-dev
     # init-db only creates missing tables and never deletes data, so it is safe on every start.
