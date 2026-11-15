@@ -1,7 +1,5 @@
-"""Room pages: create a room (F1), show and join it (F2), add options (F3), suggest places (F8).
-
-The lobby follows in A5.
-"""
+"""Room pages: create a room (F1), show and join it (F2), add options (F3),
+lobby and start voting (F7), suggest places nearby (F8)."""
 
 from flask import (
     Blueprint,
@@ -15,6 +13,7 @@ from flask import (
 )
 
 from app import db
+from app.services import lobby as lobby_rules
 from app.services import options as option_rules
 from app.services import places
 from app.services import rooms as room_rules
@@ -25,6 +24,7 @@ CREATE_COLLISION_MESSAGE = "Something went wrong while creating the room. Please
 JOIN_COLLISION_MESSAGE = "Something went wrong while joining. Please try again."
 NOT_JOINED_MESSAGE = "Please join the room before adding options."
 OPTION_REFUSED_MESSAGE = "Something went wrong while adding the option. Please try again."
+ONLY_CREATOR_MESSAGE = "Only the creator can start the voting."
 PLACES_UNAVAILABLE_MESSAGE = (
     "Place suggestions are not available right now. You can still add options yourself."
 )
@@ -82,6 +82,29 @@ def render_room_page(
         radius_choices=places.RADIUS_CHOICES,
         min_rating_choices=places.MIN_RATING_CHOICES,
         price_level_choices=places.PRICE_LEVEL_CHOICES,
+    )
+
+
+def render_lobby(room, participant, errors: list[str] | None = None):
+    """Render the lobby: who has joined, who is done, the room status and the creator's start button."""
+    participants = db.get_participants(room["id"])
+    finished_count = sum(1 for person in participants if person["has_finished"])
+    option_count = len(db.get_options(room["id"]))
+    # The creator sees why "Start voting" would be rejected, on the normal lobby
+    # page, so the hint survives the refresh. Skipped when an error is already shown.
+    start_hints = []
+    if participant["is_creator"] and room["status"] == "collecting" and not errors:
+        start_hints = lobby_rules.start_errors(room["status"], option_count)
+    return render_template(
+        "lobby.html",
+        room=room,
+        participant=participant,
+        participants=participants,
+        finished_count=finished_count,
+        option_count=option_count,
+        start_hints=start_hints,
+        status_text=lobby_rules.status_text(room["status"]),
+        errors=errors or [],
     )
 
 
@@ -170,6 +193,44 @@ def add_option(room_id: str):
         ), 400
 
     return redirect(url_for("rooms.show_room", room_id=room_id), code=303)
+
+
+@bp.get("/rooms/<room_id>/lobby")
+def show_lobby(room_id: str):
+    """F7: the lobby page, which reloads itself every few seconds (meta refresh in the template)."""
+    room = db.get_room(room_id)
+    if room is None:
+        abort(404)
+    participant = db.get_participant(room_id, session_token_for(room_id))
+    if participant is None:
+        # Visitors join first; the join form is on the room page.
+        return redirect(url_for("rooms.show_room", room_id=room_id), code=303)
+    return render_lobby(room, participant)
+
+
+@bp.post("/rooms/<room_id>/start")
+def start_voting(room_id: str):
+    """The creator ends the collecting phase and starts the voting, then redirect (Post/Redirect/Get)."""
+    room = db.get_room(room_id)
+    if room is None:
+        abort(404)
+
+    # Creator-only action, checked on the server: hiding the button is not enough.
+    participant = db.get_participant(room_id, session_token_for(room_id))
+    if participant is None:
+        return render_room_page(room, None, errors=[ONLY_CREATOR_MESSAGE]), 403
+    if not participant["is_creator"]:
+        return render_lobby(room, participant, [ONLY_CREATOR_MESSAGE]), 403
+
+    errors = lobby_rules.start_errors(room["status"], len(db.get_options(room_id)))
+    if errors:
+        return render_lobby(room, participant, errors), 400
+
+    if not db.start_voting(room_id):
+        # Someone else started it a moment earlier.
+        return render_lobby(room, participant, [lobby_rules.ALREADY_STARTED_MESSAGE]), 400
+
+    return redirect(url_for("rooms.show_lobby", room_id=room_id), code=303)
 
 
 @bp.post("/rooms/<room_id>/suggest")

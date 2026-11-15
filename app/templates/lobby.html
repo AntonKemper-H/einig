@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}Lobby: {{ room.title }} – Einig{% endblock %}
+
+{% block head %}
+  {# Live updates without JavaScript (AGENTS.md): reload every 4 seconds.
+     url= points at the lobby, because a rejected start is shown as the answer
+     to POST /start, and reloading that address as a GET would fail. #}
+  {% if room.status != "closed" %}
+    <meta http-equiv="refresh" content="4; url={{ url_for('rooms.show_lobby', room_id=room.id) }}">
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+  <h1>Lobby</h1>
+  <p><strong>{{ room.title }}</strong></p>
+  <p>{{ status_text }}</p>
+
+  {% if errors %}
+    <ul role="alert">
+      {% for error in errors %}
+        <li>{{ error }}</li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+
+  <h2>Participants</h2>
+  <ul>
+    {% for person in participants %}
+      <li>
+        {{ person.nickname }}
+        {% if person.is_creator %}(creator){% endif %}
+        {% if person.has_finished %}– done{% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+  <p>{{ finished_count }} of {{ participants|length }} done</p>
+
+  <p>{{ option_count }} options</p>
+
+  {% if room.status == "collecting" %}
+    {% if participant.is_creator %}
+      {% for hint in start_hints %}
+        <p>{{ hint }}</p>
+      {% endfor %}
+      <form action="{{ url_for('rooms.start_voting', room_id=room.id) }}" method="post">
+        <button type="submit">Start voting</button>
+      </form>
+    {% else %}
+      <p>Waiting for the creator to start the voting.</p>
+    {% endif %}
+  {% elif room.status == "voting" %}
+    {# The rating page is built in B2 (#11). Switch this to url_for() once B2 is merged. #}
+    <p><a href="/rooms/{{ room.id }}/vote">Rate the options</a></p>
+  {% endif %}
+
+  <p><a href="{{ url_for('rooms.show_room', room_id=room.id) }}">Back to the room</a></p>
+{% endblock %}

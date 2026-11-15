@@ -26,7 +26,7 @@ Each line is one task: own spec in `specs/`, own branch, own pull request, fresh
 - [ ] A2 F1 Create a room
 - [ ] A3 F2 Join without an account
 - [ ] A4 F3 Add options manually
-- [ ] A5 F7 Lobby with room status (meta refresh)
+- [ ] A5 F7 Lobby with room status (meta refresh), including the creator's "Start voting" (collecting → voting)
 - [ ] A6 F22 QR code
 
 ### Track B – Voting & result – Timonhio

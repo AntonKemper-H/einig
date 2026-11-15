@@ -240,7 +240,7 @@ def add_participant(room_id: str, nickname: str, session_token: str) -> bool:
     return True
 
 
-def get_options(room_id: str) -> list[sqlite3.Row]:
+def get_options(room_id: str) -> list[sqlite3.Row | dict]:
     """Return all options of a room in the order they were added."""
     return get_db().execute(
         "SELECT id, source, label, place_id FROM options WHERE room_id = ? ORDER BY id",
@@ -258,17 +258,38 @@ def get_option_labels(room_id: str) -> list[str]:
 
 def add_manual_option(room_id: str, label: str) -> bool:
     """Save a manually entered option. Return False if the database refuses it."""
-    connection = get_db()
     try:
-        with connection:
+        # db.transaction() instead of "with connection:", which would close a Postgres connection.
+        with transaction() as connection:
             connection.execute(
                 "INSERT INTO options (room_id, source, label) VALUES (?, 'manual', ?)",
                 (room_id, label),
             )
-    except sqlite3.IntegrityError:
+    except INTEGRITY_ERRORS:
         # The same label saved by another request a moment earlier (UNIQUE room_id, label).
         return False
     return True
+
+
+def get_participants(room_id: str) -> list[sqlite3.Row | dict]:
+    """Return all participants of a room in the order they joined (for the lobby)."""
+    return get_db().execute(
+        "SELECT id, nickname, is_creator, has_finished FROM participants"
+        " WHERE room_id = ? ORDER BY id",
+        (room_id,),
+    ).fetchall()
+
+
+def start_voting(room_id: str) -> bool:
+    """Switch the room from collecting to voting. Return False if it was no longer collecting."""
+    # "AND status = 'collecting'" makes two starts at the same moment change the room
+    # only once: the second UPDATE finds no matching row.
+    with transaction() as connection:
+        cursor = connection.execute(
+            "UPDATE rooms SET status = 'voting' WHERE id = ? AND status = 'collecting'",
+            (room_id,),
+        )
+    return cursor.rowcount == 1
 
 
 def has_google_options(room_id: str) -> bool:
@@ -296,9 +317,11 @@ def save_google_search(
         with transaction() as connection:
             # Claim the room first. Only one search can turn radius_m from NULL into a value,
             # so two searches at the same moment never both save, even with different results.
+            # "status = 'collecting'" also stops a search that was still waiting for Google
+            # while the creator started the voting (A5).
             claim = connection.execute(
                 "UPDATE rooms SET search_center_lat = ?, search_center_lng = ?, radius_m = ?, filters = ?"
-                " WHERE id = ? AND radius_m IS NULL",
+                " WHERE id = ? AND radius_m IS NULL AND status = 'collecting'",
                 (latitude, longitude, radius_m, filters, room_id),
             )
             if claim.rowcount != 1:
