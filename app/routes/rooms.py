@@ -533,11 +533,23 @@ def show_result(room_id: str):
     # Google options have no stored name (Google terms); C3 shows the winner's real name.
     labels = {option["id"]: option["label"] or GOOGLE_OPTION_LABEL for option in options}
     counts = result_rules.rating_counts(list(labels), db.get_votes(room_id))
+    winner_option_id = db.get_winner_option_id(room_id)
+    # C3: card, map and route for the winner. Only the winner is loaded from Google,
+    # and only once the room is closed.
+    winner = None
+    if room["status"] == "closed" and winner_option_id in labels:
+        winner_option = next(option for option in db.get_options(room_id) if option["id"] == winner_option_id)
+        winner = places.load_winner(
+            current_app.config.get("GOOGLE_MAPS_API_KEY"),
+            current_app.config.get("GOOGLE_MAPS_EMBED_KEY"),
+            winner_option,
+        )
     return render_template(
         "result.html",
         room=room,
         labels=labels,
         counts=counts,
-        winner_option_id=db.get_winner_option_id(room_id),
+        winner_option_id=winner_option_id,
+        winner=winner,
         rating_labels=voting_rules.RATING_LABELS,
     )

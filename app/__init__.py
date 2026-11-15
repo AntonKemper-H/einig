@@ -25,6 +25,9 @@ def create_app(test_config: dict | None = None) -> Flask:
         # Server-only key for the Places API. May be empty: then the app still works with
         # manual options and shows a friendly message instead of searching (C2a).
         app.config["GOOGLE_MAPS_API_KEY"] = os.environ.get("GOOGLE_MAPS_API_KEY", "").strip()
+        # Browser key for the winner's map (Maps Embed API, C3), restricted to our domain.
+        # May be empty: then the result page shows the route link without a map.
+        app.config["GOOGLE_MAPS_EMBED_KEY"] = os.environ.get("GOOGLE_MAPS_EMBED_KEY", "").strip()
         # Deployed: hosted Postgres from the secret DATABASE_URL (Render's disk is wiped on
         # every restart). Locally the variable is empty, so a SQLite file is used instead.
         database_url = os.environ.get("DATABASE_URL", "").strip()
