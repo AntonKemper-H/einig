@@ -17,7 +17,9 @@ services:
     buildCommand: uv sync --frozen --no-dev
     # init-db only creates missing tables and never deletes data, so it is safe on every start.
     # --no-dev: without it, "uv run" would install pytest & co. on the server at every start.
-    startCommand: uv run --no-dev flask --app app init-db && uv run --no-dev gunicorn --bind 0.0.0.0:$PORT "app:create_app()"
+    # 2 workers x 4 threads: one slow Google call no longer blocks every other user (C1c).
+    # The service was created by hand, so this command must also be pasted into Render's dashboard.
+    startCommand: uv run --no-dev flask --app app init-db && uv run --no-dev gunicorn --workers 2 --threads 4 --timeout 30 --bind 0.0.0.0:$PORT "app:create_app()"
     healthCheckPath: /health
     envVars:
       - key: SECRET_KEY
