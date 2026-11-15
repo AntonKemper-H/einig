@@ -102,6 +102,12 @@ Reviews go in a circle: A reviews B, B reviews C, C reviews A.
   Example, 3 voters: A is rated only by P1 ("yes"), B is rated "ok" by all three. With the rule: A = 2 + 1 + 1 = 4, B = 1 + 1 + 1 = 3, so A wins – the same result as if P2 and P3 had pressed "Fine with me" on A.
 - Vetoes are unaffected: a missing rating is never a veto.
 
+## D12 – The "more yes" tie-break stays (2026-11-14)
+
+- The tie-break order stays as in `AGENTS.md` and `docs/concept.md` §6.2: fewer "no", then more "yes", then random.
+- **Why:** with D11 and every weight at 1, the "more yes" step can never decide on its own: for n voters an option's score is `n + yes − 5 × no`, so equal score and equal "no" always means equal "yes" (see the note in `specs/b1-scoring.md`). It costs one element in the sort key, and it decides again as soon as fairness weights (F14–F21, parked) give voters different weights. Dropping it would mean changing `AGENTS.md`, the concept and the code for no gain today.
+- Raised in the B1 review (PR #6); Anton and Mika both saw no reason to drop it.
+
 ## Open questions
 
 - Final app name.
