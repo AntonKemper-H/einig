@@ -19,11 +19,74 @@
     {% if options %}
       <ol>
         {% for option in options %}
-          <li>{{ option.label }}</li>
+          {# Only the place id of a Google option is stored; its name and photo follow in C2b. #}
+          <li>{% if option.source == "google" %}Place from Google Maps{% else %}{{ option.label }}{% endif %}</li>
         {% endfor %}
       </ol>
     {% else %}
       <p>No options yet.</p>
+    {% endif %}
+
+    {% if search_errors %}
+      <ul role="alert">
+        {% for error in search_errors %}
+          <li>{{ error }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+
+    {% if show_search_form %}
+      {# F8: only the creator of a "Places nearby" room sees this, once per room. #}
+      <form action="{{ url_for('rooms.suggest_places', room_id=room.id) }}" method="post">
+        <h3>Find places nearby</h3>
+
+        <label>
+          Category
+          <select name="category" required>
+            {% for value, text in categories.items() %}
+              <option value="{{ value }}" {% if search_values.get("category") == value %}selected{% endif %}>{{ text }}</option>
+            {% endfor %}
+          </select>
+        </label>
+
+        <label>
+          Radius
+          <select name="radius_m" required>
+            {% for value, text in radius_choices.items() %}
+              <option value="{{ value }}" {% if search_values.get("radius_m", "1000") == value %}selected{% endif %}>{{ text }}</option>
+            {% endfor %}
+          </select>
+        </label>
+
+        <label>
+          Minimum rating
+          <select name="min_rating">
+            <option value="">Any rating</option>
+            {% for value, text in min_rating_choices.items() %}
+              <option value="{{ value }}" {% if search_values.get("min_rating") == value %}selected{% endif %}>{{ text }}</option>
+            {% endfor %}
+          </select>
+        </label>
+
+        <label>
+          Maximum price
+          <select name="max_price_level">
+            <option value="">Any price</option>
+            {% for value, text in price_level_choices.items() %}
+              <option value="{{ value }}" {% if search_values.get("max_price_level") == value %}selected{% endif %}>{{ text }}</option>
+            {% endfor %}
+          </select>
+        </label>
+
+        {# Filled by geolocation.js with rounded coordinates after the tap below. #}
+        <input type="hidden" name="latitude" id="latitude" value="{{ search_values.get('latitude', '') }}">
+        <input type="hidden" name="longitude" id="longitude" value="{{ search_values.get('longitude', '') }}">
+        <button type="button" id="use-location">Use my location</button>
+        <p id="location-status" aria-live="polite">Your location is only used for this search, rounded to about 100 m.</p>
+
+        <button type="submit">Suggest places</button>
+      </form>
+      <script src="{{ url_for('static', filename='js/geolocation.js') }}" defer></script>
     {% endif %}
 
     {% if option_errors %}

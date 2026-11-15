@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}Rate: {{ room.title }} – Einig{% endblock %}
+
+{% block head %}
+  {# Three large buttons, one per line, easy to tap on a phone (AGENTS.md, Mobile). #}
+  <style>
+    .rating-buttons button { display: block; width: 100%; margin-bottom: 0.75rem; }
+  </style>
+{% endblock %}
+
+{% macro rating_form(option_id) %}
+  {# One form per card: the hidden field names the option, the pressed button is the rating. #}
+  <form action="{{ url_for('rooms.save_vote', room_id=room.id) }}" method="post" class="rating-buttons">
+    <input type="hidden" name="option_id" value="{{ option_id }}">
+    {% for value, label in rating_labels.items() %}
+      <button type="submit" name="rating" value="{{ value }}">{{ label }}</button>
+    {% endfor %}
+  </form>
+{% endmacro %}
+
+{% block content %}
+  <h1>{{ room.title }}</h1>
+
+  {% if errors %}
+    <ul role="alert">
+      {% for error in errors %}
+        <li>{{ error }}</li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+
+  {% if room.status == "collecting" %}
+    {% if not_started_message not in errors %}<p>{{ not_started_message }}</p>{% endif %}
+
+  {% elif room.status != "voting" %}
+    {# "closed", or a status a later task adds: no rating outside "voting". #}
+    {% if closed_message not in errors %}<p>{{ closed_message }}</p>{% endif %}
+
+  {% elif not order %}
+    <p>There are no options to rate yet.</p>
+
+  {% elif next_option is not none %}
+    <p>Option {{ position }} of {{ order|length }}</p>
+    <article>
+      <h2>{{ labels[next_option] }}</h2>
+      {{ rating_form(next_option) }}
+    </article>
+
+  {% else %}
+    <p>You have rated all options.</p>
+    <p>You can still change a rating until the room closes.</p>
+    {% for option_id in order %}
+      <article>
+        <h2>{{ labels[option_id] }}</h2>
+        <p>Your rating: {{ rating_labels[own_ratings[option_id]] }}</p>
+        {{ rating_form(option_id) }}
+      </article>
+    {% endfor %}
+  {% endif %}
+
+  <p><a href="{{ url_for('rooms.show_lobby', room_id=room.id) }}">Back to the lobby</a></p>
+{% endblock %}

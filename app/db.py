@@ -243,7 +243,7 @@ def add_participant(room_id: str, nickname: str, session_token: str) -> bool:
 def get_options(room_id: str) -> list[sqlite3.Row | dict]:
     """Return all options of a room in the order they were added."""
     return get_db().execute(
-        "SELECT id, label FROM options WHERE room_id = ? ORDER BY id",
+        "SELECT id, source, label, place_id FROM options WHERE room_id = ? ORDER BY id",
         (room_id,),
     ).fetchall()
 
@@ -290,6 +290,106 @@ def start_voting(room_id: str) -> bool:
             (room_id,),
         )
     return cursor.rowcount == 1
+
+
+def has_google_options(room_id: str) -> bool:
+    """Return True if places from Google have already been saved for this room."""
+    row = get_db().execute(
+        "SELECT 1 FROM options WHERE room_id = ? AND source = 'google' LIMIT 1", (room_id,)
+    ).fetchone()
+    return row is not None
+
+
+def save_google_search(
+    room_id: str,
+    place_ids: list[str],
+    category: str,
+    latitude: float,
+    longitude: float,
+    radius_m: int,
+    filters: str,
+) -> bool:
+    """Save one search for a room: its settings and one option per place id, all or nothing.
+
+    Returns False if another search already claimed the room or the database refuses an insert.
+    """
+    try:
+        with transaction() as connection:
+            # Claim the room first. Only one search can turn radius_m from NULL into a value,
+            # so two searches at the same moment never both save, even with different results.
+            # "status = 'collecting'" also stops a search that was still waiting for Google
+            # while the creator started the voting (A5).
+            claim = connection.execute(
+                "UPDATE rooms SET search_center_lat = ?, search_center_lng = ?, radius_m = ?, filters = ?"
+                " WHERE id = ? AND radius_m IS NULL AND status = 'collecting'",
+                (latitude, longitude, radius_m, filters, room_id),
+            )
+            if claim.rowcount != 1:
+                # Nothing was changed, so leaving the block (and committing nothing) is safe.
+                return False
+            for place_id in place_ids:
+                connection.execute(
+                    "INSERT INTO options (room_id, source, place_id, category)"
+                    " VALUES (?, 'google', ?, ?)",
+                    (room_id, place_id, category),
+                )
+    except INTEGRITY_ERRORS:
+        # A place id that is already an option of this room (UNIQUE room_id, place_id).
+        return False
+    return True
+
+
+def get_rateable_options(room_id: str) -> list[sqlite3.Row | dict]:
+    """Return the options a participant can rate: every option of the room that is not replaced (F13)."""
+    return get_db().execute(
+        "SELECT id, label FROM options WHERE room_id = ? AND is_replaced = 0 ORDER BY id",
+        (room_id,),
+    ).fetchall()
+
+
+def get_own_ratings(participant_id: int) -> dict[int, str]:
+    """Return one participant's ratings as {option_id: rating}. Never used to show other people's votes."""
+    rows = get_db().execute(
+        "SELECT option_id, rating FROM votes WHERE participant_id = ?", (participant_id,)
+    ).fetchall()
+    return {row["option_id"]: row["rating"] for row in rows}
+
+
+def get_votes(room_id: str) -> dict[int, dict[int, str]]:
+    """Return all ratings of a room as {participant_id: {option_id: rating}}.
+
+    This is exactly the shape services/scoring.py takes, so the result page (B3)
+    can pass it to pick_winner() without converting.
+    """
+    rows = get_db().execute(
+        "SELECT participant_id, option_id, rating FROM votes WHERE room_id = ?", (room_id,)
+    ).fetchall()
+    votes: dict[int, dict[int, str]] = {}
+    for row in rows:
+        votes.setdefault(row["participant_id"], {})[row["option_id"]] = row["rating"]
+    return votes
+
+
+def save_vote(room_id: str, participant_id: int, option_id: int, rating: str) -> None:
+    """Save a rating, or replace this participant's earlier rating for the option.
+
+    Call it inside db.transaction(), which commits. One statement that inserts or
+    updates: if another request saved a row for the same option a moment earlier,
+    the UNIQUE (participant_id, option_id) conflict turns into an update instead of
+    an error, so two simultaneous clicks end in one row. Works on SQLite and Postgres.
+    """
+    get_db().execute(
+        "INSERT INTO votes (room_id, participant_id, option_id, rating) VALUES (?, ?, ?, ?)"
+        " ON CONFLICT (participant_id, option_id) DO UPDATE SET rating = excluded.rating",
+        (room_id, participant_id, option_id, rating),
+    )
+
+
+def mark_finished(participant_id: int) -> None:
+    """Mark a participant as done with rating (the lobby, A5, shows who is done). Call inside db.transaction()."""
+    get_db().execute(
+        "UPDATE participants SET has_finished = 1 WHERE id = ?", (participant_id,)
+    )
 
 
 @click.command("init-db")
