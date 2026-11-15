@@ -59,5 +59,14 @@
     {% endfor %}
   {% endif %}
 
+  {% if room.status == "voting" and is_creator %}
+    {# Only the creator sees this; the close route checks the creator flag again (B3). #}
+    <form action="{{ url_for('rooms.close_room', room_id=room.id) }}" method="post">
+      <button type="submit" class="secondary">Close the room and show the result</button>
+    </form>
+  {% elif room.status == "closed" %}
+    <p><a href="{{ url_for('rooms.show_result', room_id=room.id) }}">See the result</a></p>
+  {% endif %}
+
   <p><a href="{{ url_for('rooms.show_lobby', room_id=room.id) }}">Back to the lobby</a></p>
 {% endblock %}

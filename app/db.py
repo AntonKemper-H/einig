@@ -380,19 +380,32 @@ def get_votes(room_id: str) -> dict[int, dict[int, str]]:
     return votes
 
 
-def save_vote(room_id: str, participant_id: int, option_id: int, rating: str) -> None:
+def save_vote(room_id: str, participant_id: int, option_id: int, rating: str) -> bool:
     """Save a rating, or replace this participant's earlier rating for the option.
 
-    Call it inside db.transaction(), which commits. One statement that inserts or
-    updates: if another request saved a row for the same option a moment earlier,
-    the UNIQUE (participant_id, option_id) conflict turns into an update instead of
-    an error, so two simultaneous clicks end in one row. Works on SQLite and Postgres.
+    Returns False (and saves nothing) if the room is no longer voting. Call it
+    inside db.transaction(), which commits.
     """
-    get_db().execute(
+    connection = get_db()
+    # First "touch" the room row. This locks it until the transaction ends, so a vote
+    # and closing the room (B3) never overlap: a vote that started first finishes
+    # before the close reads the votes, and a vote that comes after the close finds
+    # the room closed. SQLite allows one writer at a time; Postgres locks the row.
+    # rowcount works on sqlite3 and psycopg alike (total_changes would be SQLite-only).
+    lock = connection.execute(
+        "UPDATE rooms SET status = status WHERE id = ? AND status = 'voting'", (room_id,)
+    )
+    if lock.rowcount != 1:
+        return False
+    # One statement that inserts or updates: if another request saved a row for the
+    # same option a moment earlier, the UNIQUE (participant_id, option_id) conflict
+    # turns into an update instead of an error, so two simultaneous clicks end in one row.
+    connection.execute(
         "INSERT INTO votes (room_id, participant_id, option_id, rating) VALUES (?, ?, ?, ?)"
         " ON CONFLICT (participant_id, option_id) DO UPDATE SET rating = excluded.rating",
         (room_id, participant_id, option_id, rating),
     )
+    return True
 
 
 def mark_finished(participant_id: int) -> None:
@@ -400,6 +413,47 @@ def mark_finished(participant_id: int) -> None:
     get_db().execute(
         "UPDATE participants SET has_finished = 1 WHERE id = ?", (participant_id,)
     )
+
+
+def get_vetoed_option_ids(room_id: str) -> list[int]:
+    """Return one entry per veto in this room (the same option can appear more than once)."""
+    rows = get_db().execute(
+        "SELECT option_id FROM vetoes WHERE room_id = ?", (room_id,)
+    ).fetchall()
+    return [row["option_id"] for row in rows]
+
+
+def claim_close(room_id: str) -> bool:
+    """Switch the room from voting to closed. Return False if it was not voting (any more).
+
+    Call it inside db.transaction(). "AND status = 'voting'" lets only one close win
+    when two arrive at the same moment; the second UPDATE finds no matching row.
+    """
+    cursor = get_db().execute(
+        "UPDATE rooms SET status = 'closed' WHERE id = ? AND status = 'voting'", (room_id,)
+    )
+    return cursor.rowcount == 1
+
+
+def store_result(room_id: str, winner_option_id: int | None) -> None:
+    """Store the winner (None if there is none) and delete the search centre. Call inside db.transaction().
+
+    Participant coordinates are deleted when a room closes (AGENTS.md, Privacy).
+    Radius and filters stay: they say nothing about where a person is.
+    """
+    get_db().execute(
+        "UPDATE rooms SET winner_option_id = ?, search_center_lat = NULL, search_center_lng = NULL"
+        " WHERE id = ?",
+        (winner_option_id, room_id),
+    )
+
+
+def get_winner_option_id(room_id: str) -> int | None:
+    """Return the stored winner of a closed room, or None."""
+    row = get_db().execute(
+        "SELECT winner_option_id FROM rooms WHERE id = ?", (room_id,)
+    ).fetchone()
+    return row["winner_option_id"] if row else None
 
 
 @click.command("init-db")
