@@ -19,7 +19,7 @@ Pages and forms:
 
 Pure helpers in `app/services/results.py` (type hints, no Flask, no database):
 
-- `close_errors(is_creator, room_status) -> tuple[int, str] | None` – (HTTP status, message) if closing is not allowed, else `None`.
+- `close_errors(is_creator, room_status) -> tuple[int, str] | None` – (HTTP status, message) if closing is not allowed, else `None`. The creator check comes first: a non-creator always gets (403, "Only the creator can close the room."), whatever the status (`voting`, `collecting` or `closed`). For the creator: `collecting` → (400, "Voting has not started yet."); `voting` and `closed` → `None` (a closed room just leads to the result page).
 - `rating_counts(option_ids, votes) -> dict[int, dict[str, int]]` – per option, how many participants actually pressed "yes", "ok" and "no" (unrated options are not counted here; they only count as "ok" inside the score, D11).
 
 Database (`app/db.py`):
