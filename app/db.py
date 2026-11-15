@@ -243,11 +243,70 @@ def add_participant(room_id: str, nickname: str, session_token: str) -> bool:
 
 
 def get_options(room_id: str) -> list[sqlite3.Row | dict]:
-    """Return all options of a room in the order they were added."""
+    """Return the active options of a room in the order they were added.
+
+    Options replaced with "Been there" (F13) are left out everywhere: on the room
+    page, in the lobby's count and in the check before voting starts.
+    """
     return get_db().execute(
-        "SELECT id, source, label, place_id FROM options WHERE room_id = ? ORDER BY id",
+        "SELECT id, source, label, place_id, category FROM options"
+        " WHERE room_id = ? AND is_replaced = 0 ORDER BY id",
         (room_id,),
     ).fetchall()
+
+
+def get_option(room_id: str, option_id: int) -> sqlite3.Row | dict | None:
+    """Return this option if it belongs to this room (also when replaced), or None."""
+    return get_db().execute(
+        "SELECT id, source, place_id, category, is_replaced FROM options"
+        " WHERE id = ? AND room_id = ?",
+        (option_id, room_id),
+    ).fetchone()
+
+
+def count_replaced_options(room_id: str) -> int:
+    """How many options of this room were replaced with "Been there" (F13)."""
+    row = get_db().execute(
+        "SELECT COUNT(*) AS replaced FROM options WHERE room_id = ? AND is_replaced = 1",
+        (room_id,),
+    ).fetchone()
+    return row["replaced"]
+
+
+def get_room_place_ids(room_id: str) -> list[str]:
+    """Return every Google place id this room has had, active and replaced (F13)."""
+    rows = get_db().execute(
+        "SELECT place_id FROM options WHERE room_id = ? AND place_id IS NOT NULL", (room_id,)
+    ).fetchall()
+    return [row["place_id"] for row in rows]
+
+
+def replace_option(room_id: str, option_id: int, place_id: str, category: str) -> bool:
+    """F13: mark the option as replaced and add the new place, both or neither.
+
+    Returns False if the option was already replaced or the room stopped collecting
+    (another request was first). Raises one of INTEGRITY_ERRORS if the database
+    refuses the new place; the transaction is then rolled back, so the old option
+    is active again.
+    """
+    with transaction() as connection:
+        # The claim: only one request can turn is_replaced from 0 into 1, so two
+        # presses at the same moment never add two new places for one old one.
+        claim = connection.execute(
+            "UPDATE options SET is_replaced = 1"
+            " WHERE id = ? AND room_id = ? AND is_replaced = 0"
+            " AND EXISTS (SELECT 1 FROM rooms WHERE rooms.id = options.room_id"
+            " AND rooms.status = 'collecting')",
+            (option_id, room_id),
+        )
+        if claim.rowcount != 1:
+            # Nothing was changed, so leaving the block (and committing nothing) is safe.
+            return False
+        connection.execute(
+            "INSERT INTO options (room_id, source, place_id, category) VALUES (?, 'google', ?, ?)",
+            (room_id, place_id, category),
+        )
+    return True
 
 
 def get_option_labels(room_id: str) -> list[str]:
