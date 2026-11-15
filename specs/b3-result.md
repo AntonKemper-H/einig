@@ -25,7 +25,7 @@ Pure helpers in `app/services/results.py` (type hints, no Flask, no database):
 Database (`app/db.py`):
 
 - `get_vetoed_option_ids(room_id) -> list[int]` – one entry per row in `vetoes` (B4 adds the joker button; B3 already respects vetoes that exist).
-- `claim_close(room_id) -> bool` – `UPDATE rooms SET status = 'closed' WHERE id = ? AND status = 'voting'`; `True` if it changed one row.
+- `claim_close(room_id) -> bool` – `UPDATE rooms SET status = 'closed' WHERE id = ? AND status = 'voting'`; `True` if it changed one row, read from `cursor.rowcount` of that `UPDATE` (works on `sqlite3` and psycopg; `total_changes` or `SELECT changes()` would be SQLite-only).
 - `store_result(room_id, winner_option_id)` – stores `winner_option_id` (NULL if there is no winner) and sets `search_center_lat` and `search_center_lng` to NULL (`AGENTS.md`, Privacy: participant coordinates are deleted when a room closes).
 - `get_winner_option_id(room_id) -> int | None` – the stored winner.
 
@@ -33,7 +33,7 @@ The close route runs these steps in **one** `db.transaction()`, in this order (S
 1. `claim_close`; if it returns `False` (someone else closed the room a moment earlier), nothing is changed and the route redirects to the result page;
 2. only then read the votes and vetoes and call `pick_winner(rateable option ids, db.get_votes(room_id), db.get_vetoed_option_ids(room_id), rng=random.Random(room_id))`;
 3. `store_result`.
-- `save_vote` (B2) changes to return `bool`: in the same transaction it first runs `UPDATE rooms SET status = status WHERE id = ? AND status = 'voting'`, and only if that changed one row does it run the upsert. This locks the room row, so a vote and a close never overlap: a vote that started first finishes before the close reads the votes, and a vote that comes after the close finds the room closed. Works the same on SQLite (one writer at a time) and Postgres (row lock). If it returns `False`, the route shows "This room is closed. You can no longer vote." (400) and nothing is saved.
+- `save_vote` (B2) changes to return `bool`: in the same transaction it first runs `UPDATE rooms SET status = status WHERE id = ? AND status = 'voting'`, and only if that changed one row does it run the upsert. This locks the room row, so a vote and a close never overlap: a vote that started first finishes before the close reads the votes, and a vote that comes after the close finds the room closed. Works the same on SQLite (one writer at a time) and Postgres (row lock). Its `bool` also comes from `cursor.rowcount` of the `UPDATE`. If it returns `False`, the route immediately returns "This room is closed. You can no longer vote." (400) without calling `get_own_ratings` or `mark_finished`, so a rejected vote changes nothing at all.
 
 Must be true (one line = one test):
 
