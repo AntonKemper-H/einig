@@ -22,11 +22,11 @@ Each line is one task: own spec in `specs/`, own branch, own pull request, fresh
 
 ### Track A – Rooms & participants (owns the database schema) – AntonKemper-H
 
-- [ ] A1 Database schema: rooms, participants, options, votes, vetoes (`docs/concept.md` §7)
-- [ ] A2 F1 Create a room
-- [ ] A3 F2 Join without an account
-- [ ] A4 F3 Add options manually
-- [ ] A5 F7 Lobby with room status (meta refresh), including the creator's "Start voting" (collecting → voting)
+- [x] A1 Database schema: rooms, participants, options, votes, vetoes (`docs/concept.md` §7) (PR #5)
+- [x] A2 F1 Create a room (PR #8)
+- [x] A3 F2 Join without an account (PR #9)
+- [x] A4 F3 Add options manually (PR #14)
+- [x] A5 F7 Lobby with room status (meta refresh), including the creator's "Start voting" (collecting → voting) (PR #15)
 - [ ] A6 F22 QR code
 
 ### Track B – Voting & result – Timonhio
