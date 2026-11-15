@@ -1,10 +1,21 @@
-"""Room pages: create a room (F1), show and join it (F2), add options (F3), lobby and start voting (F7)."""
+"""Room pages: create a room (F1), show and join it (F2), add options (F3),
+lobby and start voting (F7), suggest places nearby (F8)."""
 
-from flask import Blueprint, abort, redirect, render_template, request, session, url_for
+from flask import (
+    Blueprint,
+    abort,
+    current_app,
+    redirect,
+    render_template,
+    request,
+    session,
+    url_for,
+)
 
 from app import db
 from app.services import lobby as lobby_rules
 from app.services import options as option_rules
+from app.services import places
 from app.services import rooms as room_rules
 
 bp = Blueprint("rooms", __name__)
@@ -14,6 +25,10 @@ JOIN_COLLISION_MESSAGE = "Something went wrong while joining. Please try again."
 NOT_JOINED_MESSAGE = "Please join the room before adding options."
 OPTION_REFUSED_MESSAGE = "Something went wrong while adding the option. Please try again."
 ONLY_CREATOR_MESSAGE = "Only the creator can start the voting."
+PLACES_UNAVAILABLE_MESSAGE = (
+    "Place suggestions are not available right now. You can still add options yourself."
+)
+NO_PLACES_FOUND_MESSAGE = "No places found. Try a larger radius or fewer filters."
 
 
 def session_token_for(room_id: str) -> str | None:
@@ -36,11 +51,20 @@ def render_room_page(
     errors: list[str] | None = None,
     option_label: str = "",
     option_errors: list[str] | None = None,
+    search_values=None,
+    search_errors: list[str] | None = None,
 ):
-    """Render the room page: join form for visitors; options and add form for participants."""
+    """Render the room page: join form for visitors; options, add form and place search for participants."""
     invite_url = url_for("rooms.show_room", room_id=room["id"], _external=True)
     # Only participants may see the options, so visitors get an empty list.
     options = db.get_options(room["id"]) if participant else []
+    # The search form uses the same rules as the route, so it is shown exactly when a search is allowed.
+    show_search_form = participant is not None and places.search_refusal(
+        bool(participant["is_creator"]),
+        room["mode"],
+        room["status"],
+        db.has_google_options(room["id"]),
+    ) is None
     return render_template(
         "room.html",
         room=room,
@@ -51,6 +75,13 @@ def render_room_page(
         options=options,
         option_label=option_label,
         option_errors=option_errors or [],
+        show_search_form=show_search_form,
+        search_values=search_values or {},
+        search_errors=search_errors or [],
+        categories=places.CATEGORIES,
+        radius_choices=places.RADIUS_CHOICES,
+        min_rating_choices=places.MIN_RATING_CHOICES,
+        price_level_choices=places.PRICE_LEVEL_CHOICES,
     )
 
 
@@ -200,3 +231,74 @@ def start_voting(room_id: str):
         return render_lobby(room, participant, [lobby_rules.ALREADY_STARTED_MESSAGE]), 400
 
     return redirect(url_for("rooms.show_lobby", room_id=room_id), code=303)
+
+
+@bp.post("/rooms/<room_id>/suggest")
+def suggest_places(room_id: str):
+    """F8: the creator searches places nearby once; they are saved as options (Post/Redirect/Get)."""
+    room = db.get_room(room_id)
+    if room is None:
+        abort(404)
+
+    # Permission check on the server: hiding the form is not enough.
+    participant = db.get_participant(room_id, session_token_for(room_id))
+    if participant is None:
+        return render_room_page(room, None, errors=[NOT_JOINED_MESSAGE]), 403
+
+    refusal = places.search_refusal(
+        bool(participant["is_creator"]),
+        room["mode"],
+        room["status"],
+        db.has_google_options(room_id),
+    )
+    if refusal is not None:
+        status_code, message = refusal
+        return render_room_page(room, participant, search_errors=[message]), status_code
+
+    def show_search_again(messages: list[str], status_code: int):
+        """The room page with the entered search values and the messages."""
+        return render_room_page(
+            room,
+            participant,
+            search_values=places.values_to_show_again(request.form),
+            search_errors=messages,
+        ), status_code
+
+    search, errors = places.validate_search(request.form)
+    if errors:
+        return show_search_again(errors, 400)
+
+    # Without a key the app still works with manual options (docs/decisions.md, D6).
+    api_key = current_app.config.get("GOOGLE_MAPS_API_KEY")
+    if not api_key:
+        return show_search_again([PLACES_UNAVAILABLE_MESSAGE], 503)
+    try:
+        place_ids = places.search_nearby(
+            api_key=api_key,
+            latitude=search["latitude"],
+            longitude=search["longitude"],
+            radius_m=search["radius_m"],
+            category=search["category"],
+            max_price_level=search["max_price_level"],
+            min_rating=search["min_rating"],
+        )
+    except places.PlacesError:
+        return show_search_again([PLACES_UNAVAILABLE_MESSAGE], 503)
+
+    if not place_ids:
+        return show_search_again([NO_PLACES_FOUND_MESSAGE], 200)
+
+    saved = db.save_google_search(
+        room_id,
+        place_ids,
+        search["category"],
+        search["latitude"],
+        search["longitude"],
+        search["radius_m"],
+        places.filters_json(search),
+    )
+    if not saved:
+        # Another search claimed the room a moment earlier.
+        return show_search_again([places.ALREADY_SUGGESTED_MESSAGE], 400)
+
+    return redirect(url_for("rooms.show_room", room_id=room_id), code=303)
