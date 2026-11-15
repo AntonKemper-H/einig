@@ -46,8 +46,7 @@ Each line is one task: own spec in `specs/`, own branch, own pull request, fresh
   - [x] C2b Cards with name, photo, rating, price, distance + photo proxy (PR #18)
 - [ ] C3 F9 Map and route to the winner
   - [ ] Spec and failing tests in review (PR #24); implementation after B3 (#19) is merged
-- [ ] C4 F12 Surprise mode
-  - [ ] Spec and failing tests in review (PR #27); implementation after the review
+- [x] C4 F12 Surprise mode (PR #27)
 - [ ] C5 F13 "Been there"
 
 ### Dependencies
