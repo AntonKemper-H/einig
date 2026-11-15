@@ -50,7 +50,7 @@ Every function that uses chance takes an `rng` (a `random.Random`), so tests can
 1. `choose_subcategories(category, rng)` once; every round searches the same sub-categories.
 2. One round = one `places.search_nearby(...)` call per sub-category, in that order, with the sub-category as `category` and the same centre, radius, `max_price_level` and `min_rating` (C2a's call and filters, unchanged: `maxResultCount` 15, field mask, timeout 5 s).
 3. If the round found at least `SURPRISE_OPTION_COUNT` different places, stop. Otherwise, if fewer than `MAX_WIDENINGS` widenings were made, set `radius_m = widened_radius(radius_m)` and run another round. After `MAX_WIDENINGS` widenings, stop with what the last round found.
-4. `choices = pick_varied(<results of the last round>, SURPRISE_OPTION_COUNT, rng)`. Only the last round counts: it searched the largest circle, so it contains everything the earlier rounds found (and the stored radius then matches the options).
+4. `choices = pick_varied(<results of the last round>, SURPRISE_OPTION_COUNT, rng)`. Only the last round counts: it searched the largest circle and found the most places, and the stored radius then matches the options. (It does not always contain every earlier place: with `maxResultCount` 15, a larger circle can push some of them out of the top 15. That does not matter for the result; reworded after review of #27.)
 5. **Any `PlacesError` from any call stops everything at once** and is raised (no further calls, no partial result). Why: at most 4 × 4 = 16 calls; after a timeout, waiting for 15 more would take longer than the server allows (gunicorn, 30 s), and a half-finished search would be confusing.
 
 At most `SUBCATEGORIES_PER_SEARCH × (MAX_WIDENINGS + 1) = 16` Google calls per room, usually 4.
