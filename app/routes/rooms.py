@@ -1,5 +1,7 @@
 """Room pages: create a room (F1), show and join it (F2), add options (F3),
-lobby and start voting (F7), suggest places nearby (F8), rating (F4)."""
+lobby and start voting (F7), suggest places nearby (F8), surprise mode (F12), rating (F4)."""
+
+import random
 
 from flask import (
     Blueprint,
@@ -17,6 +19,7 @@ from app.services import lobby as lobby_rules
 from app.services import options as option_rules
 from app.services import places
 from app.services import rooms as room_rules
+from app.services import surprise
 from app.services import voting as voting_rules
 
 bp = Blueprint("rooms", __name__)
@@ -71,12 +74,20 @@ def render_room_page(
         room["search_center_lng"],
     )
     # The search form uses the same rules as the route, so it is shown exactly when a search is allowed.
-    show_search_form = participant is not None and places.search_refusal(
-        bool(participant["is_creator"]),
-        room["mode"],
-        room["status"],
-        db.has_google_options(room["id"]),
-    ) is None
+    show_search_form = False
+    show_surprise_form = False
+    if participant is not None:
+        already_suggested = db.has_google_options(room["id"])
+        show_search_form = places.search_refusal(
+            bool(participant["is_creator"]), room["mode"], room["status"], already_suggested
+        ) is None
+        show_surprise_form = surprise.surprise_refusal(
+            bool(participant["is_creator"]), room["mode"], room["status"], already_suggested
+        ) is None
+    # F12: tell the group if the surprise search had to widen the radius (participants only).
+    widened_to = None
+    if participant is not None:
+        widened_to = surprise.widened_to_text(room["mode"], room["radius_m"], room["filters"])
     return render_template(
         "room.html",
         room=room,
@@ -88,6 +99,9 @@ def render_room_page(
         option_label=option_label,
         option_errors=option_errors or [],
         show_search_form=show_search_form,
+        show_surprise_form=show_surprise_form,
+        surprise_categories=surprise.CATEGORY_LABELS,
+        widened_to=widened_to,
         search_values=search_values or {},
         search_errors=search_errors or [],
         categories=places.CATEGORIES,
@@ -312,6 +326,76 @@ def suggest_places(room_id: str):
     if not saved:
         # Another search claimed the room a moment earlier.
         return show_search_again([places.ALREADY_SUGGESTED_MESSAGE], 400)
+
+    return redirect(url_for("rooms.show_room", room_id=room_id), code=303)
+
+
+@bp.post("/rooms/<room_id>/surprise")
+def surprise_places(room_id: str):
+    """F12: the creator runs the surprise search once; a varied mix is saved as options (Post/Redirect/Get)."""
+    room = db.get_room(room_id)
+    if room is None:
+        abort(404)
+
+    # Permission check on the server: hiding the form is not enough.
+    participant = db.get_participant(room_id, session_token_for(room_id))
+    if participant is None:
+        return render_room_page(room, None, errors=[NOT_JOINED_MESSAGE]), 403
+
+    refusal = surprise.surprise_refusal(
+        bool(participant["is_creator"]),
+        room["mode"],
+        room["status"],
+        db.has_google_options(room_id),
+    )
+    if refusal is not None:
+        status_code, message = refusal
+        return render_room_page(room, participant, search_errors=[message]), status_code
+
+    def show_form_again(messages: list[str], status_code: int):
+        """The room page with the entered values and the messages."""
+        return render_room_page(
+            room,
+            participant,
+            search_values=places.values_to_show_again(request.form),
+            search_errors=messages,
+        ), status_code
+
+    search, errors = surprise.validate_surprise(request.form)
+    if errors:
+        return show_form_again(errors, 400)
+
+    api_key = current_app.config.get("GOOGLE_MAPS_API_KEY")
+    if not api_key:
+        return show_form_again([PLACES_UNAVAILABLE_MESSAGE], 503)
+    try:
+        result = surprise.surprise_search(
+            api_key=api_key,
+            latitude=search["latitude"],
+            longitude=search["longitude"],
+            radius_m=search["radius_m"],
+            category=search["category"],
+            max_price_level=search["max_price_level"],
+            min_rating=search["min_rating"],
+            rng=random.Random(),
+        )
+    except places.PlacesError:
+        return show_form_again([PLACES_UNAVAILABLE_MESSAGE], 503)
+
+    if not result["choices"]:
+        return show_form_again([NO_PLACES_FOUND_MESSAGE], 200)
+
+    saved = db.save_search(
+        room_id,
+        result["choices"],
+        search["latitude"],
+        search["longitude"],
+        result["radius_m"],
+        surprise.filters_json(search),
+    )
+    if not saved:
+        # Another search claimed the room a moment earlier.
+        return show_form_again([places.ALREADY_SUGGESTED_MESSAGE], 400)
 
     return redirect(url_for("rooms.show_room", room_id=room_id), code=303)
 
