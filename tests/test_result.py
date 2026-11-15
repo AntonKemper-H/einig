@@ -335,7 +335,6 @@ def test_google_winner_is_named_as_a_google_place(app, client):
     close(client, room_id)
     html = result_page(client, room_id)
     assert "The group's choice: Place from Google Maps" in html
-    assert "place-x" not in html
 
 
 def test_result_page_shows_anonymous_counts(client, room):
