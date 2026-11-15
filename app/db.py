@@ -243,7 +243,7 @@ def add_participant(room_id: str, nickname: str, session_token: str) -> bool:
 def get_options(room_id: str) -> list[sqlite3.Row]:
     """Return all options of a room in the order they were added."""
     return get_db().execute(
-        "SELECT id, label FROM options WHERE room_id = ? ORDER BY id",
+        "SELECT id, source, label, place_id FROM options WHERE room_id = ? ORDER BY id",
         (room_id,),
     ).fetchall()
 
@@ -267,6 +267,51 @@ def add_manual_option(room_id: str, label: str) -> bool:
             )
     except sqlite3.IntegrityError:
         # The same label saved by another request a moment earlier (UNIQUE room_id, label).
+        return False
+    return True
+
+
+def has_google_options(room_id: str) -> bool:
+    """Return True if places from Google have already been saved for this room."""
+    row = get_db().execute(
+        "SELECT 1 FROM options WHERE room_id = ? AND source = 'google' LIMIT 1", (room_id,)
+    ).fetchone()
+    return row is not None
+
+
+def save_google_search(
+    room_id: str,
+    place_ids: list[str],
+    category: str,
+    latitude: float,
+    longitude: float,
+    radius_m: int,
+    filters: str,
+) -> bool:
+    """Save one search for a room: its settings and one option per place id, all or nothing.
+
+    Returns False if another search already claimed the room or the database refuses an insert.
+    """
+    try:
+        with transaction() as connection:
+            # Claim the room first. Only one search can turn radius_m from NULL into a value,
+            # so two searches at the same moment never both save, even with different results.
+            claim = connection.execute(
+                "UPDATE rooms SET search_center_lat = ?, search_center_lng = ?, radius_m = ?, filters = ?"
+                " WHERE id = ? AND radius_m IS NULL",
+                (latitude, longitude, radius_m, filters, room_id),
+            )
+            if claim.rowcount != 1:
+                # Nothing was changed, so leaving the block (and committing nothing) is safe.
+                return False
+            for place_id in place_ids:
+                connection.execute(
+                    "INSERT INTO options (room_id, source, place_id, category)"
+                    " VALUES (?, 'google', ?, ?)",
+                    (room_id, place_id, category),
+                )
+    except INTEGRITY_ERRORS:
+        # A place id that is already an option of this room (UNIQUE room_id, place_id).
         return False
     return True
 

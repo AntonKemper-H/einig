@@ -21,6 +21,9 @@ def create_app(test_config: dict | None = None) -> Flask:
         # Real run: read .env locally (on the host, variables are set in its settings).
         load_dotenv()
         app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY")
+        # Server-only key for the Places API. May be empty: then the app still works with
+        # manual options and shows a friendly message instead of searching (C2a).
+        app.config["GOOGLE_MAPS_API_KEY"] = os.environ.get("GOOGLE_MAPS_API_KEY", "").strip()
         # Deployed: hosted Postgres from the secret DATABASE_URL (Render's disk is wiped on
         # every restart). Locally the variable is empty, so a SQLite file is used instead.
         database_url = os.environ.get("DATABASE_URL", "").strip()
