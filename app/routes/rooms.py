@@ -1,5 +1,6 @@
 """Room pages: create a room (F1), show and join it (F2), add options (F3),
-lobby and start voting (F7), suggest places nearby (F8), surprise mode (F12), rating (F4)."""
+lobby and start voting (F7), suggest places nearby (F8), surprise mode (F12), rating (F4),
+close the room and show the result (F6)."""
 
 import random
 
@@ -18,8 +19,10 @@ from app import db
 from app.services import lobby as lobby_rules
 from app.services import options as option_rules
 from app.services import places, surprise
+from app.services import results as result_rules
 from app.services import rooms as room_rules
 from app.services import voting as voting_rules
+from app.services.scoring import pick_winner
 
 bp = Blueprint("rooms", __name__)
 
@@ -423,6 +426,8 @@ def render_vote_page(room, participant, errors: list[str] | None = None):
         not_started_message=voting_rules.NOT_STARTED_MESSAGE,
         closed_message=voting_rules.CLOSED_MESSAGE,
         errors=errors or [],
+        # Only the creator gets the close button (B3); the close route checks it again.
+        is_creator=bool(participant["is_creator"]),
     )
 
 
@@ -461,7 +466,10 @@ def save_vote(room_id: str):
     try:
         # One transaction: the vote and the "done" flag are saved together, or not at all.
         with db.transaction():
-            db.save_vote(room_id, participant["id"], option_id, rating)
+            if not db.save_vote(room_id, participant["id"], option_id, rating):
+                # The room was closed between the status check above and this write (B3).
+                # Return at once: a rejected vote must not change anything else either.
+                return render_vote_page(room, participant, [voting_rules.CLOSED_MESSAGE]), 400
             rated_ids = set(db.get_own_ratings(participant["id"]))
             if voting_rules.has_rated_all(rateable_ids, rated_ids):
                 db.mark_finished(participant["id"])
@@ -470,3 +478,66 @@ def save_vote(room_id: str):
         return render_vote_page(room, participant, [VOTE_REFUSED_MESSAGE]), 400
 
     return redirect(url_for("rooms.show_vote", room_id=room_id), code=303)
+
+
+@bp.post("/rooms/<room_id>/close")
+def close_room(room_id: str):
+    """F6: the creator closes the room; the winner is chosen once and stored (Post/Redirect/Get)."""
+    room = db.get_room(room_id)
+    if room is None:
+        abort(404)
+
+    # Creator-only action, checked on the server: hiding the button is not enough.
+    participant = db.get_participant(room_id, session_token_for(room_id))
+    if participant is None:
+        return render_room_page(room, None, errors=[result_rules.ONLY_CREATOR_MESSAGE]), 403
+    refusal = result_rules.close_errors(bool(participant["is_creator"]), room["status"])
+    if refusal is not None:
+        status_code, message = refusal
+        return render_vote_page(room, participant, [message]), status_code
+
+    if room["status"] == "voting":
+        # One transaction, in this order: claim the room, then read the votes, then store.
+        # Because the claim comes first, no vote can be added after the votes are read
+        # (save_vote locks the same room row), and only one close can win.
+        with db.transaction():
+            if db.claim_close(room_id):
+                option_ids = [option["id"] for option in db.get_rateable_options(room_id)]
+                winner = pick_winner(
+                    option_ids,
+                    db.get_votes(room_id),
+                    db.get_vetoed_option_ids(room_id),
+                    # Seeded with the room id: a full tie gives the same winner for this room.
+                    rng=random.Random(room_id),
+                )
+                db.store_result(room_id, winner)
+            # If the claim failed, someone else closed the room a moment earlier: their
+            # stored result stays and we simply show it.
+
+    # Closing again (or a lost claim) is idempotent: show the existing result.
+    return redirect(url_for("rooms.show_result", room_id=room_id), code=303)
+
+
+@bp.get("/rooms/<room_id>/result")
+def show_result(room_id: str):
+    """F6: the winner and anonymous counts per option. Who rated what is never shown."""
+    room = db.get_room(room_id)
+    if room is None:
+        abort(404)
+    participant = db.get_participant(room_id, session_token_for(room_id))
+    if participant is None:
+        # Visitors join first; the join form is on the room page.
+        return redirect(url_for("rooms.show_room", room_id=room_id), code=303)
+
+    options = db.get_rateable_options(room_id)
+    # Google options have no stored name (Google terms); C3 shows the winner's real name.
+    labels = {option["id"]: option["label"] or GOOGLE_OPTION_LABEL for option in options}
+    counts = result_rules.rating_counts(list(labels), db.get_votes(room_id))
+    return render_template(
+        "result.html",
+        room=room,
+        labels=labels,
+        counts=counts,
+        winner_option_id=db.get_winner_option_id(room_id),
+        rating_labels=voting_rules.RATING_LABELS,
+    )
