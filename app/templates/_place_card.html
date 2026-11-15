@@ -1,0 +1,27 @@
+{# One Google place as a card (C2b, specs/c2b-place-cards.md).
+   Usage: {% from "_place_card.html" import place_card %} … {{ place_card(card) }}
+   `card` comes from services/places.py build_card() / load_cards().
+   Everything from Google is escaped by Jinja, so a name can never become HTML. #}
+{% macro place_card(card) %}
+  <article>
+    <h3>{{ card.name }}</h3>
+    {% if card.details_missing %}
+      <p>Details are not available right now.</p>
+    {% else %}
+      {% if card.photo_name %}
+        <img src="{{ url_for('pwa.photo', photo_name=card.photo_name) }}" alt="Photo of {{ card.name }}" loading="lazy">
+        {% if card.photo_author %}
+          <small>Photo:
+            {% if card.photo_author_uri %}<a href="{{ card.photo_author_uri }}" target="_blank" rel="noopener noreferrer">{{ card.photo_author }}</a>{% else %}{{ card.photo_author }}{% endif %}
+          </small>
+        {% endif %}
+      {% endif %}
+      {# Only the facts Google sent, so there are never empty " · " separators. #}
+      {% set facts = [card.rating_text, card.price_text, card.distance_text] | select | list %}
+      {% if facts %}
+        <p>{{ facts | join(" · ") }}</p>
+      {% endif %}
+      <small>Google Maps</small>
+    {% endif %}
+  </article>
+{% endmacro %}

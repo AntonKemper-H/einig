@@ -202,7 +202,8 @@ def create_room_with_creator(
 def get_room(room_id: str) -> sqlite3.Row | dict | None:
     """Return the room with this id, or None if it does not exist."""
     return get_db().execute(
-        "SELECT id, title, mode, status FROM rooms WHERE id = ?", (room_id,)
+        "SELECT id, title, mode, status, search_center_lat, search_center_lng FROM rooms WHERE id = ?",
+        (room_id,),
     ).fetchone()
 
 
@@ -296,6 +297,15 @@ def has_google_options(room_id: str) -> bool:
     """Return True if places from Google have already been saved for this room."""
     row = get_db().execute(
         "SELECT 1 FROM options WHERE room_id = ? AND source = 'google' LIMIT 1", (room_id,)
+    ).fetchone()
+    return row is not None
+
+
+def room_has_google_place(room_id: str, place_id: str) -> bool:
+    """Return True if this place is a Google option of this room (used by the photo proxy)."""
+    row = get_db().execute(
+        "SELECT 1 FROM options WHERE room_id = ? AND source = 'google' AND place_id = ? LIMIT 1",
+        (room_id, place_id),
     ).fetchone()
     return row is not None
 
