@@ -202,7 +202,8 @@ def create_room_with_creator(
 def get_room(room_id: str) -> sqlite3.Row | dict | None:
     """Return the room with this id, or None if it does not exist."""
     return get_db().execute(
-        "SELECT id, title, mode, status, search_center_lat, search_center_lng FROM rooms WHERE id = ?",
+        "SELECT id, title, mode, status, search_center_lat, search_center_lng, radius_m, filters"
+        " FROM rooms WHERE id = ?",
         (room_id,),
     ).fetchone()
 
@@ -319,8 +320,25 @@ def save_google_search(
     radius_m: int,
     filters: str,
 ) -> bool:
-    """Save one search for a room: its settings and one option per place id, all or nothing.
+    """Save one "Places nearby" search (C2a): every place gets the same category.
 
+    Returns False if another search already claimed the room or the database refuses an insert.
+    """
+    places_with_category = [(place_id, category) for place_id in place_ids]
+    return save_search(room_id, places_with_category, latitude, longitude, radius_m, filters)
+
+
+def save_search(
+    room_id: str,
+    places_with_category: list[tuple[str, str]],
+    latitude: float,
+    longitude: float,
+    radius_m: int,
+    filters: str,
+) -> bool:
+    """Save one search for a room: its settings and one option per (place id, category), all or nothing.
+
+    Used by C2a (one category) and C4 surprise mode (one sub-category per place).
     Returns False if another search already claimed the room or the database refuses an insert.
     """
     try:
@@ -337,7 +355,7 @@ def save_google_search(
             if claim.rowcount != 1:
                 # Nothing was changed, so leaving the block (and committing nothing) is safe.
                 return False
-            for place_id in place_ids:
+            for place_id, category in places_with_category:
                 connection.execute(
                     "INSERT INTO options (room_id, source, place_id, category)"
                     " VALUES (?, 'google', ?, ?)",

@@ -55,7 +55,7 @@ Must be true (one line = one test):
 - [ ] `claim_close` returns `True` once for a `voting` room and `False` the second time, and `False` for a `collecting` room.
 
 ### Result page
-- [ ] Closed room with a winner: the page names the winner ("The group's choice: Pizza"); a Google option is named "Place from Google Maps" until C2b.
+- [ ] Closed room with a winner: the page names the winner ("The group's choice: Pizza"); a Google option is named "Place from Google Maps" until C3 shows its real name (C3, #24).
 - [ ] For every rateable option the page shows the anonymous counts, e.g. "2× Rather yes · 1× Fine with me · 0× Rather not".
 - [ ] Closed room without a winner: "No winner: nobody rated any option."
 - [ ] A room that is not closed yet: "The result is shown once the room is closed." and a link to the lobby (status 200), no winner shown.
