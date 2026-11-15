@@ -4,7 +4,7 @@ Branch: `feature-c1b-proxy-https`
 Tests: `tests/test_proxy_headers.py`
 
 ## Why
-Render ends HTTPS at its proxy and talks plain http to the app, so `url_for(..., _external=True)` builds the invite link (A2) as `http://nod-lqeq.onrender.com/rooms/…`. The link works but costs every guest a redirect from http to https, and the QR code from A6 (PR #16) encodes the same URL. The app must therefore read the scheme and host from Render's `X-Forwarded-*` headers – but only when it is told it runs behind exactly one proxy, because otherwise any client could send these headers itself and fake the scheme and host.
+Render ends HTTPS at its proxy and talks plain http to the app, so `url_for(..., _external=True)` builds the invite link (A2) as `http://nod-lqeq.onrender.com/rooms/…`. The link works but costs every guest a redirect from http to https, and the QR code from A6 (PR #16) encodes the same URL. The app must therefore read the scheme from Render's `X-Forwarded-Proto` header – but only when it is told it runs behind exactly one proxy, because otherwise any client could send the header itself and fake the scheme.
 
 Measured on `main` with the test client before this task:
 - proxy headers not read, `X-Forwarded-Proto: https` → `http://nod-lqeq.onrender.com/…`
@@ -21,9 +21,9 @@ Measured on `main` with the test client before this task:
 - [ ] Tests set the switch only through the test config (`{"TRUST_PROXY_HEADERS": True}`); the environment is ignored there, as for every other setting.
 
 ### Switch on (deployed on Render)
-- [ ] The app wraps its WSGI app in `werkzeug.middleware.proxy_fix.ProxyFix` with `x_for=1, x_proto=1, x_host=1` (exactly one proxy in front). werkzeug comes with Flask, so there is no new dependency.
+- [ ] The app wraps its WSGI app in `werkzeug.middleware.proxy_fix.ProxyFix` with `x_proto=1` and `x_for=0, x_host=0` (exactly one proxy in front). werkzeug comes with Flask, so there is no new dependency. Only `X-Forwarded-Proto` is trusted (review of PR #21): Render sets it, but it appends to a client's `X-Forwarded-For` instead of replacing it, and the `Host` header already arrives as `nod-lqeq.onrender.com`. The app uses neither the client IP nor a custom host, so nothing is lost.
 - [ ] Accepted: a request with `X-Forwarded-Proto: https` and `Host: nod-lqeq.onrender.com` shows the invite link `https://nod-lqeq.onrender.com/rooms/<room_id>` on the room page, and no `http://` invite link.
-- [ ] Accepted: `X-Forwarded-Host` is used as the host of the invite link.
+- [ ] Rejected: `X-Forwarded-Host: evil.example` is ignored even with the switch on: the invite link keeps the `Host` header (`https://nod-lqeq.onrender.com/rooms/<room_id>`) and never mentions `evil.example`.
 - [ ] Edge case: without any `X-Forwarded-*` header the invite link stays `http://localhost/rooms/<room_id>`, as before.
 - [ ] The invite link in the text field, in the link target (`href`) and in the link text is the same URL. The QR code from A6 is built from this same `invite_url` value, so it follows automatically; its own test belongs to A6 (PR #16), not to this task.
 

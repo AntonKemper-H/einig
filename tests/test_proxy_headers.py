@@ -93,12 +93,12 @@ def test_tests_ignore_the_environment(tmp_path, monkeypatch):
 
 # --- Switch on (deployed on Render) -------------------------------------------
 
-def test_switch_on_wraps_app_in_proxy_fix_for_exactly_one_proxy(tmp_path):
+def test_switch_on_wraps_app_in_proxy_fix_trusting_only_the_scheme(tmp_path):
     app = make_app(tmp_path, trust_proxy_headers=True)
     assert isinstance(app.wsgi_app, ProxyFix)
-    assert app.wsgi_app.x_for == 1
     assert app.wsgi_app.x_proto == 1
-    assert app.wsgi_app.x_host == 1
+    assert app.wsgi_app.x_for == 0
+    assert app.wsgi_app.x_host == 0
 
 
 def test_switch_on_forwarded_https_gives_https_invite_link(tmp_path):
@@ -110,13 +110,14 @@ def test_switch_on_forwarded_https_gives_https_invite_link(tmp_path):
     assert f"http://{RENDER_HOST}/rooms/{room_id}" not in html
 
 
-def test_switch_on_forwarded_host_is_used_in_invite_link(tmp_path):
+def test_switch_on_forwarded_host_is_ignored(tmp_path):
     client = make_app(tmp_path, trust_proxy_headers=True).test_client()
-    headers = {**HTTPS_HEADERS, "X-Forwarded-Host": RENDER_HOST}
-    room_id = create_room(client, headers)
-    html = room_page(client, room_id, headers)
+    base_url = f"http://{RENDER_HOST}"
+    headers = {**HTTPS_HEADERS, "X-Forwarded-Host": "evil.example"}
+    room_id = create_room(client, headers, base_url)
+    html = room_page(client, room_id, headers, base_url)
     assert f"https://{RENDER_HOST}/rooms/{room_id}" in html
-    assert "localhost" not in html
+    assert "evil.example" not in html
 
 
 def test_switch_on_without_headers_keeps_local_http_link(tmp_path):
