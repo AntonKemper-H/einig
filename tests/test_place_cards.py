@@ -42,7 +42,10 @@ class FakeGet:
 
     def __call__(self, url, **kwargs):
         self.calls.append({"url": url, **kwargs})
-        return self.responses.get(url, self.default)
+        response = self.responses.get(url, self.default)
+        if isinstance(response, Exception):
+            raise response
+        return response
 
     def urls(self):
         return [call["url"] for call in self.calls]
@@ -197,9 +200,19 @@ def test_google_error_for_one_place_falls_back_only_there(client, room_id, googl
 def test_without_key_every_place_falls_back_and_google_is_not_called(app, client, room_id, google):
     app.config["GOOGLE_MAPS_API_KEY"] = ""
     html = page(client, room_id)
-    assert html.count(FALLBACK_NAME) == 2
-    assert DETAILS_MISSING in html
+    assert html.count(FALLBACK_NAME) == 2  # exactly once per Google option
+    assert html.count(DETAILS_MISSING) == 2
     assert google.calls == []
+
+
+def test_google_timeout_on_first_place_stops_further_calls(client, room_id, google):
+    google.responses[DETAILS_URL + "place-a"] = places.requests.Timeout("timed out")
+    html = page(client, room_id)  # status 200 is checked in page()
+    assert len(google.calls) == 1
+    assert html.count(FALLBACK_NAME) == 2
+    assert html.count(DETAILS_MISSING) == 2
+    assert "Pizza Roma" not in html
+    assert "Sushi Bar" not in html
 
 
 def test_visitor_page_does_not_call_google(app, room_id, google):

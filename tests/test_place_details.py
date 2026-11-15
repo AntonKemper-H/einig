@@ -10,6 +10,7 @@ import requests
 from app.services import places
 from app.services.places import (
     PlacesError,
+    PlacesUnavailable,
     build_card,
     distance_m,
     fetch_photo,
@@ -68,7 +69,10 @@ class FakeGet:
         self.calls.append({"url": url, **kwargs})
         if self.error is not None:
             raise self.error
-        return self.responses.get(url, self.default)
+        response = self.responses.get(url, self.default)
+        if isinstance(response, Exception):
+            raise response
+        return response
 
     def details_calls(self):
         return [call for call in self.calls if not call["url"].endswith("/media")]
@@ -210,6 +214,30 @@ def test_details_errors_raise_places_error_without_key(fake_get, setup):
     assert FAKE_KEY not in str(caught.value)
 
 
+@pytest.mark.parametrize(
+    "error", [requests.Timeout("timed out"), requests.ConnectionError("no network")],
+    ids=["timeout", "connection"],
+)
+def test_details_unreachable_raises_places_unavailable(fake_get, error):
+    fake_get.error = error
+    with pytest.raises(PlacesUnavailable):
+        get_place_details(FAKE_KEY, "place-a")
+    assert issubclass(PlacesUnavailable, PlacesError)
+
+
+@pytest.mark.parametrize("setup", ["status", "invalid-json", "json-list"])
+def test_details_bad_answer_is_not_places_unavailable(fake_get, setup):
+    if setup == "status":
+        fake_get.responses[DETAILS_URL + "place-a"] = FakeResponse(status_code=500, body={})
+    elif setup == "invalid-json":
+        fake_get.responses[DETAILS_URL + "place-a"] = FakeResponse(invalid_json=True)
+    else:
+        fake_get.responses[DETAILS_URL + "place-a"] = FakeResponse(body=[1, 2])
+    with pytest.raises(PlacesError) as caught:
+        get_place_details(FAKE_KEY, "place-a")
+    assert not isinstance(caught.value, PlacesUnavailable)
+
+
 # --- Formatting ------------------------------------------------------------
 
 def test_distance_m():
@@ -340,6 +368,30 @@ def test_load_cards_error_for_one_place_only_affects_that_card(fake_get):
     assert cards[0]["details_missing"] is False
     assert cards[1]["name"] == FALLBACK_NAME
     assert cards[1]["details_missing"] is True
+
+
+def test_load_cards_error_status_for_first_place_still_loads_the_others(fake_get):
+    fake_get.responses[DETAILS_URL + "place-a"] = FakeResponse(status_code=404, body={})
+    answer(fake_get, "place-b", full_place("place-b", "Sushi Bar"))
+    cards = load_cards(FAKE_KEY, [google_option("place-a"), google_option("place-b")], 38.737, -9.153)
+    assert len(fake_get.calls) == 2
+    assert cards[0]["details_missing"] is True
+    assert cards[1]["name"] == "Sushi Bar"
+
+
+@pytest.mark.parametrize(
+    "error", [requests.Timeout("timed out"), requests.ConnectionError("no network")],
+    ids=["timeout", "connection"],
+)
+def test_load_cards_stops_calling_google_after_it_is_unreachable(fake_get, error):
+    fake_get.responses[DETAILS_URL + "place-a"] = error
+    answer(fake_get, "place-b", full_place("place-b", "Sushi Bar"))
+    answer(fake_get, "place-c", full_place("place-c", "Café Lisboa"))
+    options = [google_option("place-a"), google_option("place-b"), google_option("place-c")]
+    cards = load_cards(FAKE_KEY, options, 38.737, -9.153)
+    assert len(fake_get.calls) == 1
+    assert [card["details_missing"] for card in cards] == [True, True, True]
+    assert all(card["name"] == FALLBACK_NAME for card in cards)
 
 
 @pytest.mark.parametrize("api_key", ["", None])

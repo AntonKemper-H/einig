@@ -26,7 +26,7 @@ F8 in `docs/concept.md` and "Google Maps integration" in `AGENTS.md`. Decisions 
   - `latitude`, `longitude`: from `location`
   - `photo_name`: the `name` of the **first** photo, only if it has the form `places/<place id>/photos/<photo reference>` with the same place id (`PHOTO_NAME_PATTERN`, letters, digits, `_`, `-`), else `None`
   - `photo_author`, `photo_author_uri`: `displayName` and `uri` of the first photo's first `authorAttributions` entry; the uri only if it starts with `https://` (no `javascript:` links), else `None`
-- `PlacesError` for a timeout or connection error, an HTTP status other than 200, a body that is not valid JSON or not an object. The message never contains the API key.
+- `PlacesError` for an HTTP status other than 200, a body that is not valid JSON or not an object. For a timeout or connection error (any `requests.RequestException`) it raises **`PlacesUnavailable`**, a subclass of `PlacesError` that means "Google cannot be reached at all", not just "this place failed" (added after review of #18). The message never contains the API key.
 
 ### Card rules (`app/services/places.py`, no Flask, no database)
 
@@ -38,7 +38,8 @@ F8 in `docs/concept.md` and "Google Maps integration" in `AGENTS.md`. Decisions 
   - manual option: `{"source": "manual", "label": …}` (no Google data);
   - Google option with details: `source`, `name`, `photo_name`, `photo_author`, `photo_author_uri`, `rating_text`, `price_text`, `distance_text`, and `details_missing = False`. `distance_text` is `""` if the room has no centre or the place has no location. A place without a name gets the name `Place from Google Maps`.
   - Google option without details (`details` is `None`): `name = "Place from Google Maps"`, every text empty, no photo, `details_missing = True`.
-- `load_cards(api_key, options, centre_latitude, centre_longitude) -> list[dict]`: one card per option, in the given order. Calls `get_place_details` once per Google option. A `PlacesError` for one option only makes **that** card fall back (`details_missing`); the others are still shown. Without an API key (empty or `None`) Google is not called and every Google card falls back.
+- `load_cards(api_key, options, centre_latitude, centre_longitude) -> list[dict]`: one card per option, in the given order. Calls `get_place_details` once per Google option. A `PlacesError` for one option (e.g. status 404 or 500) only makes **that** card fall back (`details_missing`); the others are still loaded. Without an API key (empty or `None`) Google is not called and every Google card falls back.
+- **After the first `PlacesUnavailable`, `load_cards` stops calling Google** and every remaining Google card falls back too (added after review of #18). Why: the calls run one after another with a 5-second timeout each. If Google hangs, 15 places would take up to 75 seconds, longer than gunicorn's 30-second request limit on Render, and the single worker would block every other user meanwhile. With this rule a page waits for at most one timeout.
 
 ### Room page (`app/templates/room.html`, macro in `app/templates/_place_card.html`)
 
@@ -47,7 +48,7 @@ F8 in `docs/concept.md` and "Google Maps integration" in `AGENTS.md`. Decisions 
   - if there is a `photo_name`: `<img src="/photo/<photo_name>" alt="Photo of <name>" loading="lazy">` and below it `Photo: <author>`, linked to `photo_author_uri` if there is one;
   - a line with the rating text, the price text and the distance text that are not empty, e.g. `4.5 ★ · €€ · 330 m`;
   - the attribution text `Google Maps` (Google terms);
-  - if `details_missing`: `Place from Google Maps` and `Details are not available right now.`
+  - if `details_missing`: the name heading `Place from Google Maps` and below it `Details are not available right now.` The text `Place from Google Maps` appears **exactly once** per fallback card (C2a's frozen tests count it once per Google option; added after review of #18).
 - Everything from Google is shown escaped (Jinja autoescape); a name like `<script>` is text, never a tag.
 - `db.get_room` also returns `search_center_lat` and `search_center_lng`, so the route can pass the room's centre to `load_cards`.
 - Visitors still see no options, so their page view never calls Google.
@@ -88,13 +89,15 @@ Checks (one line = one test):
 - [ ] An author uri that is not `https://` (e.g. `javascript:alert(1)`, `http://…`) gives `photo_author_uri = None`.
 - [ ] A place id with characters other than letters, digits, `_`, `-` (e.g. `../x`, `a/b`, `a?b`, empty) raises `PlacesError` without calling Google.
 - [ ] A timeout, a connection error, a non-200 status, invalid JSON and a JSON list each raise `PlacesError`; the message never contains the key.
+- [ ] A timeout and a connection error raise `PlacesUnavailable`; a non-200 status and a bad body raise `PlacesError` but not `PlacesUnavailable`.
 - [ ] `distance_m` gives about 333 m for 0.003° of latitude and 0 for the same point.
 - [ ] `format_distance`: 0 → `0 m`, 334 → `330 m`, 995 → `1.0 km`, 1000 → `1.0 km`, 1250 → `1.2 km`, 12345 → `12.3 km`.
 - [ ] `format_price_level`: 0 → `Free`, 1 → `€`, 4 → `€€€€`, `None` → `""`.
 - [ ] `format_rating`: 4 → `4.0 ★`, 4.56 → `4.6 ★`, `None` → `""`.
 - [ ] `build_card` for a manual option, for a Google option with full details (incl. distance from the centre), for one without centre or location (no distance), for one without a name, and for missing details.
 - [ ] `load_cards` keeps the order, calls Google once per Google option and never for manual options.
-- [ ] `load_cards`: an error for one place only makes that card fall back.
+- [ ] `load_cards`: an error status for one place only makes that card fall back, also when it is the first place (the later places are still loaded).
+- [ ] `load_cards`: three Google options, the first call times out (or cannot connect) – Google is called only once and all three cards fall back.
 - [ ] `load_cards` without a key does not call Google and makes every Google card fall back.
 - [ ] `fetch_photo` sends one GET to `https://places.googleapis.com/v1/<photo_name>/media` with `maxWidthPx=400`, the key header and `timeout=5`, and returns the bytes and the content type.
 - [ ] `fetch_photo` raises `PlacesError` for a bad photo name (without calling Google), a network error, a non-200 status and a non-image content type; the message never contains the key.
@@ -105,7 +108,8 @@ Checks (one line = one test):
 - [ ] Manual options in the same room still show their label; Google is called once per Google option and not for manual options.
 - [ ] A place without photo, rating, price or location shows its name and no `<img>`, and no empty separators.
 - [ ] If Google fails for one place, that entry shows `Place from Google Maps` and `Details are not available right now.`; the other places still show their cards; status 200.
-- [ ] Without an API key, every Google entry shows the fallback and Google is not called.
+- [ ] Without an API key, every Google entry shows the fallback and Google is not called; `Place from Google Maps` appears exactly once per Google option.
+- [ ] If Google times out on the first place, the page still loads (status 200), Google was called only once, and every Google entry shows the fallback exactly once.
 - [ ] A visitor's page view does not call Google.
 - [ ] A name with HTML (`<script>`) and a `javascript:` author uri are shown safely: escaped text, no link.
 - [ ] Viewing the page writes nothing to the database (rooms and options unchanged).
