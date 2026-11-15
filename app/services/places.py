@@ -196,6 +196,26 @@ def validate_search(form) -> tuple[dict, list[str]]:
     return cleaned, errors
 
 
+def values_to_show_again(form) -> dict[str, str]:
+    """The entered search values for showing the form again after a rejected search.
+
+    The location is shown rounded (or left empty if invalid), so the page never
+    repeats a more exact location than the app is allowed to keep.
+    """
+    values = {
+        name: form.get(name) or ""
+        for name in ("category", "radius_m", "min_rating", "max_price_level")
+    }
+    location = parse_location(form.get("latitude"), form.get("longitude"))
+    if location is None:
+        values["latitude"] = ""
+        values["longitude"] = ""
+    else:
+        values["latitude"] = str(location[0])
+        values["longitude"] = str(location[1])
+    return values
+
+
 def search_refusal(
     is_creator: bool, mode: str, status: str, already_suggested: bool
 ) -> tuple[int, str] | None:

@@ -258,7 +258,10 @@ def suggest_places(room_id: str):
     def show_search_again(messages: list[str], status_code: int):
         """The room page with the entered search values and the messages."""
         return render_room_page(
-            room, participant, search_values=request.form, search_errors=messages
+            room,
+            participant,
+            search_values=places.values_to_show_again(request.form),
+            search_errors=messages,
         ), status_code
 
     search, errors = places.validate_search(request.form)
