@@ -41,12 +41,15 @@ Each line is one task: own spec in `specs/`, own branch, own pull request, fresh
 
 - [x] C1 Deployment on Render + hosted Postgres (`DATABASE_URL`, review of PR #1 point 3) – live at https://nod-lqeq.onrender.com with Neon (PR #7)
   - [x] C1b Invite link with https behind Render's proxy (`TRUST_PROXY_HEADERS`, PR #21)
-- [ ] C2 F8 Places from Google (built and tested with fake responses first, real key later)
+  - [x] C1c Several requests at once: gunicorn with 2 workers × 4 threads (PR #22)
+- [x] C2 F8 Places from Google (built and tested with fake responses first, real key later)
   - [x] C2a Search and save places as options (PR #12)
-  - [ ] C2b Cards with name, photo, rating, price, distance + photo proxy
+  - [x] C2b Cards with name, photo, rating, price, distance + photo proxy (PR #18)
 - [ ] C3 F9 Map and route to the winner
-- [ ] C4 F12 Surprise mode
+  - [ ] Spec and failing tests in review (PR #24); implementation after B3 (#19) is merged
+- [x] C4 F12 Surprise mode (PR #27)
 - [ ] C5 F13 "Been there"
+  - [ ] Spec and failing tests in review (PR #29); implementation after the review and after C4 is merged
 
 ### Dependencies
 
