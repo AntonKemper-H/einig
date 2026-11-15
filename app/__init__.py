@@ -56,11 +56,12 @@ def create_app(test_config: dict | None = None) -> Flask:
         )
 
     # Render ends HTTPS at its proxy and talks plain http to the app. ProxyFix reads the
-    # scheme and host from the proxy's X-Forwarded-* headers, so the invite link starts
-    # with https. Only trusted behind exactly one proxy: without one, any client could
-    # send these headers itself and fake the scheme and host.
+    # scheme from the proxy's X-Forwarded-Proto header, so the invite link starts with
+    # https. Only that header is trusted: Render sets it, while it passes on client values
+    # in X-Forwarded-For, and the Host header is already correct (review of PR #21).
+    # Without a proxy in front, any client could send the header itself, hence the switch.
     if app.config.get("TRUST_PROXY_HEADERS"):
-        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=0, x_proto=1, x_host=0)
 
     os.makedirs(app.instance_path, exist_ok=True)
 
