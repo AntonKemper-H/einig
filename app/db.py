@@ -240,6 +240,58 @@ def add_participant(room_id: str, nickname: str, session_token: str) -> bool:
     return True
 
 
+def get_options(room_id: str) -> list[sqlite3.Row | dict]:
+    """Return all options of a room in the order they were added."""
+    return get_db().execute(
+        "SELECT id, label FROM options WHERE room_id = ? ORDER BY id",
+        (room_id,),
+    ).fetchall()
+
+
+def get_option_labels(room_id: str) -> list[str]:
+    """Return the labels of all manual options in this room (used for the duplicate check)."""
+    rows = get_db().execute(
+        "SELECT label FROM options WHERE room_id = ? AND label IS NOT NULL", (room_id,)
+    ).fetchall()
+    return [row["label"] for row in rows]
+
+
+def add_manual_option(room_id: str, label: str) -> bool:
+    """Save a manually entered option. Return False if the database refuses it."""
+    try:
+        # db.transaction() instead of "with connection:", which would close a Postgres connection.
+        with transaction() as connection:
+            connection.execute(
+                "INSERT INTO options (room_id, source, label) VALUES (?, 'manual', ?)",
+                (room_id, label),
+            )
+    except INTEGRITY_ERRORS:
+        # The same label saved by another request a moment earlier (UNIQUE room_id, label).
+        return False
+    return True
+
+
+def get_participants(room_id: str) -> list[sqlite3.Row | dict]:
+    """Return all participants of a room in the order they joined (for the lobby)."""
+    return get_db().execute(
+        "SELECT id, nickname, is_creator, has_finished FROM participants"
+        " WHERE room_id = ? ORDER BY id",
+        (room_id,),
+    ).fetchall()
+
+
+def start_voting(room_id: str) -> bool:
+    """Switch the room from collecting to voting. Return False if it was no longer collecting."""
+    # "AND status = 'collecting'" makes two starts at the same moment change the room
+    # only once: the second UPDATE finds no matching row.
+    with transaction() as connection:
+        cursor = connection.execute(
+            "UPDATE rooms SET status = 'voting' WHERE id = ? AND status = 'collecting'",
+            (room_id,),
+        )
+    return cursor.rowcount == 1
+
+
 @click.command("init-db")
 @with_appcontext  # gives the command access to the app config and get_db()
 def init_db_command() -> None:
