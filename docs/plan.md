@@ -45,6 +45,7 @@ Each line is one task: own spec in `specs/`, own branch, own pull request, fresh
   - [x] C2a Search and save places as options (PR #12)
   - [x] C2b Cards with name, photo, rating, price, distance + photo proxy (PR #18)
 - [ ] C3 F9 Map and route to the winner
+  - [ ] Spec and failing tests in review (PR #24); implementation after B3 (#19) is merged
 - [ ] C4 F12 Surprise mode
 - [ ] C5 F13 "Been there"
 
