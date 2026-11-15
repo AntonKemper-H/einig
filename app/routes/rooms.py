@@ -1,5 +1,5 @@
 """Room pages: create a room (F1), show and join it (F2), add options (F3),
-lobby and start voting (F7), suggest places nearby (F8)."""
+lobby and start voting (F7), suggest places nearby (F8), rating (F4)."""
 
 from flask import (
     Blueprint,
@@ -17,6 +17,7 @@ from app.services import lobby as lobby_rules
 from app.services import options as option_rules
 from app.services import places
 from app.services import rooms as room_rules
+from app.services import voting as voting_rules
 
 bp = Blueprint("rooms", __name__)
 
@@ -29,6 +30,9 @@ PLACES_UNAVAILABLE_MESSAGE = (
     "Place suggestions are not available right now. You can still add options yourself."
 )
 NO_PLACES_FOUND_MESSAGE = "No places found. Try a larger radius or fewer filters."
+NOT_JOINED_VOTE_MESSAGE = "Please join the room before voting."
+VOTE_REFUSED_MESSAGE = "Something went wrong while saving your rating. Please try again."
+GOOGLE_OPTION_LABEL = "Place from Google Maps"
 
 
 def session_token_for(room_id: str) -> str | None:
@@ -302,3 +306,76 @@ def suggest_places(room_id: str):
         return show_search_again([places.ALREADY_SUGGESTED_MESSAGE], 400)
 
     return redirect(url_for("rooms.show_room", room_id=room_id), code=303)
+
+
+def render_vote_page(room, participant, errors: list[str] | None = None):
+    """Render the rating page: the next unrated card, or the overview once everything is rated (F4)."""
+    options = db.get_rateable_options(room["id"])
+    # Google options have no stored name (Google terms); C2b shows the real name later.
+    labels = {option["id"]: option["label"] or GOOGLE_OPTION_LABEL for option in options}
+    # Only this participant's own ratings are loaded: nobody sees how others voted.
+    own_ratings = db.get_own_ratings(participant["id"])
+    # The seed is the token from this browser's session, which nobody else knows.
+    order = voting_rules.rating_order(list(labels), session_token_for(room["id"]))
+    next_option = voting_rules.next_option_to_rate(order, set(own_ratings))
+    # "Option 2 of 5": counts only rateable options, not ratings of replaced ones.
+    position = sum(1 for option_id in order if option_id in own_ratings) + 1
+    return render_template(
+        "vote.html",
+        room=room,
+        labels=labels,
+        order=order,
+        own_ratings=own_ratings,
+        next_option=next_option,
+        position=position,
+        rating_labels=voting_rules.RATING_LABELS,
+        not_started_message=voting_rules.NOT_STARTED_MESSAGE,
+        closed_message=voting_rules.CLOSED_MESSAGE,
+        errors=errors or [],
+    )
+
+
+@bp.get("/rooms/<room_id>/vote")
+def show_vote(room_id: str):
+    """F4: the rating page for the participant whose token is in this browser's session."""
+    room = db.get_room(room_id)
+    if room is None:
+        abort(404)
+    participant = db.get_participant(room_id, session_token_for(room_id))
+    if participant is None:
+        # Visitors join first; the join form is on the room page.
+        return redirect(url_for("rooms.show_room", room_id=room_id), code=303)
+    return render_vote_page(room, participant)
+
+
+@bp.post("/rooms/<room_id>/vote")
+def save_vote(room_id: str):
+    """F4: save one rating, then redirect to the next card (Post/Redirect/Get)."""
+    room = db.get_room(room_id)
+    if room is None:
+        abort(404)
+
+    # Every write route checks the token on the server (AGENTS.md, Identity and access).
+    participant = db.get_participant(room_id, session_token_for(room_id))
+    if participant is None:
+        return render_room_page(room, None, errors=[NOT_JOINED_VOTE_MESSAGE]), 403
+
+    rateable_ids = [option["id"] for option in db.get_rateable_options(room_id)]
+    rating = request.form.get("rating")
+    option_id = voting_rules.parse_option_id(request.form.get("option_id"))
+    errors = voting_rules.vote_errors(room["status"], rating, option_id, rateable_ids)
+    if errors:
+        return render_vote_page(room, participant, errors), 400
+
+    try:
+        # One transaction: the vote and the "done" flag are saved together, or not at all.
+        with db.transaction():
+            db.save_vote(room_id, participant["id"], option_id, rating)
+            rated_ids = set(db.get_own_ratings(participant["id"]))
+            if voting_rules.has_rated_all(rateable_ids, rated_ids):
+                db.mark_finished(participant["id"])
+    except db.INTEGRITY_ERRORS:
+        # E.g. the option was deleted by another request a moment earlier.
+        return render_vote_page(room, participant, [VOTE_REFUSED_MESSAGE]), 400
+
+    return redirect(url_for("rooms.show_vote", room_id=room_id), code=303)
