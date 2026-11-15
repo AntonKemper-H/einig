@@ -8,9 +8,10 @@ import os
 
 from dotenv import load_dotenv
 from flask import Flask, render_template
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from app import db
-from app.routes import main, rooms
+from app.routes import main, pwa, rooms
 
 
 def create_app(test_config: dict | None = None) -> Flask:
@@ -31,6 +32,9 @@ def create_app(test_config: dict | None = None) -> Flask:
             app.config["DATABASE_URL"] = database_url
         else:
             app.config["DATABASE"] = os.path.join(app.instance_path, "einig.sqlite")
+        # Only Render's settings turn this on (C1b). Off by default, so the local server is unaffected.
+        trust_value = os.environ.get("TRUST_PROXY_HEADERS", "").strip().lower()
+        app.config["TRUST_PROXY_HEADERS"] = trust_value in ("1", "true")
     else:
         # Tests: use exactly what the test passes in, ignore the environment.
         app.config.update(test_config)
@@ -51,11 +55,20 @@ def create_app(test_config: dict | None = None) -> Flask:
             "(or set it in the hosting settings)."
         )
 
+    # Render ends HTTPS at its proxy and talks plain http to the app. ProxyFix reads the
+    # scheme from the proxy's X-Forwarded-Proto header, so the invite link starts with
+    # https. Only that header is trusted: Render sets it, while it passes on client values
+    # in X-Forwarded-For, and the Host header is already correct (review of PR #21).
+    # Without a proxy in front, any client could send the header itself, hence the switch.
+    if app.config.get("TRUST_PROXY_HEADERS"):
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=0, x_proto=1, x_host=0)
+
     os.makedirs(app.instance_path, exist_ok=True)
 
     db.init_app(app)
     app.register_blueprint(main.bp)
     app.register_blueprint(rooms.bp)
+    app.register_blueprint(pwa.bp)
 
     @app.errorhandler(404)
     def page_not_found(error):
