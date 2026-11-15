@@ -220,7 +220,11 @@ def test_places_are_stored_as_google_options_in_google_order(app, client, room_i
         assert row["is_replaced"] == 0
 
 
-def test_room_stores_rounded_centre_radius_and_filters(app, client, room_id):
+def test_room_stores_rounded_centre_radius_and_filters(app, client, room_id, google):
+    # The places must pass the filters below, otherwise nothing is saved (unrated places are dropped).
+    google.response = FakeResponse(
+        body={"places": [{"id": "place-a", "rating": 4.6, "priceLevel": "PRICE_LEVEL_MODERATE"}]}
+    )
     suggest(client, room_id, radius_m="2000", min_rating="4.5", max_price_level="3")
     room = room_row(app, room_id)
     assert room["search_center_lat"] == 38.737
