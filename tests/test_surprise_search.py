@@ -248,7 +248,12 @@ def test_valid_search_saves_five_varied_google_options(app, client, room_id):
     assert len({option["category"] for option in saved}) >= 4
 
 
-def test_valid_search_stores_room_settings(app, client, room_id):
+def test_valid_search_stores_room_settings(app, client, google, room_id):
+    # The places need a rating and a price level, or the filters below would drop them all.
+    google.places_for = lambda place_type, radius: [
+        {"id": f"{place_type}-{number}", "rating": 4.6, "priceLevel": "PRICE_LEVEL_MODERATE"}
+        for number in range(15)
+    ]
     search(client, room_id, radius_m="2000", min_rating="4.5", max_price_level="3")
     room = room_row(app, room_id)
     assert room["search_center_lat"] == 38.737
