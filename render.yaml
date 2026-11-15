@@ -28,3 +28,5 @@ services:
         sync: false
       - key: GOOGLE_MAPS_EMBED_KEY
         sync: false
+      - key: TRUST_PROXY_HEADERS
+        sync: false           # set to true: Render is exactly one proxy in front (C1b)

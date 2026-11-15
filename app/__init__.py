@@ -8,6 +8,7 @@ import os
 
 from dotenv import load_dotenv
 from flask import Flask, render_template
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from app import db
 from app.routes import main, rooms
@@ -31,6 +32,9 @@ def create_app(test_config: dict | None = None) -> Flask:
             app.config["DATABASE_URL"] = database_url
         else:
             app.config["DATABASE"] = os.path.join(app.instance_path, "einig.sqlite")
+        # Only Render's settings turn this on (C1b). Off by default, so the local server is unaffected.
+        trust_value = os.environ.get("TRUST_PROXY_HEADERS", "").strip().lower()
+        app.config["TRUST_PROXY_HEADERS"] = trust_value in ("1", "true")
     else:
         # Tests: use exactly what the test passes in, ignore the environment.
         app.config.update(test_config)
@@ -50,6 +54,13 @@ def create_app(test_config: dict | None = None) -> Flask:
             "SECRET_KEY is not set. Copy .env.example to .env and fill it in "
             "(or set it in the hosting settings)."
         )
+
+    # Render ends HTTPS at its proxy and talks plain http to the app. ProxyFix reads the
+    # scheme and host from the proxy's X-Forwarded-* headers, so the invite link starts
+    # with https. Only trusted behind exactly one proxy: without one, any client could
+    # send these headers itself and fake the scheme and host.
+    if app.config.get("TRUST_PROXY_HEADERS"):
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
     os.makedirs(app.instance_path, exist_ok=True)
 
