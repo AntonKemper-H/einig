@@ -47,6 +47,7 @@ Each line is one task: own spec in `specs/`, own branch, own pull request, fresh
 - [ ] C3 F9 Map and route to the winner
 - [ ] C4 F12 Surprise mode
 - [ ] C5 F13 "Been there"
+  - [ ] Spec and failing tests in review (PR #29); implementation after the review and after C4 is merged
 
 ### Dependencies
 
