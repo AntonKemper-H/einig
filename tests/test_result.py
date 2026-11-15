@@ -300,6 +300,9 @@ def test_close_errors_helper():
     assert close_errors(False, "voting") == (403, ONLY_CREATOR_MESSAGE)
     assert close_errors(True, "collecting") == (400, NOT_STARTED_MESSAGE)
     assert close_errors(True, "closed") is None  # idempotent: the route shows the result
+    # The creator check comes first, whatever the status.
+    assert close_errors(False, "closed") == (403, ONLY_CREATOR_MESSAGE)
+    assert close_errors(False, "collecting") == (403, ONLY_CREATOR_MESSAGE)
 
 
 # --- Result page -----------------------------------------------------------
@@ -379,15 +382,24 @@ def test_rating_counts_counts_only_real_ratings():
 
 # --- Privacy ---------------------------------------------------------------
 
-def test_result_page_shows_no_nicknames(client, room):
-    for option_id in room["options"].values():
-        vote(client, room["id"], option_id, "yes")
-        vote(room["guest"], room["id"], option_id, "no")
-    close(client, room["id"])
-    for browser in (client, room["guest"]):
-        html = result_page(browser, room["id"])
-        assert "Anna" not in html
-        assert "Ben" not in html
+def test_result_page_shows_no_nicknames(app):
+    # Made-up names that cannot appear in normal page text (unlike "Ben" in "Benefit").
+    creator, guest = app.test_client(), app.test_client()
+    room_id = create_room(creator, nickname="Zorbia")
+    join(guest, room_id, "Quentix")
+    for label in LABELS:
+        add_option(creator, room_id, label)
+    start(creator, room_id)
+    with app.app_context():
+        option_ids = [row["id"] for row in db.get_options(room_id)]
+    for option_id in option_ids:
+        vote(creator, room_id, option_id, "yes")
+        vote(guest, room_id, option_id, "no")
+    close(creator, room_id)
+    for browser in (creator, guest):
+        html = result_page(browser, room_id)
+        assert "Zorbia" not in html
+        assert "Quentix" not in html
 
 
 # --- Votes after closing ---------------------------------------------------
