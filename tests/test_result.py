@@ -266,7 +266,8 @@ def test_lost_claim_redirects_and_keeps_first_winner(app, client, room, monkeypa
     pizza = room["options"]["Pizza"]
     vote(client, room["id"], pizza, "yes")
     close(client, room["id"])
-    # Simulate a second close that passed the route's status check before the first one committed.
+    # The route sees "voting" (stale check), but the room is already closed in the database:
+    # claim_close must return False, and the route must redirect without writing anything.
     real_get_room = db.get_room
 
     def room_still_voting(room_id):
