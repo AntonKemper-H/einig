@@ -17,9 +17,8 @@ from flask import (
 from app import db
 from app.services import lobby as lobby_rules
 from app.services import options as option_rules
-from app.services import places
+from app.services import places, surprise
 from app.services import rooms as room_rules
-from app.services import surprise
 from app.services import voting as voting_rules
 
 bp = Blueprint("rooms", __name__)
