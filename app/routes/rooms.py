@@ -60,8 +60,16 @@ def render_room_page(
 ):
     """Render the room page: join form for visitors; options, add form and place search for participants."""
     invite_url = url_for("rooms.show_room", room_id=room["id"], _external=True)
-    # Only participants may see the options, so visitors get an empty list.
+    # Only participants may see the options, so visitors get an empty list
+    # (and their page view never calls Google).
     options = db.get_options(room["id"]) if participant else []
+    # Google details are loaded fresh for every view: Google only allows storing the place id.
+    cards = places.load_cards(
+        current_app.config.get("GOOGLE_MAPS_API_KEY"),
+        options,
+        room["search_center_lat"],
+        room["search_center_lng"],
+    )
     # The search form uses the same rules as the route, so it is shown exactly when a search is allowed.
     show_search_form = participant is not None and places.search_refusal(
         bool(participant["is_creator"]),
@@ -76,7 +84,7 @@ def render_room_page(
         invite_url=invite_url,
         join_nickname=join_nickname,
         errors=errors or [],
-        options=options,
+        cards=cards,
         option_label=option_label,
         option_errors=option_errors or [],
         show_search_form=show_search_form,
