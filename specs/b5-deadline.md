@@ -1,11 +1,11 @@
-# B5 – F11 Deadline
+# B5 – F11 Deadline, and closing when everyone is done
 
 Branch: `feature-b5-deadline`
 Tests: `tests/test_deadline.py`
 
 ## Why
 
-Without a time limit, a group waits for the slowest person or for the creator to remember to close the room. A short countdown (15, 30 or 60 minutes) keeps the decision quick: when the time is up, the room closes by itself and the result is there for everyone, counting only the people who actually voted.
+Without a time limit, a group waits for the slowest person or for the creator to remember to close the room. A short countdown (15, 30 or 60 minutes) keeps the decision quick: when the time is up, the room closes by itself and the result is there for everyone, counting only the people who actually voted. And when everyone has rated every option, there is nothing left to wait for, so the room closes at once (`docs/concept.md` §3 step 6: "The room closes when everyone is done, the deadline is reached, or the creator closes it.", decided by the team in the review of this PR).
 
 ## What
 
@@ -20,6 +20,7 @@ The column `rooms.deadline` exists since A1, so there is **no schema change**.
 - **Votes after the deadline never count**, even if the room is still `voting` in the database at that moment: `save_vote` checks the deadline inside the same room-row lock it already uses (B3). So the stored winner only ever uses votes from before the deadline.
 - **Show minutes left, not a clock time:** "Time left: 12 min" on the rating page and in the lobby. A clock time would need the participant's time zone; minutes left are the same for everyone. No JavaScript: the number is computed when the page is rendered (the lobby refreshes itself, the rating page updates on every rating).
 - **The creator can still close early** (B3, unchanged). After closing, the deadline does nothing any more.
+- **Everyone done closes the room.** "Done" is A5's flag (`has_finished`): a participant has rated every option (B2). When a vote makes the last participant done, the room closes right after that vote, with the same B3 steps, and that vote is answered with a redirect to the result page. A participant who joined but rated nothing is not done, so the room then waits for the deadline or the creator. Using a joker does not make anyone done (B4). Once the room has closed this way, nobody can change a rating or use a joker any more, the same as after any close. That is fair: everyone knows about the joker and can use it before their last rating (decided by Timonhio in this PR).
 
 ### Pages and forms
 
@@ -43,11 +44,14 @@ The column `rooms.deadline` exists since A1, so there is **no schema change**.
 
 - `get_room(room_id)` also returns `deadline` (it does not read that column yet).
 - `start_voting(room_id, deadline: str | None = None) -> bool` – the same `UPDATE … SET status = 'voting'` as A5, now also setting `deadline` (NULL if `None`). Callers without the argument keep A5's behaviour.
+- `everyone_finished(room_id) -> bool` – `True` if the room has at least one participant and every participant has `has_finished = 1`.
 - `save_vote(room_id, participant_id, option_id, rating, now: str | None = None) -> bool` – the room-row lock becomes `UPDATE rooms SET status = status WHERE id = ? AND status = 'voting' AND (deadline IS NULL OR deadline > ?)`, with `now` as the UTC text (`None` → the current server time). If it changes no row, nothing is saved and it returns `False` (B3's rule, unchanged for rooms without a deadline).
 
 ### Route helper (`app/routes/rooms.py`)
 
-- `close_if_time_is_up(room)` – if the room is `voting`, has a deadline and `deadline.is_past(...)`, it runs B3's close steps in one `db.transaction()` (`claim_close`; if the claim wins: `pick_winner(...)` with the rateable options, `db.get_votes`, `db.get_vetoed_option_ids`, `rng=random.Random(room_id)`; `store_result`) and returns the room read again; otherwise it returns the room unchanged. B3's close route and this helper share the same code for these steps (no copy).
+- The B3 close steps live in one shared function used by the close route, the deadline and "everyone done" (no copy): `claim_close`; only if the claim wins, `pick_winner(...)` with the rateable options, `db.get_votes`, `db.get_vetoed_option_ids`, `rng=random.Random(room_id)`, then `store_result`; all in one `db.transaction()`.
+- `close_if_time_is_up(room)` – if the room is `voting`, has a deadline and `deadline.is_past(...)`, it runs the shared close steps and returns the room read again; otherwise it returns the room unchanged.
+- After a saved vote (B2's transaction with `save_vote` and `mark_finished` has committed), the vote route checks `db.everyone_finished(room_id)`; if `True`, it runs the shared close steps and redirects (303) to `/rooms/<room_id>/result` instead of the rating page.
 - Called right after the room is loaded in: `GET /vote`, `POST /vote`, `GET /lobby`, `GET /result` and `GET /rooms/<room_id>` (the room page), for visitors too (closing is the same whoever triggers it).
 
 ### Must be true (one line = one test)
@@ -75,6 +79,14 @@ The column `rooms.deadline` exists since A1, so there is **no schema change**.
 - [ ] A full tie is decided with `random.Random(room_id)`, as in B3, so the stored winner is reproducible for the room.
 - [ ] The creator can still close before the deadline (B3); opening a page after the deadline later keeps that first winner.
 
+#### Closing when everyone is done
+- [ ] Anna and Ben: after Anna has rated all three options the room is still `voting`; Ben's last rating closes it (`closed`, `winner_option_id` is what `pick_winner` gives, search centre deleted), and that vote is answered with 303 to `/rooms/<room_id>/result`.
+- [ ] A participant who has rated only some options keeps the room `voting`, and the vote redirects to the rating page as before.
+- [ ] A participant who joined but rated nothing keeps the room `voting` even when everyone else is done.
+- [ ] Using a joker does not count as done: with Ben's joker but no ratings from Ben, Anna's last rating does not close the room (the joker row is inserted directly, as B4 is not on `main` yet).
+- [ ] The room closed by "everyone done" is not recalculated later: opening pages after the deadline, or the creator pressing close, keeps that winner.
+- [ ] `everyone_finished`: `False` while someone is not done, `True` once everyone is, and `False` for a room without participants.
+
 #### Votes after the deadline (rejected, nothing saved)
 - [ ] A vote sent after the deadline (room still `voting` in the database): "This room is closed. You can no longer vote." (400), no vote saved, and the room is `closed` afterwards.
 - [ ] A vote that passes the route's check (simulated: the route still sees a deadline in the future) but reaches the database after the deadline: not saved, 400 with the closed message, `save_vote` returns `False`.
@@ -93,9 +105,15 @@ The column `rooms.deadline` exists since A1, so there is **no schema change**.
 #### Code rules
 - [ ] `app/services/deadline.py` imports no Flask, `requests` or `app.db`.
 
+## Changes to reviewed tests (need the reviewer's OK, `AGENTS.md`)
+
+"Everyone done" changes what happens after the last rating, so a few reviewed tests that rate everything and then expect the room to still be open need a small change, in its own commit:
+
+- `tests/test_rating.py` (B2): the `room` fixture gets one more participant ("Idle") who never rates, so the room is never "everyone done" and the four tests that rely on a still-open room (`test_all_rated_page_lists_own_ratings_with_buttons`, `test_replaced_option_is_rejected_and_not_shown`, `test_no_page_shows_another_participants_rating`, `test_ratings_survive_a_restart`) keep testing exactly what they tested. No assertion changes.
+- `tests/test_joker.py` (B4, #44, not on `main` yet): `test_vetoed_option_is_not_chosen` and `test_every_option_vetoed_fewest_jokers_then_best_score` use the jokers **before** the last ratings instead of after. Whichever of B4 and B5 is merged second makes this change. No assertion changes.
+
 ## Out of scope
 
-- Closing automatically when everyone is done (concept §3 step 6; open question from B3, see the PR).
 - The joker after the deadline: B4 (#44) is not on `main` yet. Whichever of B4 and B5 is merged second adds the same deadline condition to `save_veto` and the same `close_if_time_is_up` call to the joker route, with a small follow-up test reviewed separately.
 - Changing the deadline after starting, or extending it.
 - A countdown that updates without reloading (would need JavaScript), and showing clock times.
