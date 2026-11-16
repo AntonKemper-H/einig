@@ -35,7 +35,7 @@ Each line is one task: own spec in `specs/`, own branch, own pull request, fresh
 
 - [x] B1 F5 Winner algorithm in `services/scoring.py` – pure functions (PR #6)
 - [x] B2 F4 Three-level rating (PR #11)
-- [ ] B3 F6 Result page
+- [x] B3 F6 Result page (PR #19)
 - [ ] B4 F10 Joker / veto
 - [ ] B5 F11 Deadline
 
