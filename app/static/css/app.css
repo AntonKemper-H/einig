@@ -1,0 +1,12 @@
+/* Einig's own styles, on top of Pico classless (AGENTS.md: plain CSS here, no framework). */
+
+/* F24: the "Delete" button next to an option. Small and outlined, so it does not look
+   like the page's main action (Pico classless makes every button full-width and blue). */
+button[type=submit].option-delete {  /* beats Pico's "button[type=submit] { width: 100% }" */
+  width: auto;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.875rem;
+  background: transparent;
+  color: inherit;
+  border-color: currentColor;
+}

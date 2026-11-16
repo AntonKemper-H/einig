@@ -1,6 +1,9 @@
-"""Rules for adding options manually (spec: specs/a4-add-options.md)."""
+"""Rules for adding (specs/a4-add-options.md) and deleting options (specs/a7-delete-option.md)."""
 
 LABEL_MAX_LENGTH = 80
+
+DELETE_NOT_COLLECTING_MESSAGE = "Options can only be deleted before voting starts."
+DELETE_NOT_ALLOWED_MESSAGE = "Only the person who added this option or the creator can delete it."
 
 
 def is_label_taken(label: str, existing_labels: list[str]) -> bool:
@@ -28,3 +31,25 @@ def option_errors(label: str, room_status: str, existing_labels: list[str]) -> l
     if is_label_taken(label, existing_labels):
         return ["This option is already in the list."]
     return []
+
+
+def may_delete(is_creator: bool, participant_id: int, added_by: int | None) -> bool:
+    """F24: the creator may delete every option, anyone else only the options they added.
+
+    Search results have no author (added_by is None), so only the creator may delete them.
+    """
+    return is_creator or (added_by is not None and added_by == participant_id)
+
+
+def delete_error(
+    room_status: str, is_creator: bool, participant_id: int, added_by: int | None
+) -> tuple[str, int] | None:
+    """Check whether this participant may delete this option now.
+
+    Returns the message and the HTTP status code of the first rule that fails, or None.
+    """
+    if room_status != "collecting":
+        return DELETE_NOT_COLLECTING_MESSAGE, 400
+    if not may_delete(is_creator, participant_id, added_by):
+        return DELETE_NOT_ALLOWED_MESSAGE, 403
+    return None
