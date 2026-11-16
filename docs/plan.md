@@ -49,7 +49,7 @@ Each line is one task: own spec in `specs/`, own branch, own pull request, fresh
 - [x] C3 F9 Map and route to the winner (PR #24) – map needs `GOOGLE_MAPS_EMBED_KEY` (Google Cloud setup above)
 - [x] C4 F12 Surprise mode (PR #27)
 - [x] C5 F13 "Been there" (PR #29)
-- [ ] C6 F23 Find a place by name and pick the right match (`docs/decisions.md` D14)
+- [ ] C6 F23 Find a place by name and pick the right match (`docs/decisions.md` D14) – in progress: spec and tests in review (PR #39)
 
 ### Dependencies
 
