@@ -1,9 +1,17 @@
-"""Rules for creating a room (spec: specs/a2-create-room.md)."""
+"""Rules for creating a room (spec: specs/a2-create-room.md) and the "My rooms" list (specs/a8-my-rooms.md)."""
 
 import secrets
 
 MODES = ["manual", "nearby", "surprise"]
 TITLE_MAX_LENGTH = 80
+# Browsers refuse cookies over about 4 KB, which would lose every token at once (A8).
+MAX_REMEMBERED_ROOMS = 30
+STATUS_LABELS = {"collecting": "Collecting ideas", "voting": "Voting", "closed": "Decided"}
+STATUS_ENDPOINTS = {
+    "collecting": "rooms.show_room",
+    "voting": "rooms.show_vote",
+    "closed": "rooms.show_result",
+}
 NICKNAME_MAX_LENGTH = 30
 
 
@@ -84,3 +92,26 @@ def new_room_id() -> str:
 def new_session_token() -> str:
     """Return a random token that identifies one participant in their browser session."""
     return secrets.token_urlsafe(32)
+
+
+def remember_room_token(tokens: dict[str, str], room_id: str, token: str) -> dict[str, str]:
+    """Return a new dict with this room's token added or replaced; the given dict stays unchanged."""
+    remembered = dict(tokens)
+    remembered[room_id] = token
+    return remembered
+
+
+def rooms_to_keep(rooms: list[dict]) -> set[str]:
+    """Return the ids of the MAX_REMEMBERED_ROOMS rooms this browser joined most recently.
+
+    Each room carries this browser's own participant id in that room. Ids only grow,
+    so a higher id was joined later. The order of the cookie cannot be used:
+    Flask writes the session cookie with sorted keys.
+    """
+    newest_first = sorted(rooms, key=lambda room: room["participant_id"], reverse=True)
+    return {room["id"] for room in newest_first[:MAX_REMEMBERED_ROOMS]}
+
+
+def room_link_endpoint(status: str) -> str:
+    """The page a room in "My rooms" links to: room page, rating page or result page."""
+    return STATUS_ENDPOINTS.get(status, "rooms.show_room")

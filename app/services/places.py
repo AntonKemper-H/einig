@@ -3,6 +3,7 @@
 C2a: the Nearby Search call and the search form rules.
 C2b: Place Details and photos for the option cards, and the card texts.
 C3: the map and the route link for the winner (specs/c3-winner-map.md).
+C6: find a place by name with one Text Search (specs/c6-find-place-by-name.md).
 
 Only the place id of each result is kept. Names, photos and ratings are never
 stored (Google terms); they are loaded fresh every time a card is shown.
@@ -528,3 +529,112 @@ def load_winner(api_key: str | None, embed_key: str | None, option) -> dict:
         "map_url": map_embed_url(embed_key, option["place_id"]),
         "route_url": route_url(option["place_id"], card["name"]),
     }
+
+
+# --- C6: find a place by name (F23, specs/c6-find-place-by-name.md) ---------------
+
+TEXT_SEARCH_URL = "https://places.googleapis.com/v1/places:searchText"
+# Name and address let the participant see which match is the right one. Because of
+# them every search is billed as Text Search Pro (D14), so no other field is asked for.
+NAME_SEARCH_FIELD_MASK = "places.id,places.displayName,places.formattedAddress"
+NAME_SEARCH_PAGE_SIZE = 5
+# Only a bias, not a limit: a place the participant names may be further away.
+NAME_SEARCH_BIAS_RADIUS_M = 5000
+# Soft guard against repeated searches (reloads, double taps), counted in the session.
+MAX_NAME_SEARCHES = 10
+NAME_MAX_LENGTH = 80
+
+EMPTY_NAME_MESSAGE = "Please enter a name to search for."
+LONG_NAME_MESSAGE = f"A name can be at most {NAME_MAX_LENGTH} characters."
+NAME_SEARCH_LIMIT_MESSAGE = (
+    f"You have already searched {MAX_NAME_SEARCHES} times in this room."
+    " You can still add options yourself."
+)
+NO_MATCHES_MESSAGE = "No places found with this name. You can still add it as your own option."
+EXPIRED_MATCHES_MESSAGE = "This search result has expired. Please search again."
+ALREADY_AN_OPTION_MESSAGE = "This place is already an option."
+
+
+def validate_name(value: str | None) -> tuple[str, list[str]]:
+    """Strip the typed name and return it with the error messages (empty list if it is fine)."""
+    name = (value or "").strip()
+    if not name:
+        return name, [EMPTY_NAME_MESSAGE]
+    if len(name) > NAME_MAX_LENGTH:
+        return name, [LONG_NAME_MESSAGE]
+    return name, []
+
+
+def search_by_name(
+    api_key: str, name: str, latitude: float | None, longitude: float | None
+) -> list[dict]:
+    """Ask Google for places with this name (one Text Search) and return at most 5 matches.
+
+    Each match is {"place_id", "name", "address"}. With a location, places near it
+    come first. Raises PlacesError if Google cannot be reached or answers with an error.
+    """
+    body: dict = {"textQuery": name, "pageSize": NAME_SEARCH_PAGE_SIZE}
+    if latitude is not None and longitude is not None:
+        body["locationBias"] = {
+            "circle": {
+                "center": {"latitude": latitude, "longitude": longitude},
+                "radius": NAME_SEARCH_BIAS_RADIUS_M,
+            }
+        }
+    headers = {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": api_key,
+        "X-Goog-FieldMask": NAME_SEARCH_FIELD_MASK,
+    }
+    try:
+        response = requests.post(
+            TEXT_SEARCH_URL, json=body, headers=headers, timeout=TIMEOUT_SECONDS
+        )
+    except requests.RequestException:
+        # "from None": the original error text could contain the request, and with it the key.
+        raise PlacesUnavailable("Google Places could not be reached.") from None
+
+    if response.status_code != 200:
+        raise PlacesError(f"Google Places answered with status {response.status_code}.")
+    try:
+        data = response.json()
+    except ValueError:
+        raise PlacesError("Google Places sent an answer that is not valid JSON.") from None
+    if not isinstance(data, dict):
+        raise PlacesError("Google Places sent an answer in an unexpected format.")
+    # Google sends {} (no "places") when nothing was found.
+    return read_matches(data.get("places", []))
+
+
+def read_matches(results) -> list[dict]:
+    """Pick id, name and address out of Google's results: valid ids only, no duplicates, at most 5."""
+    matches: list[dict] = []
+    seen_ids: set[str] = set()
+    if not isinstance(results, list):
+        return matches
+    for result in results:
+        if len(matches) == NAME_SEARCH_PAGE_SIZE:
+            break
+        if not isinstance(result, dict):
+            continue
+        place_id = result.get("id")
+        # Only ids of the expected form: they are posted back in step 2 and used in URLs.
+        if not isinstance(place_id, str) or not PLACE_ID_PATTERN.fullmatch(place_id):
+            continue
+        if place_id in seen_ids:
+            continue
+        seen_ids.add(place_id)
+
+        name = None
+        display_name = result.get("displayName")
+        if isinstance(display_name, dict) and isinstance(display_name.get("text"), str):
+            name = display_name["text"]
+        address = result.get("formattedAddress")
+        matches.append(
+            {
+                "place_id": place_id,
+                "name": name or FALLBACK_PLACE_NAME,
+                "address": address if isinstance(address, str) else "",
+            }
+        )
+    return matches
