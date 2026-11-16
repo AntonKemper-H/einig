@@ -29,7 +29,7 @@ Each line is one task: own spec in `specs/`, own branch, own pull request, fresh
 - [x] A5 F7 Lobby with room status (meta refresh), including the creator's "Start voting" (collecting → voting) (PR #15)
 - [x] A6 F22 QR code for the invite link, scanned on a phone on the deployed app (PR #16)
 - [x] A7 F24 Delete an option (author or creator; new table `option_authors`, `docs/decisions.md` D14) (PR #38, checked on the deployed app)
-- [ ] A8 F25 My rooms on the home page, cookie kept 180 days (`specs/a8-my-rooms.md`, D15)
+- [x] A8 F25 My rooms on the home page, cookie kept 180 days (`specs/a8-my-rooms.md`, D15) (PR #46, checked on the deployed app and on a phone)
 - [ ] A9 F16 Fixed groups: plan one activity after another, one-tap join (`specs/a9-groups.md`, D15) – after A8
 - [ ] A10 F4 Swipe to rate + menu link on the rating card (`specs/a10-swipe-rating.md`, D16) – after C2c
 
