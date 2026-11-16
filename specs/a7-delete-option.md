@@ -1,7 +1,7 @@
 # A7 – F24 Delete an option
 
 Branch: `feature-a7-delete-option`
-Tests: `tests/test_delete_option.py`
+Tests: `tests/test_delete_option.py`, `tests/test_delete_option_schema.py` (added after the first test review, see the last checks)
 
 ## Why
 A typo or a joke entry stays in the room until the end, and everyone has to rate it. The person who added an option, or the room creator, should be able to remove it before the voting starts, without ever being able to throw away other people's ratings.
@@ -11,7 +11,7 @@ F24 in `docs/decisions.md` D14 (proposed in PR #37), and the domain rule in `AGE
 
 "Joined" means the same as in A3–A5: the token in the signed session belongs to a participant of this room in the database.
 
-**Who added an option: a new table, not a new column.** D14 suggests a column `options.added_by`. A reviewed test (`tests/test_been_there_route.py`, C5) checks the exact column list of `options`, and reviewed tests must not be edited. So the author is stored in a new table instead:
+**Who added an option: a new table, not a new column. ⚠ Please check in review.** D14 suggests a column `options.added_by`. A reviewed test (`tests/test_been_there_route.py`, C5) checks the exact column list of `options`, and reviewed tests must not be edited. So the author is stored in a new table instead:
 
 ```sql
 CREATE TABLE IF NOT EXISTS option_authors (
@@ -25,8 +25,9 @@ CREATE TABLE IF NOT EXISTS option_authors (
 ```
 
 - One row per manually added option: who added it. Both foreign keys include `room_id`, so the author is always a participant of the option's room. Deleting the option deletes its row.
-- Options from "Places nearby" (F8) and "Surprise me" (F12, F13) have no row: the search adds them for the group, so only the creator can delete them (D14).
-- **Deployed database:** Render runs `init-db` on every start, and `CREATE TABLE IF NOT EXISTS` adds the new table to the existing Postgres database without touching other data. No `ALTER TABLE` and no `reset-db` needed. Manual options saved before A7 have no row, so only the creator can delete them.
+- Options from "Places nearby" (F8) and "Surprise me" (F12) have no row: the search adds them for the group, so only the creator can delete them (D14). The same holds for a replacement place from "Been there" (F13): `db.replace_option` adds it without an author row.
+- **F23 (C6, Track C):** a place a participant finds by name and saves counts as that participant's option. C6 writes an `option_authors` row with the participant's id in the same transaction as the option. A7 does not change C6 code; this line is the agreement for C6.
+- **Deployed database (⚠ please check in review):** Render runs `init-db` on every start, and `CREATE TABLE IF NOT EXISTS` adds the new table to the existing Postgres database without touching other data. No `ALTER TABLE` and no `reset-db` needed, and running `init-db` twice is harmless. This is why a table was chosen over a column: SQLite has no `ADD COLUMN IF NOT EXISTS`, so a column would also have needed a migration step in Python. Manual options saved before A7 have no row, so only the creator can delete them.
 - `db.add_manual_option` saves the option and its author row in one `db.transaction()` (both or neither), reading the new id with `RETURNING id`.
 
 **Room page (`GET /rooms/<room_id>`).** While the room is `collecting`, a joined participant sees a `Delete` button (a small form, `POST`) next to every option they may delete: for the creator every option, for anyone else only the options they added. In `voting` and `closed` nobody sees one. Who added an option is never shown to anyone; it is only used for this check.
@@ -74,6 +75,13 @@ Checks (one line = one test):
 - [ ] Edge case: if the database finds the room already `voting` (status check bypassed, as in a race), the delete shows `Options can only be deleted before voting starts.`, does not crash and the option stays. The test replaces `db.get_room` to simulate the race.
 - [ ] Migration: `init-db` on a database without `option_authors` creates it and keeps all existing rooms and options.
 - [ ] Persistence: after an app restart, a deleted option stays deleted and the author can still delete their other option.
+
+Added after the first test review, in `tests/test_delete_option_schema.py` (the first file was already approved, so it stays unchanged):
+- [ ] Schema: a new database has `option_authors` with the columns `option_id`, `room_id`, `participant_id`.
+- [ ] Schema: `init-db` twice in a row works and keeps options and author rows.
+- [ ] Schema: the database refuses an author row whose participant is in another room.
+- [ ] Ignored: an option id that does not exist at all – redirect to the room page, nothing changed.
+- [ ] Rejected: a replacement place from "Been there" has no author – a participant who is not the creator gets 403, the creator can delete it.
 
 ## Out of scope
 - A confirmation page before deleting (decided: the button deletes directly; a manual option can be typed again).
