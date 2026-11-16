@@ -212,7 +212,7 @@ Feedback from clicking through the app: the room page is long (invite link twice
 - Options as a compact list of names; a Google place opens its card when tapped (`<details>`).
 - Invite link and QR code at the end of the page.
 - **The lobby stays as the waiting page:** the room page cannot reload itself (it would wipe what someone is typing), and only a reloading page shows live without JavaScript when the voting starts. The room page links to it as "I'm done – wait for the others". The lobby tests stay unchanged.
-- **Invite link once:** `tests/test_proxy_headers.py` checks both the text field and the link. Showing it only once means changing that test helper; the team approves this in the review of this decision (AGENTS.md: tests are never changed without it). Until then both stay, in one compact block.
+- **Invite link:** `tests/test_proxy_headers.py` checks both the text field and the link. Decided in the review of this decision: both stay, in one compact block, and the reviewed test helper (`invite_urls_in`) is not changed.
 
 **F28 – Hidden collecting (S).** While collecting, every participant sees only the options they added themselves; everything is revealed on the rating cards when the voting starts.
 - **A setup choice, on by default in the setup form:** "Keep everyone's ideas secret until voting". Rooms without a setup (and rooms where the creator turns it off) show all options as today, because a reviewed test (`test_options.py`) checks that participants see each other's options.
@@ -220,6 +220,7 @@ Feedback from clicking through the app: the room page is long (invite link twice
 - Instead of the others' options, the page shows how many there are ("Others have added 4 options"), so the group still sees progress.
 - A name someone else already added is rejected with `Someone already had the same idea – it is already in the room.`, which reveals nothing more than that.
 - The creator sees only their own options as well; deleting other people's options (F24) is therefore not possible in a room with hidden collecting.
+- **Accepted trade-off:** in a hidden room nobody can remove someone else's typo or joke entry before the voting starts (collecting is the only time deleting works, and the reason for F24 in D14). The group can still rate it down. A creator who wants to clean up turns hidden collecting off for a moment, which shows all options and allows deleting again.
 - Who added an option is never shown, also not after the reveal (as D14).
 
 **Tasks** (own spec and branch each, D9), in this order; cut from the end if time runs short:
@@ -227,7 +228,7 @@ Feedback from clicking through the app: the room page is long (invite link twice
 | Task | Feature | Track (proposal) | Needs |
 |---|---|---|---|
 | C9 | F27 Room setup | C (catalogue and searches; new table reviewed by Track A) | A7 (merged) |
-| B6 | Room page layout | B (Timonhio) | C9 merged (setup form on the page) |
+| B6 | Room page layout | B (Timonhio) | C9 merged (setup form on the page); starts only after B4 and B5 |
 | A11 | F28 Hidden collecting | A | C9 and B6 merged |
 
 ## Open questions

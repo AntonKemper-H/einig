@@ -17,7 +17,7 @@ The room page is long: the invite link is shown twice and comes first, every Goo
 - **Not live:** the room page never reloads itself (a reload would wipe what someone is typing; a reviewed test checks there is no refresh). The section has a link `Refresh` to the room page itself.
 - **The lobby stays as the waiting page** and is unchanged (its reviewed tests stay). The room page links to it as `I'm done – wait for the others`; this link replaces "Go to the lobby to see who has joined".
 - **Options compact:** a Google option is `<details>` with the place name as summary and the C2b card inside (photo, facts, attribution); a manual option is a plain list item with its label. "Been there" (C5) and "Delete" (A7) stay next to each option, outside the `<details>`, so they are reachable without opening it.
-- **Invite link:** at the end of the page, in one block with the QR code. A reviewed test (`tests/test_proxy_headers.py`, `invite_urls_in`) requires both the read-only text field and a link with the URL as text. Until the team approves changing that helper (D17), **both stay**, but in one compact block: the text field with the label `Invite link`, the link below it in small text. If the team approves in the review of D17, the link is removed and `invite_urls_in` is changed in the same pull request, with the approval quoted in the PR.
+- **Invite link:** at the end of the page, in one block with the QR code. A reviewed test (`tests/test_proxy_headers.py`, `invite_urls_in`) requires both the read-only text field and a link with the URL as text. Decided in the review of D17: **both stay**, in one compact block: the text field with the label `Invite link`, the link below it in small text. `invite_urls_in` is not changed.
 - **Wide screens:** at a viewport width of at least 900 px, the participants section sits in a right-hand column next to the options (CSS grid in the stylesheet); on a phone it stays at the top. Same HTML, CSS only.
 - **Photos inside closed `<details>`** keep `loading="lazy"`, so most browsers load them only when the place is opened. No extra Google calls compared to C2b (one Place Details call per Google option per page view, as today; the name in the summary needs it anyway).
 
@@ -50,7 +50,7 @@ Manual checks (in the pull request): on a phone (≈ 380 px) no horizontal scrol
 - Changing the C2b card macro, the rating page or the result page.
 - Hiding other participants' options (A11).
 - Colours, logo and the general look of the app (separate design work).
-- Changing any reviewed test, except `invite_urls_in` in `tests/test_proxy_headers.py` and only with the team's approval recorded in the review of D17.
+- Changing any reviewed test (also `invite_urls_in` in `tests/test_proxy_headers.py`).
 
 ## Done when
 - All tests in `tests/test_room_page_layout.py` and all earlier tests pass (`uv run pytest`), output pasted.

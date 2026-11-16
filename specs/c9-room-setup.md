@@ -66,7 +66,14 @@ room_setups (
 ```
 
 ### `app/db.py`
-New: `get_room_setup(room_id)` (row or `None`), `save_room_setup(room_id, activity, kind, options_per_person) -> bool` (insert or update in one statement, `ON CONFLICT (room_id) DO UPDATE`, only while the room is `collecting`; returns `False` if the room is not collecting any more), `count_own_options(room_id, participant_id) -> int` (rows in `option_authors`).
+New: `get_room_setup(room_id)` (row or `None`), `save_room_setup(room_id, activity, kind, options_per_person) -> bool` (insert or update in one statement, `ON CONFLICT (room_id) DO UPDATE`, only while the room is `collecting`; returns `False` if the room is not collecting any more), `count_own_options(room_id, participant_id) -> int` (rows in `option_authors`, for the `1 of 3 options added` text).
+
+New: `add_manual_option_within_limit(room_id, label, participant_id, options_per_person: int) -> str` – the limit is listed under "Rules for simultaneous actions" (AGENTS.md), so check and insert happen in **one transaction**, like `save_vote`:
+1. Lock the room row: `UPDATE rooms SET status = status WHERE id = ? AND status = 'collecting'`; if no row changed → `"not_collecting"`, nothing saved.
+2. Count the participant's rows in `option_authors` for this room; at or above `options_per_person` → `"limit"`, nothing saved.
+3. Insert option and author row as `add_manual_option` does; a duplicate label (`UNIQUE (room_id, label)`) → `"duplicate"`, nothing saved. Otherwise `"added"`.
+
+`add_manual_option` stays unchanged (rooms without a limit keep using it; its reviewed tests stay valid). The route's own `limit_reached(...)` check before the call stays as a fast path for the message, but the database result decides. **C6** ("save a place by name", not built yet) must save its author row through the same locked check once it exists; its spec takes this over.
 
 ### Route `POST /rooms/<room_id>/setup`
 
@@ -89,7 +96,7 @@ New: `get_room_setup(room_id)` (row or `None`), `save_room_setup(room_id, activi
 - `places.search_nearby(..., included_types: list[str] | None = None)` – if given, sent as `includedTypes` instead of `[category]`. Default unchanged.
 - `surprise.surprise_search(..., subcategory_pool: list[str] | None = None)` – if given, sub-categories are chosen from this list instead of `SUBCATEGORIES[category]` (same `SUBCATEGORIES_PER_SEARCH`, same widening). Default unchanged.
 - `/suggest` and `/surprise` for a set-up room: validate with `category_required=False`, search with the kind's types, store in `filters` the main category `null` and the kind as `"kind": "food.brunch"` (C5's `read_filters` then gives `None` for the category, as decided above). Without a setup: unchanged.
-- `/rooms/<id>/options` (manual add) and C6's "save a place by name": rejected with status 400 and `You can add at most 3 options in this room.` when `limit_reached(...)`; nothing saved.
+- `/rooms/<id>/options` (manual add) in a room with a limit: saves through `db.add_manual_option_within_limit(...)`. `"limit"` (from the route's fast check or from the database) → status 400 and `You can add at most 3 options in this room.`; `"duplicate"` and `"not_collecting"` → the existing messages of A4; nothing saved in all three cases. Rooms without a limit: unchanged (`add_manual_option`).
 
 Checks (one line = one test):
 
@@ -109,13 +116,16 @@ Checks (one line = one test):
 - [ ] Rejected: a guest, a visitor and a participant of another room – 403, nothing saved.
 - [ ] Rejected: an unknown or empty kind, an invalid options-per-person value – 400, messages, sent values shown again, nothing saved.
 - [ ] Rejected: room `voting` or `closed` – 400, message, setup unchanged.
+- [ ] Simultaneous: the route's status check sees `collecting`, but the database already says `voting` (another request started the voting) – `save_room_setup` returns `False`, 400, nothing saved.
 - [ ] The creator's setup form is open before the first save and shows the saved values afterwards; guests see no setup form.
 - [ ] A room without a setup: room page, search forms and adding options are exactly as before (category select shown, no limit text).
 - [ ] Nearby search in a set-up room: no category select on the page; Google is called once with `includedTypes` = the kind's types; a posted `category` is ignored; `filters` stores the kind.
 - [ ] Surprise search in a set-up room: the sub-categories come only from the kind's types; at most `SUBCATEGORIES_PER_SEARCH` searches per round.
 - [ ] After the search, changing the setup does not search again, and the page says so.
 - [ ] Limit: with 2 per person, a guest adds 2 options; the third is rejected with the message and not saved; another guest can still add 2.
-- [ ] Limit: Google search results do not count; a place found by name (C6, `option_authors` row) counts.
+- [ ] Simultaneous: the route's fast check sees "below the limit", but the database already holds the limit (another add a moment earlier) – `add_manual_option_within_limit` returns `"limit"`, 400, message, nothing saved, still exactly the limit in `option_authors`.
+- [ ] `add_manual_option_within_limit` directly: `"added"`, `"limit"`, `"duplicate"` and `"not_collecting"` each in its case, and nothing saved in the last three.
+- [ ] Limit: Google search results do not count (a room with 5 suggested places and a limit of 1: the guest can still add 1).
 - [ ] Limit lowered from 3 to 1 after someone added 2: their options stay; they cannot add another one.
 - [ ] Limit: the add form shows `1 of 3 options added`, and at the limit the text `You have added 3 of 3 options.` instead of the form.
 - [ ] "Been there" in a set-up surprise room still works and searches the same type.
@@ -124,7 +134,8 @@ Checks (one line = one test):
 ## Out of scope
 - Lunch/dinner or any opening-hours filter, "open at the planned time".
 - A setup at room creation on the home page, a group default setup, a group admin (D17); the group form of A9 uses this setup only once A9 is built after C9.
-- Showing or using `hide_ideas` or `reveal_places`, hiding options (A11). Saving the setup in C9 leaves both columns unchanged.
+- Showing or using `hide_ideas` or `reveal_places`, hiding options (A11). Saving the setup in C9 leaves both columns unchanged. (A11 only reads the two checkboxes when its form sends a marker field, so the frozen C9 tests that post only kind and limit stay valid.)
+- The limit for C6's "save a place by name" (C6 is not built yet; its spec uses `add_manual_option_within_limit`'s locked check).
 - Searching again after a setup change, changing C5 to use other types of the kind.
 - Changing `surprise.SUBCATEGORIES`, `places.CATEGORIES`, or any existing test.
 - JavaScript.

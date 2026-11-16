@@ -41,7 +41,7 @@ Each line is one task: own spec in `specs/`, own branch, own pull request, fresh
 - [x] B3 F6 Result page (PR #19)
 - [ ] B4 F10 Joker / veto
 - [ ] B5 F11 Deadline
-- [ ] B6 Room page layout: participants and options collapsible, invite at the end (`specs/b6-room-page-layout.md`, D17) – after C9
+- [ ] B6 Room page layout: participants and options collapsible, invite at the end (`specs/b6-room-page-layout.md`, D17) – after B4, B5 and C9
 
 ### Track C – Online & places – mkim-nova
 

@@ -35,14 +35,14 @@ When everyone sees everyone's ideas while collecting, people copy or simply wait
 
 ### Code
 - A pure function in `app/services/options.py`: `visible_options(options: list, participant_id: int, hide_ideas: bool, reveal_places: bool) -> tuple[list, int, int]` – the options this participant may see (in the original order), the number of hidden ideas and the number of hidden suggested places. Each option has `added_by` (participant id or `None`) as `db.get_options` returns it since A7.
-- `show_room` (room page) uses it while the room is `collecting` and the room has a setup; otherwise all options as today. The Place Details calls are made only for **visible** Google options (hidden places cost nothing).
-- C9's setup form, validation (`validate_setup` reads the two checkboxes: present → 1, missing → 0; `reveal_places` is stored as 1 in a `manual` room) and `save_room_setup` are extended with the two values.
+- **The filter sits in `render_room_page(...)`** in `app/routes/rooms.py`, right where it loads `db.get_options(...)`, while the room is `collecting` and the room has a setup; otherwise all options as today. Every page that shows the room goes through it: `show_room` and every rejected action that shows the room page again with status 400 (add option, limit reached, duplicate, "Been there", delete, search errors). Filtering only in `show_room` would leak hidden options through those error pages. The Place Details calls are made only for **visible** Google options (hidden places cost nothing).
+- C9's setup form, validation and `save_room_setup` are extended with the two values. The form sends a hidden marker field `privacy_choices=1`. **Only when the marker is present**, `validate_setup` reads the two checkboxes (present → 1, missing → 0; `reveal_places` is stored as 1 in a `manual` room). Without the marker (e.g. C9's frozen tests that post only kind and limit), both stored values stay as they are (defaults 0 and 1 for a new setup), so those tests keep their meaning.
 - Add-option route, C6 save route, C5 been-there route and A7 delete route get the checks above. SQL only in `app/db.py`.
 
 Checks (one line = one test), `tests/test_hidden_collecting.py`:
 - [ ] `visible_options` follows the table above for all four combinations; the two counts are right; the order is kept.
 - [ ] The setup form of a room without setup shows both checkboxes checked; the places checkbox is missing in a `manual` room.
-- [ ] Accepted: saving the setup with `hide_ideas` stores 1; without the field stores 0; only the creator, only while collecting (C9's checks).
+- [ ] Accepted: saving the setup with the marker and `hide_ideas` stores 1; with the marker and without the field stores 0; without the marker both stored values stay unchanged; only the creator, only while collecting (C9's checks).
 - [ ] `hide_ideas = 1`: creator and guest each add an idea; each sees only their own and `Others have added 1 idea.` (`1 idea`, `2 ideas`).
 - [ ] `hide_ideas = 1`: a visitor (not joined) still sees no options at all.
 - [ ] `hide_ideas = 0` with a setup, and rooms without a setup: everyone sees every option (as `test_options.py`).
@@ -52,6 +52,7 @@ Checks (one line = one test), `tests/test_hidden_collecting.py`:
 - [ ] Rejected: a guest types the same label as the creator's hidden idea – 400, `Someone already had the same idea – it is already in the room.`, nothing saved, the creator's idea is still not shown to the guest.
 - [ ] Rejected: deleting someone else's hidden idea (also by the creator) – 400 `This option does not exist in this room.`, nothing deleted.
 - [ ] Accepted: deleting one's own idea in a hidden room works.
+- [ ] No leak through error pages: in a room with `hide_ideas = 1` and `reveal_places = 0`, a guest's rejected action (limit reached, an empty label, "Been there" on a secret place, deleting an unknown option) shows the room page with 400, and that page contains none of the creator's hidden ideas and none of the secret places, only the counts.
 - [ ] After `Start voting`, every participant's rating page shows all options (own, others', suggested places).
 - [ ] The result page and the overview never show who added an option.
 - [ ] The lobby shows the full number of options in a hidden room.

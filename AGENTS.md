@@ -144,10 +144,10 @@ Enforced on the server and covered by tests:
 - **Deadline:** compared with server time (UTC) only. A vote after the deadline is rejected, even if the page was opened earlier.
 - **Closing a room:** idempotent. If already closed, return the existing result instead of recalculating.
 - **Voting in a closed room:** rejected with a message.
-- **"Been there" (replace option):** the first request replaces it; later requests for the same, already replaced option are ignored.
-- **Adding options:** only while the room status is `collecting`, and at most the room's "options per person" (F27, D17) own options per participant.
+- **"Been there" (replace option):** the first request replaces it; later requests for the same, already replaced option are ignored. Not available while the suggested places are kept secret (F28, D17).
+- **Adding options:** only while the room status is `collecting`, and at most the room's "options per person" (F27, D17) own options per participant. The limit is checked and the option saved in one transaction, after locking the room row (as for votes), so two adds at the same moment never pass the limit.
 - **Room setup (F27):** only the creator, only while `collecting`.
-- **Deleting an option (F24):** only while the room status is `collecting`, by the participant who added it or by the creator. Deleting an option that is already gone changes nothing.
+- **Deleting an option (F24):** only while the room status is `collecting`, by the participant who added it or by the creator. With hidden collecting (F28, D17), only by the participant who added it: the creator cannot delete other people's hidden options. Deleting an option that is already gone changes nothing.
 
 ### Rejected actions
 
