@@ -29,6 +29,7 @@ Each line is one task: own spec in `specs/`, own branch, own pull request, fresh
 - [x] A5 F7 Lobby with room status (meta refresh), including the creator's "Start voting" (collecting → voting) (PR #15)
 - [x] A6 F22 QR code for the invite link, scanned on a phone on the deployed app (PR #16)
 - [ ] A7 F24 Delete an option (author or creator; new table `option_authors`, `docs/decisions.md` D14)
+- [ ] A11 F28 Hidden collecting (`specs/a11-hidden-collecting.md`, D17) – after C9 and B6
 
 ### Track B – Voting & result – Timonhio
 
@@ -37,6 +38,7 @@ Each line is one task: own spec in `specs/`, own branch, own pull request, fresh
 - [ ] B3 F6 Result page
 - [ ] B4 F10 Joker / veto
 - [ ] B5 F11 Deadline
+- [ ] B6 Room page layout: participants and options collapsible, invite at the end (`specs/b6-room-page-layout.md`, D17) – after C9
 
 ### Track C – Online & places – mkim-nova
 
@@ -50,6 +52,7 @@ Each line is one task: own spec in `specs/`, own branch, own pull request, fresh
 - [x] C4 F12 Surprise mode (PR #27)
 - [x] C5 F13 "Been there" (PR #29)
 - [ ] C6 F23 Find a place by name and pick the right match (`docs/decisions.md` D14)
+- [ ] C9 F27 Room setup: activity, kind, options per person (`specs/c9-room-setup.md`, D17)
 
 ### Dependencies
 

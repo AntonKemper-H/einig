@@ -118,7 +118,7 @@ Keep this structure. Routes stay thin: they read the request, call `db.py` and `
 
 ## Scope
 
-Build now: **F1–F13, F22, F23 and F24** (see `docs/decisions.md`, D7 and D14). F23 and F24 are not in `docs/concept.md`; D14 describes them.
+Build now: **F1–F13, F22, F23, F24, F27 and F28** (see `docs/decisions.md`, D7, D14 and D17). F23, F24, F27 and F28 are not in `docs/concept.md`; D14 and D17 describe them.
 Parked: **F14–F21.** Do not build parked features, and do not prepare code "for later", unless a spec explicitly asks for it.
 
 ## Domain rules
@@ -144,7 +144,8 @@ Enforced on the server and covered by tests:
 - **Closing a room:** idempotent. If already closed, return the existing result instead of recalculating.
 - **Voting in a closed room:** rejected with a message.
 - **"Been there" (replace option):** the first request replaces it; later requests for the same, already replaced option are ignored.
-- **Adding options:** only while the room status is `collecting`.
+- **Adding options:** only while the room status is `collecting`, and at most the room's "options per person" (F27, D17) own options per participant.
+- **Room setup (F27):** only the creator, only while `collecting`.
 - **Deleting an option (F24):** only while the room status is `collecting`, by the participant who added it or by the creator. Deleting an option that is already gone changes nothing.
 
 ### Rejected actions
@@ -161,6 +162,8 @@ Every invalid input or forbidden action shows a clear message and **leaves saved
 ### Individual votes are private
 
 No route, template, or debug output may reveal who voted what. Results show only anonymous counts per option.
+
+With hidden collecting (F28, D17), no page shows another participant's options before the voting starts, only their number.
 
 ## Google Maps integration (`services/places.py`)
 

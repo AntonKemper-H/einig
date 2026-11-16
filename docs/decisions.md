@@ -61,6 +61,7 @@ Concept priorities M/S/C apply, with this cut for the submission:
 | F8–F11 places, map, joker, deadline | F15 Fate mode |
 | F12–F13 surprise mode, "been there" | F16–F18 groups, history, fairness memory |
 | F23 find a place by name, F24 delete an option (D14) | |
+| F27 room setup, F28 hidden collecting, room page layout (D17) | |
 | F22 QR code | F19 meeting point, F20 travel times, F21 WebSockets |
 
 **Why:** Claude Code writes code fast, but reviews, understanding every part for the walkthrough, browser testing and merges take time. A smaller app that never crashes scores better than a big one that does.
@@ -140,6 +141,42 @@ Two features that are not in `docs/concept.md`, added to the scope (D7) because 
 **Tasks:** C6 F23 (Track C, mkim-nova) and A7 F24 (Track A, owns the schema). Both follow D9: own spec, tests reviewed before the implementation.
 
 **Why now and not parked:** both make the core flow (F3) usable in a real group, unlike the parked extras F14–F21. If time runs short, F24 comes first: it is smaller and fixes mistakes that otherwise stay in the room until the end.
+
+## D17 – Room setup (F27), a calmer room page and hidden collecting (F28) (2026-11-16)
+
+Feedback from clicking through the app: the room page is long (invite link twice, every place as a full card), the separate lobby is an extra step, the creator cannot say what kind of activity the room is about, and everyone sees everyone's ideas while collecting, which pushes people to copy instead of suggesting their own. F27 and F28 are not in `docs/concept.md`; this decision describes them.
+
+**F27 – Room setup (S).** While the room is `collecting`, the creator sets up:
+- **Activity and kind**, from a two-level catalogue in `app/services/activities.py`: Food (breakfast, brunch, restaurant), Drinks & café (bar, café, dessert), Sport (bowling, climbing, swimming, fitness, sports ground), Culture & leisure (cinema, museum and gallery, theatre, amusement park and zoo, park and hiking). Each kind maps to Google place types; "Places nearby" and "Surprise me" search with the kind's types instead of the creator choosing a category in the search form. Only types that exist in Google's place type table are used.
+- **Lunch or dinner** is not a Google type; it would need opening hours and is not part of F27. "Restaurant" covers both.
+- **Options per person** (1–5 or unlimited): how many own options each participant may add. Places from the Google searches do not count. Uses the authors in `option_authors` (A7, D14).
+- **Changeable while collecting, fixed once voting starts**, so the basis of the ratings never moves.
+- **Stored in a new table `room_setups`** (one row per room), not in new columns of `rooms`: like `option_authors` (A7), `init-db` creates a new table on the deployed database by itself, without `ALTER TABLE`. The table also holds the two F28 choices below (`hide_ideas`, `reveal_places`), so A11 needs no second schema change.
+- **Groups:** every new activity in a group (A9) gets its own setup, with the same form. There is no group admin and no stored group default.
+- Rooms without a setup work exactly as today, so every existing test and room stays valid.
+
+**Room page layout (design task).** One page instead of room page + lobby:
+- Participants as a collapsible list (`<details>`, no JavaScript) with the "done" marks and, for the creator, "Start voting". On a wide screen it sits at the side, on a phone at the top.
+- Options as a compact list of names; a Google place opens its card when tapped (`<details>`).
+- Invite link and QR code at the end of the page.
+- **The lobby stays as the waiting page:** the room page cannot reload itself (it would wipe what someone is typing), and only a reloading page shows live without JavaScript when the voting starts. The room page links to it as "I'm done – wait for the others". The lobby tests stay unchanged.
+- **Invite link once:** `tests/test_proxy_headers.py` checks both the text field and the link. Showing it only once means changing that test helper; the team approves this in the review of this decision (AGENTS.md: tests are never changed without it). Until then both stay, in one compact block.
+
+**F28 – Hidden collecting (S).** While collecting, every participant sees only the options they added themselves; everything is revealed on the rating cards when the voting starts.
+- **A setup choice, on by default in the setup form:** "Keep everyone's ideas secret until voting". Rooms without a setup (and rooms where the creator turns it off) show all options as today, because a reviewed test (`test_options.py`) checks that participants see each other's options.
+- **Places from the Google searches** are a setup choice: "show suggested places to everyone while collecting" (then "Been there" works as today) or "keep them secret until voting" (full surprise, no "Been there").
+- Instead of the others' options, the page shows how many there are ("Others have added 4 options"), so the group still sees progress.
+- A name someone else already added is rejected with `Someone already had the same idea – it is already in the room.`, which reveals nothing more than that.
+- The creator sees only their own options as well; deleting other people's options (F24) is therefore not possible in a room with hidden collecting.
+- Who added an option is never shown, also not after the reveal (as D14).
+
+**Tasks** (own spec and branch each, D9), in this order; cut from the end if time runs short:
+
+| Task | Feature | Track (proposal) | Needs |
+|---|---|---|---|
+| C9 | F27 Room setup | C (catalogue and searches; new table reviewed by Track A) | A7 (merged) |
+| B6 | Room page layout | B (Timonhio) | C9 merged (setup form on the page) |
+| A11 | F28 Hidden collecting | A | C9 and B6 merged |
 
 ## Open questions
 
