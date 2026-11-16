@@ -17,14 +17,37 @@
     <p><a href="{{ url_for('rooms.show_lobby', room_id=room.id) }}">Go to the lobby</a> to see who has joined.</p>
 
     <h2>Options</h2>
+
+    {% if been_there_errors %}
+      <ul role="alert">
+        {% for error in been_there_errors %}
+          <li>{{ error }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+
     {% if cards %}
       <ol>
         {% for card in cards %}
-          <li>{% if card.source == "google" %}{{ place_card(card) }}{% else %}{{ card.label }}{% endif %}</li>
+          {% set option_id = option_ids[loop.index0] %}
+          <li>
+            {% if card.source == "google" %}{{ place_card(card) }}{% else %}{{ card.label }}{% endif %}
+            {% if option_id in been_there_ids %}
+              {# F13: anyone in the group can swap a place they already know for a new one. #}
+              <form action="{{ url_for('rooms.been_there', room_id=room.id, option_id=option_id) }}" method="post">
+                <button type="submit" class="secondary">Been there</button>
+              </form>
+            {% endif %}
+          </li>
         {% endfor %}
       </ol>
     {% else %}
       <p>No options yet.</p>
+    {% endif %}
+
+    {% if widened_to %}
+      {# F12: the surprise search had to look further away; the whole group should know. #}
+      <p>Only a few places were found nearby, so the search area was widened to {{ widened_to }}.</p>
     {% endif %}
 
     {% if search_errors %}
@@ -35,15 +58,27 @@
       </ul>
     {% endif %}
 
-    {% if show_search_form %}
-      {# F8: only the creator of a "Places nearby" room sees this, once per room. #}
-      <form action="{{ url_for('rooms.suggest_places', room_id=room.id) }}" method="post">
-        <h3>Find places nearby</h3>
+    {% if show_search_form or show_surprise_form %}
+      {# Only the creator sees this, once per room: F8 in a "Places nearby" room,
+         F12 in a "Surprise me" room. Both use the same fields. #}
+      {% if show_surprise_form %}
+        {% set form_action = url_for('rooms.surprise_places', room_id=room.id) %}
+        {% set form_heading = "Surprise us" %}
+        {% set form_categories = surprise_categories %}
+        {% set submit_text = "Surprise us" %}
+      {% else %}
+        {% set form_action = url_for('rooms.suggest_places', room_id=room.id) %}
+        {% set form_heading = "Find places nearby" %}
+        {% set form_categories = categories %}
+        {% set submit_text = "Suggest places" %}
+      {% endif %}
+      <form action="{{ form_action }}" method="post">
+        <h3>{{ form_heading }}</h3>
 
         <label>
           Category
           <select name="category" required>
-            {% for value, text in categories.items() %}
+            {% for value, text in form_categories.items() %}
               <option value="{{ value }}" {% if search_values.get("category") == value %}selected{% endif %}>{{ text }}</option>
             {% endfor %}
           </select>
@@ -84,7 +119,7 @@
         <button type="button" id="use-location">Use my location</button>
         <p id="location-status" aria-live="polite">Your location is only used for this search, rounded to about 100 m.</p>
 
-        <button type="submit">Suggest places</button>
+        <button type="submit">{{ submit_text }}</button>
       </form>
       <script src="{{ url_for('static', filename='js/geolocation.js') }}" defer></script>
     {% endif %}

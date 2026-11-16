@@ -1,5 +1,8 @@
 """Room pages: create a room (F1), show and join it (F2), add options (F3),
-lobby and start voting (F7), suggest places nearby (F8), rating (F4)."""
+lobby and start voting (F7), suggest places nearby (F8), surprise mode (F12),
+"Been there" (F13), rating (F4)."""
+
+import random
 
 from flask import (
     Blueprint,
@@ -15,8 +18,7 @@ from flask import (
 from app import db
 from app.services import lobby as lobby_rules
 from app.services import options as option_rules
-from app.services import places
-from app.services import qr
+from app.services import places, qr, surprise
 from app.services import rooms as room_rules
 from app.services import voting as voting_rules
 
@@ -63,6 +65,7 @@ def render_room_page(
     option_errors: list[str] | None = None,
     search_values=None,
     search_errors: list[str] | None = None,
+    been_there_errors: list[str] | None = None,
 ):
     """Render the room page: join form for visitors; options, add form and place search for participants."""
     invite_url = invite_url_for(room["id"])
@@ -77,12 +80,26 @@ def render_room_page(
         room["search_center_lng"],
     )
     # The search form uses the same rules as the route, so it is shown exactly when a search is allowed.
-    show_search_form = participant is not None and places.search_refusal(
-        bool(participant["is_creator"]),
-        room["mode"],
-        room["status"],
-        db.has_google_options(room["id"]),
-    ) is None
+    show_search_form = False
+    show_surprise_form = False
+    if participant is not None:
+        already_suggested = db.has_google_options(room["id"])
+        show_search_form = places.search_refusal(
+            bool(participant["is_creator"]), room["mode"], room["status"], already_suggested
+        ) is None
+        show_surprise_form = surprise.surprise_refusal(
+            bool(participant["is_creator"]), room["mode"], room["status"], already_suggested
+        ) is None
+    # F12: tell the group if the surprise search had to widen the radius (participants only).
+    widened_to = None
+    if participant is not None:
+        widened_to = surprise.widened_to_text(room["mode"], room["radius_m"], room["filters"])
+    # F13: the ids of the options whose card gets a "Been there" button.
+    been_there_ids = {
+        option["id"]
+        for option in options
+        if surprise.can_press_been_there(room["mode"], room["status"], option["source"])
+    }
     return render_template(
         "room.html",
         room=room,
@@ -95,6 +112,12 @@ def render_room_page(
         option_label=option_label,
         option_errors=option_errors or [],
         show_search_form=show_search_form,
+        show_surprise_form=show_surprise_form,
+        surprise_categories=surprise.CATEGORY_LABELS,
+        widened_to=widened_to,
+        option_ids=[option["id"] for option in options],
+        been_there_ids=been_there_ids,
+        been_there_errors=been_there_errors or [],
         search_values=search_values or {},
         search_errors=search_errors or [],
         categories=places.CATEGORIES,
@@ -322,6 +345,150 @@ def suggest_places(room_id: str):
         return show_search_again([places.ALREADY_SUGGESTED_MESSAGE], 400)
 
     return redirect(url_for("rooms.show_room", room_id=room_id), code=303)
+
+
+@bp.post("/rooms/<room_id>/surprise")
+def surprise_places(room_id: str):
+    """F12: the creator runs the surprise search once; a varied mix is saved as options (Post/Redirect/Get)."""
+    room = db.get_room(room_id)
+    if room is None:
+        abort(404)
+
+    # Permission check on the server: hiding the form is not enough.
+    participant = db.get_participant(room_id, session_token_for(room_id))
+    if participant is None:
+        return render_room_page(room, None, errors=[NOT_JOINED_MESSAGE]), 403
+
+    refusal = surprise.surprise_refusal(
+        bool(participant["is_creator"]),
+        room["mode"],
+        room["status"],
+        db.has_google_options(room_id),
+    )
+    if refusal is not None:
+        status_code, message = refusal
+        return render_room_page(room, participant, search_errors=[message]), status_code
+
+    def show_form_again(messages: list[str], status_code: int):
+        """The room page with the entered values and the messages."""
+        return render_room_page(
+            room,
+            participant,
+            search_values=places.values_to_show_again(request.form),
+            search_errors=messages,
+        ), status_code
+
+    search, errors = surprise.validate_surprise(request.form)
+    if errors:
+        return show_form_again(errors, 400)
+
+    api_key = current_app.config.get("GOOGLE_MAPS_API_KEY")
+    if not api_key:
+        return show_form_again([PLACES_UNAVAILABLE_MESSAGE], 503)
+    try:
+        result = surprise.surprise_search(
+            api_key=api_key,
+            latitude=search["latitude"],
+            longitude=search["longitude"],
+            radius_m=search["radius_m"],
+            category=search["category"],
+            max_price_level=search["max_price_level"],
+            min_rating=search["min_rating"],
+            rng=random.Random(),
+        )
+    except places.PlacesError:
+        return show_form_again([PLACES_UNAVAILABLE_MESSAGE], 503)
+
+    if not result["choices"]:
+        return show_form_again([NO_PLACES_FOUND_MESSAGE], 200)
+
+    saved = db.save_search(
+        room_id,
+        result["choices"],
+        search["latitude"],
+        search["longitude"],
+        result["radius_m"],
+        surprise.filters_json(search),
+    )
+    if not saved:
+        # Another search claimed the room a moment earlier.
+        return show_form_again([places.ALREADY_SUGGESTED_MESSAGE], 400)
+
+    return redirect(url_for("rooms.show_room", room_id=room_id), code=303)
+
+
+@bp.post("/rooms/<room_id>/options/<int:option_id>/been-there")
+def been_there(room_id: str, option_id: int):
+    """F13: a participant has been to this surprise place; replace it with a new one for everyone (Post/Redirect/Get)."""
+    room = db.get_room(room_id)
+    if room is None:
+        abort(404)
+
+    # Every write route checks the token on the server (AGENTS.md, Identity and access).
+    participant = db.get_participant(room_id, session_token_for(room_id))
+    if participant is None:
+        return render_room_page(room, None, errors=[NOT_JOINED_MESSAGE]), 403
+
+    def show_message(message: str, status_code: int):
+        """The room page with the message above the options."""
+        return render_room_page(room, participant, been_there_errors=[message]), status_code
+
+    room_page = redirect(url_for("rooms.show_room", room_id=room_id), code=303)
+
+    option = db.get_option(room_id, option_id)
+    if option is None:
+        return show_message(voting_rules.UNKNOWN_OPTION_MESSAGE, 400)
+    if room["mode"] != "surprise":
+        return show_message(surprise.BEEN_THERE_WRONG_MODE_MESSAGE, 400)
+    if room["status"] != "collecting":
+        return show_message(places.NOT_COLLECTING_MESSAGE, 400)
+    if option["source"] != "google":
+        return show_message(surprise.MANUAL_OPTION_MESSAGE, 400)
+    if option["is_replaced"]:
+        # Someone else pressed it first: AGENTS.md says later requests are ignored.
+        return room_page
+    if db.count_replaced_options(room_id) >= surprise.MAX_REPLACEMENTS_PER_ROOM:
+        return show_message(surprise.REPLACEMENT_LIMIT_MESSAGE, 400)
+
+    api_key = current_app.config.get("GOOGLE_MAPS_API_KEY")
+    has_stored_search = room["search_center_lat"] is not None and room["radius_m"] is not None
+    if not api_key or not has_stored_search:
+        return show_message(PLACES_UNAVAILABLE_MESSAGE, 503)
+
+    # Search the same circle and filters as the surprise search (C4) did.
+    filters = surprise.read_filters(room["filters"])
+    rng = random.Random()
+    active_categories = [
+        active["category"] for active in db.get_options(room_id) if active["source"] == "google"
+    ]
+    try:
+        replacement = surprise.find_replacement(
+            api_key=api_key,
+            latitude=room["search_center_lat"],
+            longitude=room["search_center_lng"],
+            radius_m=room["radius_m"],
+            subcategories=surprise.replacement_subcategories(
+                filters["category"], option["category"], active_categories, rng
+            ),
+            max_price_level=filters["max_price_level"],
+            min_rating=filters["min_rating"],
+            known_place_ids=set(db.get_room_place_ids(room_id)),
+            rng=rng,
+        )
+    except places.PlacesError:
+        return show_message(PLACES_UNAVAILABLE_MESSAGE, 503)
+
+    if replacement is None:
+        return show_message(surprise.NOTHING_NEW_MESSAGE, 200)
+
+    new_place_id, category = replacement
+    try:
+        db.replace_option(room_id, option_id, new_place_id, category)
+    except db.INTEGRITY_ERRORS:
+        # E.g. another option of this room was replaced by the same place a moment earlier.
+        return show_message(OPTION_REFUSED_MESSAGE, 400)
+    # Also when replace_option returned False: another request was first, so this one is ignored.
+    return room_page
 
 
 def render_vote_page(room, participant, errors: list[str] | None = None):

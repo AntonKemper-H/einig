@@ -202,7 +202,8 @@ def create_room_with_creator(
 def get_room(room_id: str) -> sqlite3.Row | dict | None:
     """Return the room with this id, or None if it does not exist."""
     return get_db().execute(
-        "SELECT id, title, mode, status, search_center_lat, search_center_lng FROM rooms WHERE id = ?",
+        "SELECT id, title, mode, status, search_center_lat, search_center_lng, radius_m, filters"
+        " FROM rooms WHERE id = ?",
         (room_id,),
     ).fetchone()
 
@@ -242,11 +243,70 @@ def add_participant(room_id: str, nickname: str, session_token: str) -> bool:
 
 
 def get_options(room_id: str) -> list[sqlite3.Row | dict]:
-    """Return all options of a room in the order they were added."""
+    """Return the active options of a room in the order they were added.
+
+    Options replaced with "Been there" (F13) are left out everywhere: on the room
+    page, in the lobby's count and in the check before voting starts.
+    """
     return get_db().execute(
-        "SELECT id, source, label, place_id FROM options WHERE room_id = ? ORDER BY id",
+        "SELECT id, source, label, place_id, category FROM options"
+        " WHERE room_id = ? AND is_replaced = 0 ORDER BY id",
         (room_id,),
     ).fetchall()
+
+
+def get_option(room_id: str, option_id: int) -> sqlite3.Row | dict | None:
+    """Return this option if it belongs to this room (also when replaced), or None."""
+    return get_db().execute(
+        "SELECT id, source, place_id, category, is_replaced FROM options"
+        " WHERE id = ? AND room_id = ?",
+        (option_id, room_id),
+    ).fetchone()
+
+
+def count_replaced_options(room_id: str) -> int:
+    """How many options of this room were replaced with "Been there" (F13)."""
+    row = get_db().execute(
+        "SELECT COUNT(*) AS replaced FROM options WHERE room_id = ? AND is_replaced = 1",
+        (room_id,),
+    ).fetchone()
+    return row["replaced"]
+
+
+def get_room_place_ids(room_id: str) -> list[str]:
+    """Return every Google place id this room has had, active and replaced (F13)."""
+    rows = get_db().execute(
+        "SELECT place_id FROM options WHERE room_id = ? AND place_id IS NOT NULL", (room_id,)
+    ).fetchall()
+    return [row["place_id"] for row in rows]
+
+
+def replace_option(room_id: str, option_id: int, place_id: str, category: str) -> bool:
+    """F13: mark the option as replaced and add the new place, both or neither.
+
+    Returns False if the option was already replaced or the room stopped collecting
+    (another request was first). Raises one of INTEGRITY_ERRORS if the database
+    refuses the new place; the transaction is then rolled back, so the old option
+    is active again.
+    """
+    with transaction() as connection:
+        # The claim: only one request can turn is_replaced from 0 into 1, so two
+        # presses at the same moment never add two new places for one old one.
+        claim = connection.execute(
+            "UPDATE options SET is_replaced = 1"
+            " WHERE id = ? AND room_id = ? AND is_replaced = 0"
+            " AND EXISTS (SELECT 1 FROM rooms WHERE rooms.id = options.room_id"
+            " AND rooms.status = 'collecting')",
+            (option_id, room_id),
+        )
+        if claim.rowcount != 1:
+            # Nothing was changed, so leaving the block (and committing nothing) is safe.
+            return False
+        connection.execute(
+            "INSERT INTO options (room_id, source, place_id, category) VALUES (?, 'google', ?, ?)",
+            (room_id, place_id, category),
+        )
+    return True
 
 
 def get_option_labels(room_id: str) -> list[str]:
@@ -319,8 +379,25 @@ def save_google_search(
     radius_m: int,
     filters: str,
 ) -> bool:
-    """Save one search for a room: its settings and one option per place id, all or nothing.
+    """Save one "Places nearby" search (C2a): every place gets the same category.
 
+    Returns False if another search already claimed the room or the database refuses an insert.
+    """
+    places_with_category = [(place_id, category) for place_id in place_ids]
+    return save_search(room_id, places_with_category, latitude, longitude, radius_m, filters)
+
+
+def save_search(
+    room_id: str,
+    places_with_category: list[tuple[str, str]],
+    latitude: float,
+    longitude: float,
+    radius_m: int,
+    filters: str,
+) -> bool:
+    """Save one search for a room: its settings and one option per (place id, category), all or nothing.
+
+    Used by C2a (one category) and C4 surprise mode (one sub-category per place).
     Returns False if another search already claimed the room or the database refuses an insert.
     """
     try:
@@ -337,7 +414,7 @@ def save_google_search(
             if claim.rowcount != 1:
                 # Nothing was changed, so leaving the block (and committing nothing) is safe.
                 return False
-            for place_id in place_ids:
+            for place_id, category in places_with_category:
                 connection.execute(
                     "INSERT INTO options (room_id, source, place_id, category)"
                     " VALUES (?, 'google', ?, ?)",
