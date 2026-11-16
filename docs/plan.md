@@ -27,7 +27,7 @@ Each line is one task: own spec in `specs/`, own branch, own pull request, fresh
 - [x] A3 F2 Join without an account (PR #9)
 - [x] A4 F3 Add options manually (PR #14)
 - [x] A5 F7 Lobby with room status (meta refresh), including the creator's "Start voting" (collecting → voting) (PR #15)
-- [ ] A6 F22 QR code
+- [x] A6 F22 QR code for the invite link, scanned on a phone on the deployed app (PR #16)
 
 ### Track B – Voting & result – Timonhio
 
