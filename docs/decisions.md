@@ -59,8 +59,9 @@ Concept priorities M/S/C apply, with this cut for the submission:
 |---|---|
 | F1–F7 minimum version | F14 Blind Date |
 | F8–F11 places, map, joker, deadline | F15 Fate mode |
-| F12–F13 surprise mode, "been there" | F16–F18 groups, history, fairness memory |
-| F23 find a place by name, F24 delete an option (D14) | |
+| F12–F13 surprise mode, "been there" | F18 fairness memory |
+| F23 find a place by name, F24 delete an option (D14) | F17 group history (only the group map of F26 is built, D15) |
+| F25 my rooms, F16 fixed groups, F26 place collection and map (D15) | |
 | F22 QR code | F19 meeting point, F20 travel times, F21 WebSockets |
 
 **Why:** Claude Code writes code fast, but reviews, understanding every part for the walkthrough, browser testing and merges take time. A smaller app that never crashes scores better than a big one that does.
@@ -140,6 +141,44 @@ Two features that are not in `docs/concept.md`, added to the scope (D7) because 
 **Tasks:** C6 F23 (Track C, mkim-nova) and A7 F24 (Track A, owns the schema). Both follow D9: own spec, tests reviewed before the implementation.
 
 **Why now and not parked:** both make the core flow (F3) usable in a real group, unlike the parked extras F14–F21. If time runs short, F24 comes first: it is smaller and fixes mistakes that otherwise stay in the room until the end.
+
+## D15 – My rooms (F25), fixed groups (F16) and a place collection with a map (F26) (2026-11-16)
+
+Three features that turn single decisions into something a group comes back to: the home page lists every room this phone is in, a group can plan one activity after another without everyone joining again, and every person collects the places they have actually been to, on a map. F25 and F26 are not in `docs/concept.md`; this decision describes them. F16 is in the concept (parked in D7) and is moved into the scope here, in the reduced form below.
+
+**F25 – My rooms (S).** The home page lists the rooms this browser has joined, newest first, with title, status and a link to the right page; a link "My rooms" in the header leads back from every page.
+- **No accounts, no new table:** the list comes from the room tokens already stored in the signed session cookie (A3).
+- **The cookie now lasts 180 days** (`session.permanent = True`, `PERMANENT_SESSION_LIFETIME`). Until now it ended when the browser closed, which would empty the list and the place collection. The cookie still holds only random tokens.
+- **The cookie stays small:** tokens of rooms that no longer exist are dropped, and at most 30 rooms are remembered (browsers refuse cookies over about 4 KB, which would lose everything). Rooms are deleted after 7 days anyway.
+
+**F16 – Fixed groups (S, reduced).** A group has a name and its own invite link and QR code. Members join once with a nickname; a member token in the cookie recognises them.
+- On the group page every member can **plan a new activity**: a new room (title and mode) that belongs to the group. Members open it and join with **one tap** under their group nickname; nobody types a name again.
+- Guests who are not in the group can still join a group room with the room link, like any other room.
+- The home page lists the groups above the rooms.
+- **Not included:** the fairness memory (F18 stays parked), renaming or removing members, leaving a group, group admins. Every member has the same rights.
+- **Schema change** (owner: Track A, D10): tables `groups` and `group_members`, nullable columns `rooms.group_id` and `participants.group_member_id`. The deployed database gets them the same way A7 adds `options.added_by` (D14).
+- Groups are deleted 90 days after their last new room (rule for the cleanup command; the command itself is not part of these tasks).
+
+**F26 – Place collection and map (S).** A small game: every person collects the places they have really been to and sees them as pins on their own map.
+- **"I was there":** on the result page of a closed room whose winner is a Google place, every participant can press "I was there ✓". Only then is the place collected, because a winner is not always where the group really went. Manual options cannot be collected (no place id, no location).
+- **A person, not an account:** the collection belongs to a random `person_token` in the cookie, created at the first "I was there". Losing the cookie loses the collection; moving it to another phone is not part of this decision.
+- **Stored:** only person token, place id, room id, group id (if any), whether the room was a "Surprise me" room, and the date (Google terms: only the place id is ours to keep). The table is not linked to the room, so a visit stays when the room is deleted after 7 days. Visits are deleted one year after the date (rule for the cleanup command).
+- **"My places" page:** the number of collected places, badges (e.g. "First place", "Explorer" for 10 places, "Surprise hunter" for 3 places from surprise mode, with the progress to the next one) and the places as cards (C2b).
+- **Group map:** the group page shows every place that someone collected in one of the group's rooms (members or guests). Who was there is never shown, only the places.
+- **The map without JavaScript:** a picture from the **Maps Static API** with one pin per place; Google fits the view to the pins. It is loaded by the server through a proxy route (like the photos), so the key never appears in HTML. The Embed map (C3) cannot show more than one place, and the Maps JavaScript API would need a script, which AGENTS.md does not allow.
+- **Cost:** a map picture needs the location of each pin. Locations are loaded fresh (field mask `location` only, Place Details Essentials) and never stored. At most 25 pins per map, the picture is cached in the browser for 10 minutes. Static Maps and Place Details Essentials each list 10,000 free requests per month. The Maps Static API must be enabled in Google Cloud and allowed for `GOOGLE_MAPS_API_KEY` (mkim-nova).
+- **Exception to "one search per room"** (AGENTS.md): the map and the "My places" cards load details per person and per group, not per room.
+
+**Tasks** (each with its own spec and branch, D9), in this order:
+
+| Task | Feature | Track | Needs |
+|---|---|---|---|
+| A8 | F25 My rooms | A | – |
+| A9 | F16 Fixed groups | A (schema) | A7 merged (same way of adding columns), A8 merged (home page) |
+| C7 | F26 "I was there" and "My places" | C (schema change reviewed by Track A) | A9 merged (`rooms.group_id`) |
+| C8 | F26 Map of my places and of a group | C | C7 merged |
+
+**Why now and not parked:** the result page is the end of the current app; these features give a reason to open it again, and the demo can show a group planning its second evening. If time runs short, cut from the end of the table: A8 alone is already useful, C8 is the first to go.
 
 ## Open questions
 
