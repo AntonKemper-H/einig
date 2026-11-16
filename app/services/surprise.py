@@ -208,6 +208,8 @@ MAX_REPLACEMENTS_PER_ROOM = 5
 
 BEEN_THERE_WRONG_MODE_MESSAGE = '"Been there" is only available in a "Surprise me" room.'
 MANUAL_OPTION_MESSAGE = "Only places from Google Maps can be replaced."
+# Places found by name (C6) have no sub-category and are no surprise (specs/c6-find-place-by-name.md).
+PICKED_PLACE_MESSAGE = "Only places from the surprise search can be replaced."
 REPLACEMENT_LIMIT_MESSAGE = (
     f"This room has already replaced {MAX_REPLACEMENTS_PER_ROOM} places."
     " You can still add options yourself."

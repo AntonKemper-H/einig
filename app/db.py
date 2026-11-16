@@ -343,6 +343,38 @@ def add_manual_option(room_id: str, label: str, participant_id: int) -> bool:
     return True
 
 
+def add_place_option(room_id: str, place_id: str, participant_id: int) -> bool:
+    """F23 (C6): save a place found by name as a Google option, with the participant as its author.
+
+    Returns False (and saves nothing) if the room is no longer collecting. Raises one
+    of INTEGRITY_ERRORS if the place is already an option of the room; the transaction
+    is then rolled back, so neither the option nor the author row is saved.
+    """
+    with transaction() as connection:
+        # First "touch" the room row, as save_vote does. This locks it until the
+        # transaction ends, so the place and "Start voting" never overlap on Postgres
+        # (review of #39). SQLite allows one writer at a time anyway.
+        lock = connection.execute(
+            "UPDATE rooms SET status = status WHERE id = ? AND status = 'collecting'",
+            (room_id,),
+        )
+        if lock.rowcount != 1:
+            # Nothing was changed, so leaving the block (and committing nothing) is safe.
+            return False
+        # No category: that is how the room's search (C2a/C4) and "Been there" (C5)
+        # tell a place picked by name from a place they found themselves.
+        option = connection.execute(
+            "INSERT INTO options (room_id, source, place_id) VALUES (?, 'google', ?) RETURNING id",
+            (room_id, place_id),
+        ).fetchone()
+        # The participant who picked the place counts as its author (A7, F24).
+        connection.execute(
+            "INSERT INTO option_authors (option_id, room_id, participant_id) VALUES (?, ?, ?)",
+            (option["id"], room_id, participant_id),
+        )
+    return True
+
+
 def delete_option(room_id: str, option_id: int) -> bool:
     """F24: delete an active option of a collecting room. Return False if nothing was deleted.
 
@@ -387,11 +419,13 @@ def has_google_options(room_id: str) -> bool:
     Since A7 the creator can delete Google options, so "no Google options left" no
     longer means "not searched yet". radius_m is set by save_search's claim and never
     cleared, so it still counts after every Google option was deleted (review of #38).
+    Places found by name (C6) have no category and do not count: a guest picking one
+    must not block the creator's search.
     """
     row = get_db().execute(
         "SELECT 1 FROM rooms WHERE id = ? AND radius_m IS NOT NULL"
         " UNION ALL"
-        " SELECT 1 FROM options WHERE room_id = ? AND source = 'google'"
+        " SELECT 1 FROM options WHERE room_id = ? AND source = 'google' AND category IS NOT NULL"
         " LIMIT 1",
         (room_id, room_id),
     ).fetchone()
@@ -452,9 +486,13 @@ def save_search(
                 # Nothing was changed, so leaving the block (and committing nothing) is safe.
                 return False
             for place_id, category in places_with_category:
+                # A place someone already found by name (C6) stays as it is and is not
+                # added twice; the other places are still saved. ON CONFLICT works the
+                # same on SQLite and Postgres, also when the pick happens at the same moment.
                 connection.execute(
                     "INSERT INTO options (room_id, source, place_id, category)"
-                    " VALUES (?, 'google', ?, ?)",
+                    " VALUES (?, 'google', ?, ?)"
+                    " ON CONFLICT (room_id, place_id) DO NOTHING",
                     (room_id, place_id, category),
                 )
     except INTEGRITY_ERRORS:
