@@ -26,7 +26,7 @@ Plus, decided by Track A (proposed in the review of PR #11, B2): the creator sta
   - `<n> of <m> done`, counted over all participants;
   - the number of options, e.g. `3 options`;
   - while `collecting`: for the creator a form with a `Start voting` button posting to `/rooms/<room_id>/start`; for everyone else `Waiting for the creator to start the voting.`;
-  - while `voting`: a link to the rating page `/rooms/<room_id>/vote` (built in B2);
+  - while `voting`: a link to the rating page `/rooms/<room_id>/vote` (built in B2). Since B2 is merged (#11), the template builds it with `url_for('rooms.show_vote', ...)`, like the other links, instead of a hand-written path; the URL stays the same, so the existing test covers it;
   - a link back to the room page (`/rooms/<room_id>`).
 - While the room is not `closed`, the lobby contains `<meta http-equiv="refresh" content="4; url=/rooms/<room_id>/lobby">`. The `url=` matters: a rejected start is rendered as the response to `POST /rooms/<room_id>/start`, and a plain refresh would repeat that URL as a GET. When the room is `closed` there is nothing left to wait for, so no refresh.
 - `base.html` gets an empty `{% block head %}` so a page can add the refresh tag.

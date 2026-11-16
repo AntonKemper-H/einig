@@ -52,8 +52,7 @@
       <p>Waiting for the creator to start the voting.</p>
     {% endif %}
   {% elif room.status == "voting" %}
-    {# The rating page is built in B2 (#11). Switch this to url_for() once B2 is merged. #}
-    <p><a href="/rooms/{{ room.id }}/vote">Rate the options</a></p>
+    <p><a href="{{ url_for('rooms.show_vote', room_id=room.id) }}">Rate the options</a></p>
   {% endif %}
 
   <p><a href="{{ url_for('rooms.show_room', room_id=room.id) }}">Back to the room</a></p>
