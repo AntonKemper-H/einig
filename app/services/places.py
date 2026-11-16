@@ -514,16 +514,18 @@ def route_url(place_id: str, name: str) -> str | None:
     return ROUTE_URL + "?" + urlencode(query)
 
 
-def load_winner(api_key: str | None, embed_key: str | None, option) -> dict:
+def load_winner(api_key: str | None, embed_key: str | None, option, card: dict | None = None) -> dict:
     """The card, map URL and route URL the result page shows for the winning option.
 
     Manual options have no location, so they get neither map nor route and Google is not called.
     Map and route only need the place id, so they stay even when the details fail.
+    If the caller already loaded the winner's card (C2c), it is reused and Google is not called.
     """
     if option["source"] != "google":
         return {"card": build_card(option, None, None, None), "map_url": None, "route_url": None}
-    # No centre: it is deleted when the room closes (privacy), so the card has no distance.
-    card = load_cards(api_key, [option], None, None)[0]
+    if card is None:
+        # No centre: it is deleted when the room closes (privacy), so the card has no distance.
+        card = load_cards(api_key, [option], None, None)[0]
     return {
         "card": card,
         "map_url": map_embed_url(embed_key, option["place_id"]),

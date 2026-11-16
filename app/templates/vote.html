@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_place_card.html" import place_card %}
 
 {% block title %}Rate: {{ room.title }} – Einig{% endblock %}
 
@@ -17,6 +18,16 @@
       <button type="submit" name="rating" value="{{ value }}">{{ label }}</button>
     {% endfor %}
   </form>
+{% endmacro %}
+
+{% macro option_heading(option_id) %}
+  {# C2c: a Google option as its card (name, photo, facts), a manual option by its label. #}
+  {% set card = cards[option_id] %}
+  {% if card.source == "google" %}
+    {{ place_card(card) }}
+  {% else %}
+    <h2>{{ card.label }}</h2>
+  {% endif %}
 {% endmacro %}
 
 {% block content %}
@@ -43,7 +54,7 @@
   {% elif next_option is not none %}
     <p>Option {{ position }} of {{ order|length }}</p>
     <article>
-      <h2>{{ labels[next_option] }}</h2>
+      {{ option_heading(next_option) }}
       {{ rating_form(next_option) }}
     </article>
 
@@ -52,7 +63,7 @@
     <p>You can still change a rating until the room closes.</p>
     {% for option_id in order %}
       <article>
-        <h2>{{ labels[option_id] }}</h2>
+        {{ option_heading(option_id) }}
         <p>Your rating: {{ rating_labels[own_ratings[option_id]] }}</p>
         {{ rating_form(option_id) }}
       </article>
