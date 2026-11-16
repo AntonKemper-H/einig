@@ -165,6 +165,7 @@ No route, template, or debug output may reveal who voted what. Results show only
 ## Google Maps integration (`services/places.py`)
 
 - Use the **Places API (New)**: `POST https://places.googleapis.com/v1/places:searchNearby` with headers `X-Goog-Api-Key` and `X-Goog-FieldMask`.
+  Finding a place by name (F23, D14) uses `POST https://places.googleapis.com/v1/places:searchText` with the same headers and a field mask.
 - **Always send a field mask** with only the fields the UI displays. Never use `*`.
 - **One search per room**, not per participant. Surprise mode may run a few small searches with different place types and mix the results. Exception: finding a place by name (F23, D14) is one Text Search per search a participant sends, with at most 5 results.
 - **Store only `place_id`** permanently. Name, photo, rating etc. are fetched when needed and not written to the database.
