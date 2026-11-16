@@ -118,7 +118,7 @@ Keep this structure. Routes stay thin: they read the request, call `db.py` and `
 
 ## Scope
 
-Build now: **F1–F13 and F22** (see `docs/decisions.md`, D7).
+Build now: **F1–F13, F22, F23 and F24** (see `docs/decisions.md`, D7 and D14). F23 and F24 are not in `docs/concept.md`; D14 describes them.
 Parked: **F14–F21.** Do not build parked features, and do not prepare code "for later", unless a spec explicitly asks for it.
 
 ## Domain rules
@@ -145,6 +145,7 @@ Enforced on the server and covered by tests:
 - **Voting in a closed room:** rejected with a message.
 - **"Been there" (replace option):** the first request replaces it; later requests for the same, already replaced option are ignored.
 - **Adding options:** only while the room status is `collecting`.
+- **Deleting an option (F24):** only while the room status is `collecting`, by the participant who added it or by the creator. Deleting an option that is already gone changes nothing.
 
 ### Rejected actions
 
@@ -165,7 +166,7 @@ No route, template, or debug output may reveal who voted what. Results show only
 
 - Use the **Places API (New)**: `POST https://places.googleapis.com/v1/places:searchNearby` with headers `X-Goog-Api-Key` and `X-Goog-FieldMask`.
 - **Always send a field mask** with only the fields the UI displays. Never use `*`.
-- **One search per room**, not per participant. Surprise mode may run a few small searches with different place types and mix the results.
+- **One search per room**, not per participant. Surprise mode may run a few small searches with different place types and mix the results. Exception: finding a place by name (F23, D14) is one Text Search per search a participant sends, with at most 5 results.
 - **Store only `place_id`** permanently. Name, photo, rating etc. are fetched when needed and not written to the database.
 - **Photos go through a backend proxy route** (`/photo/<photo_name>`) so the API key never appears in HTML.
 - **Map of the winner:** Maps Embed API in an `<iframe>`, using the separate, browser-restricted key `GOOGLE_MAPS_EMBED_KEY`. Route link: a normal Google Maps URL, no API call.

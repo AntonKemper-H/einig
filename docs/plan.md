@@ -28,6 +28,7 @@ Each line is one task: own spec in `specs/`, own branch, own pull request, fresh
 - [x] A4 F3 Add options manually (PR #14)
 - [x] A5 F7 Lobby with room status (meta refresh), including the creator's "Start voting" (collecting → voting) (PR #15)
 - [ ] A6 F22 QR code
+- [ ] A7 F24 Delete an option (author or creator; schema change `options.added_by`, `docs/decisions.md` D14)
 
 ### Track B – Voting & result – Timonhio
 
@@ -48,6 +49,7 @@ Each line is one task: own spec in `specs/`, own branch, own pull request, fresh
 - [x] C3 F9 Map and route to the winner (PR #24) – map needs `GOOGLE_MAPS_EMBED_KEY` (Google Cloud setup above)
 - [x] C4 F12 Surprise mode (PR #27)
 - [x] C5 F13 "Been there" (PR #29)
+- [ ] C6 F23 Find a place by name and pick the right match (`docs/decisions.md` D14)
 
 ### Dependencies
 

@@ -60,6 +60,7 @@ Concept priorities M/S/C apply, with this cut for the submission:
 | F1–F7 minimum version | F14 Blind Date |
 | F8–F11 places, map, joker, deadline | F15 Fate mode |
 | F12–F13 surprise mode, "been there" | F16–F18 groups, history, fairness memory |
+| F23 find a place by name, F24 delete an option (D14) | |
 | F22 QR code | F19 meeting point, F20 travel times, F21 WebSockets |
 
 **Why:** Claude Code writes code fast, but reviews, understanding every part for the walkthrough, browser testing and merges take time. A smaller app that never crashes scores better than a big one that does.
@@ -115,6 +116,30 @@ Reviews go in a circle: A reviews B, B reviews C, C reviews A.
 - **Why:** JavaScript is only allowed in three fixed files (`AGENTS.md`), so the QR code has to be drawn on the server. `segno` is pure Python with no further dependencies and writes the code as SVG text, which goes straight into the page: no image library (e.g. Pillow), no image file, no external QR service (privacy: no external resources).
 - **Not chosen:** a JavaScript QR library (not allowed), an online QR API (sends the invite link to a third party).
 - Approved by AntonKemper-H on 2026-11-15, as `AGENTS.md` asks before adding a dependency. The team confirms it with the review of PR #16.
+
+## D14 – Find a place by name (F23) and delete an option (F24) (2026-11-16)
+
+Two features that are not in `docs/concept.md`, added to the scope (D7) because manual options have two gaps: a typed name gives no card (no photo, rating or map), and a typo or a joke entry can never be removed.
+
+**F23 – Find a place by name (S).** A participant types a name (e.g. "Luigi's") and picks the right place from a short list of matches; it is saved as a Google option with a normal card (C2b).
+- **No JavaScript:** two steps with plain forms (AGENTS.md allows no autocomplete script). Step 1: the name is sent, the server runs **one** Text Search (New) and shows at most 5 matches with name and address. Step 2: the participant picks one and saves it.
+- **Only the place id is stored.** Names and addresses of the matches are shown once and never written to the database (Google terms, as in C2). The ids of the shown matches are kept in the signed session cookie until the choice, and only those ids are accepted, so no other place id can be posted and no second Google call is needed.
+- **Location:** the search prefers the room's search centre if it has one (`nearby`, `surprise`); otherwise the participant can tap "Use my location" (`geolocation.js`, unchanged), or it searches without a location.
+- **Who and when:** every joined participant, in every room mode, only while the room is `collecting` (like adding options). A place that is already an option of the room is rejected with a message.
+- **Cost:** field mask `places.id,places.displayName,places.formattedAddress`. Because of `displayName` this is billed as Text Search **Pro**, which Google lists with 5,000 free requests per month; with only `places.id` it would be free, but then nobody could see which match is the right one. One call per search, plus the card details every Google option already costs. During the free trial (D6) this is paid from the trial credit. The C6 spec decides whether a limit of searches per room is needed.
+- **Exception to "one search per room"** (AGENTS.md): this search is per participant, because every person adds their own places.
+- Without a key, on any Google error or without matches: a friendly message, and the typed text can still be added as a manual option.
+
+**F24 – Delete an option (S).** An option can be deleted by **the participant who added it** or by **the room creator**.
+- **Only while collecting.** Deleting during voting would throw away other people's ratings.
+- Options from the "Places nearby" and "Surprise me" searches have no author (the search adds them for the group), so only the creator can delete them. "Been there" (F13) stays the way for everyone to swap a surprise place.
+- Checked on the server: hiding the button is not a permission check. Deleting an option that is already gone (e.g. two presses at once) changes nothing and is ignored.
+- Who added an option is never shown to others; it is only used for the permission check.
+- **Needs a schema change** (owner: Track A, D10): a nullable column `options.added_by` (participant id). `CREATE TABLE IF NOT EXISTS` never changes an existing table, so the A7 spec decides how the deployed database gets the column (e.g. an `ALTER TABLE` that is safe to run twice, or `reset-db` while it only holds test data).
+
+**Tasks:** C6 F23 (Track C, mkim-nova) and A7 F24 (Track A, owns the schema). Both follow D9: own spec, tests reviewed before the implementation.
+
+**Why now and not parked:** both make the core flow (F3) usable in a real group, unlike the parked extras F14–F21. If time runs short, F24 comes first: it is smaller and fixes mistakes that otherwise stay in the room until the end.
 
 ## Open questions
 
