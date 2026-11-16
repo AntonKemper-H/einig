@@ -5,6 +5,7 @@ config; the real app reads its settings from environment variables.
 """
 
 import os
+from datetime import timedelta
 
 from dotenv import load_dotenv
 from flask import Flask, render_template
@@ -17,6 +18,8 @@ from app.routes import main, pwa, rooms
 def create_app(test_config: dict | None = None) -> Flask:
     """Create the Flask app, either from a test config or from environment variables."""
     app = Flask(__name__, instance_relative_config=True)
+    # The session cookie with the room tokens survives closing the browser (A8, "My rooms").
+    app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=180)
 
     if test_config is None:
         # Real run: read .env locally (on the host, variables are set in its settings).
