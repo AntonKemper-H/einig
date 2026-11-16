@@ -43,6 +43,7 @@ Read before working:
   - `app/static/js/geolocation.js` – asks for the browser location and puts rounded coordinates into a hidden form field
   - `app/static/sw.js` – minimal service worker for PWA installability (no offline caching of dynamic pages)
   - `app/static/js/register-sw.js` – registers the service worker
+  - `app/static/js/swipe.js` – lets a participant swipe the rating card; it only presses the rating button that is already on the page (D16)
   Keep each file short and commented. All other behaviour uses HTML forms and server-side Python.
 - **Live updates use meta refresh**, not JavaScript: waiting and lobby pages include `<meta http-equiv="refresh" content="4">`.
 - **Forms follow Post/Redirect/Get:** every POST handler redirects to a GET page so reloading never resubmits a vote.
@@ -191,7 +192,7 @@ No route, template, or debug output may reveal who voted what. Results show only
 ## Mobile and PWA
 
 - Design for a phone screen first (about 380 px wide). Large tap targets, one option card per screen, no horizontal scrolling.
-- Rating uses three large buttons, not swipe gestures.
+- Rating uses three large buttons. On the one-card-at-a-time rating page the card can also be swiped (right = "Rather yes", up = "Fine with me", left = "Rather not", D16); the buttons always stay and work without JavaScript.
 - `base.html` includes the viewport meta tag, the manifest link, and the service-worker registration script.
 - Geolocation and PWA installation only work over HTTPS; test them on the deployed app.
 
