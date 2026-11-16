@@ -142,6 +142,19 @@ Two features that are not in `docs/concept.md`, added to the scope (D7) because 
 
 **Why now and not parked:** both make the core flow (F3) usable in a real group, unlike the parked extras F14–F21. If time runs short, F24 comes first: it is smaller and fixes mistakes that otherwise stay in the room until the end.
 
+## D16 – Swipe to rate (F4) and a menu link on the rating card (2026-11-16)
+
+F4 in `docs/concept.md` says "buttons, optionally swipe gestures". With the place cards on the rating page (C2c), rating can feel like the swipe apps people know: drag the card right, up or left. Swiping needs JavaScript, so this decision changes two rules in AGENTS.md.
+
+- **Swipe on top of the buttons, never instead of them.** A new file `app/static/js/swipe.js` lets the participant drag the card; when it is let go far enough, the script presses the matching rating button that is already on the page. The form, the route, the rules and the server tests do not change. Without JavaScript, with a screen reader, or for anyone who prefers tapping, the three buttons work as before.
+- **Three directions for three ratings:** right = "Rather yes", up = "Fine with me", left = "Rather not". While dragging, the card shows which rating it would give. Below a minimum distance the card springs back and nothing is sent, because "Rather not" weighs −4 and a slip must not count. Ratings can still be changed on the overview page (B2).
+- **Only one card at a time** (the next unrated option). The overview page, where every option is listed, keeps buttons only.
+- **Menu link:** the rating card gets a link "Menu & reviews on Google Maps" to the place's Google Maps page, where the menu tab is. It is a normal Maps URL built from the place id (like the route link in C3): no key, no API call. Google offers no reliable menu photo through the Places API, so a link is what is possible.
+- **Tests:** pytest cannot test a finger gesture. The tests check that the page includes the script and the hints, and that the buttons still work; the gesture itself is tested by hand on an iPhone and an Android phone and written down in the pull request.
+- **Walkthrough:** the script is kept short and commented, because every team member must be able to explain it.
+
+**Task:** A10 (Track A, AntonKemper-H), own spec `specs/a10-swipe-rating.md`, built after C2c is merged. If time runs short, it is dropped without loss: the buttons are the complete feature.
+
 ## D17 – Room setup (F27), a calmer room page and hidden collecting (F28) (2026-11-16)
 
 Feedback from clicking through the app: the room page is long (invite link twice, every place as a full card), the separate lobby is an extra step, the creator cannot say what kind of activity the room is about, and everyone sees everyone's ideas while collecting, which pushes people to copy instead of suggesting their own. F27 and F28 are not in `docs/concept.md`; this decision describes them.
