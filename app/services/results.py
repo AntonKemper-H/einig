@@ -38,3 +38,22 @@ def rating_counts(
             if option_id in counts and rating in counts[option_id]:
                 counts[option_id][rating] += 1
     return counts
+
+
+def veto_counts(option_ids: list[int], vetoed_option_ids: list[int]) -> dict[int, int]:
+    """Count per option how many jokers it got (F10). 0 for options without one.
+
+    Jokers on ids that are not in option_ids are ignored. Only numbers leave this
+    function, never who used a joker (AGENTS.md: individual votes are private).
+    """
+    return {option_id: vetoed_option_ids.count(option_id) for option_id in option_ids}
+
+
+def every_option_vetoed(option_ids: list[int], vetoed_option_ids: list[int]) -> bool:
+    """True if there is at least one option and each one got at least one joker.
+
+    Then the winner is the option with the fewest jokers (B1), and the result
+    page says so, because otherwise a vetoed winner would look like a mistake.
+    """
+    vetoed = set(vetoed_option_ids)
+    return bool(option_ids) and all(option_id in vetoed for option_id in option_ids)
