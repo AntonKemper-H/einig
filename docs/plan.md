@@ -11,7 +11,7 @@ Last updated: 2026-11-15. Tick boxes as work is merged into `main`.
 
 - [x] Review and merge the skeleton PR (`feature-0-project-skeleton`) – a teammate, not the author
 - [x] Email the teaching staff: is Flask instead of Streamlit OK? → approved
-- [ ] mkim-nova sets up Google Cloud: Places API (New) + Maps Embed API, two restricted keys, **budget alert (~€1) and daily quota** – needed from about 17 Nov
+- [x] mkim-nova sets up Google Cloud: Places API (New) + Maps Embed API, two restricted keys, **budget alert (~€1)**, keys entered in Render (16 Nov). The daily quota cannot be set during the free trial; see `docs/decisions.md`, D6
 - [x] **Decide together:** how are unrated options counted? → as "Fine with me" (`docs/decisions.md`, D11)
 - [ ] Names and student numbers in `README.md`
 - [x] Assign the three tracks below to people (`docs/decisions.md`, D10)
@@ -48,8 +48,7 @@ Each line is one task: own spec in `specs/`, own branch, own pull request, fresh
 - [ ] C3 F9 Map and route to the winner
   - [ ] Spec and failing tests in review (PR #24); implementation after B3 (#19) is merged
 - [x] C4 F12 Surprise mode (PR #27)
-- [ ] C5 F13 "Been there"
-  - [ ] Spec and failing tests in review (PR #29); implementation after the review and after C4 is merged
+- [x] C5 F13 "Been there" (PR #29)
 
 ### Dependencies
 

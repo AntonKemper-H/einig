@@ -2,7 +2,7 @@
 
 Decisions the team has made so far, with the reason for each. When a decision changes, update this file and `AGENTS.md` in the same pull request.
 
-Last updated: 2026-11-15
+Last updated: 2026-11-16
 
 ---
 
@@ -46,6 +46,7 @@ Streamlit Community Cloud only hosts Streamlit apps. Render (free) runs Flask. D
   - `GOOGLE_MAPS_API_KEY` – server only, restricted to Places API
   - `GOOGLE_MAPS_EMBED_KEY` – browser, restricted to our domain
 - **Cost protection (mandatory):** budget alert at about €1 and a daily quota for the Places API (e.g. 200 requests/day).
+  - **Update 2026-11-16:** the account is in Google Cloud's free trial, where quotas cannot be lowered, so there is no daily quota for now. The trial limits the cost instead: usage is paid from the trial credit, and Google stops the APIs when the credit is used up instead of charging money. **Never upgrade to a paid account before a daily quota is set.** The budget alert (€1, 50/80/100 %) covers the project with all services, so any spending sends an email; a spending cap is not possible because it does not support the Maps APIs. If the credit were used up (e.g. through a leaked key), the Places features would stop and the group would continue with manual options. To make that unlikely, the server key is restricted to Places API (New) and never appears in a page.
 - **Key handling:** only in local `.env` and the host's secret settings. Shared privately between members. Never in the repo, in code, or in a chat with an AI. If leaked: delete the key in Google Cloud Console immediately and create a new one.
 - Tests never call Google (fake responses). Members without a key can still work and test.
 - If Google fails: friendly message, group continues with manual options.
