@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block title %}Result: {{ room.title }} – Einig{% endblock %}
+
+{% block content %}
+  <h1>{{ room.title }}</h1>
+
+  {% if room.status != "closed" %}
+    <p>The result is shown once the room is closed.</p>
+
+  {% else %}
+    {% if winner_option_id is not none and winner_option_id in labels %}
+      <h2>The group's choice: {{ labels[winner_option_id] }}</h2>
+    {% else %}
+      <p>No winner: nobody rated any option.</p>
+    {% endif %}
+
+    {# Anonymous counts only (AGENTS.md: individual votes are private, no names here). #}
+    <h3>How the options were rated</h3>
+    <ul>
+      {% for option_id, count in counts.items() %}
+        <li>
+          <strong>{{ labels[option_id] }}</strong><br>
+          {{ count.yes }}× {{ rating_labels.yes }} · {{ count.ok }}× {{ rating_labels.ok }} · {{ count.no }}× {{ rating_labels.no }}
+        </li>
+      {% endfor %}
+    </ul>
+    <p><small>Options someone did not rate count as "{{ rating_labels.ok }}" for them.</small></p>
+  {% endif %}
+
+  <p><a href="{{ url_for('rooms.show_lobby', room_id=room.id) }}">Back to the lobby</a></p>
+{% endblock %}
