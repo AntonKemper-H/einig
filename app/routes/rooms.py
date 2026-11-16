@@ -1,4 +1,4 @@
-"""Room pages: create a room (F1), show and join it (F2), add options (F3),
+"""Room pages: create a room (F1), show and join it (F2), add and delete options (F3, F24),
 lobby and start voting (F7), suggest places nearby (F8), surprise mode (F12),
 "Been there" (F13), rating (F4), close the room and show the result (F6)."""
 
@@ -29,6 +29,7 @@ bp = Blueprint("rooms", __name__)
 CREATE_COLLISION_MESSAGE = "Something went wrong while creating the room. Please try again."
 JOIN_COLLISION_MESSAGE = "Something went wrong while joining. Please try again."
 NOT_JOINED_MESSAGE = "Please join the room before adding options."
+NOT_JOINED_DELETE_MESSAGE = "Please join the room before deleting options."
 OPTION_REFUSED_MESSAGE = "Something went wrong while adding the option. Please try again."
 ONLY_CREATOR_MESSAGE = "Only the creator can start the voting."
 PLACES_UNAVAILABLE_MESSAGE = (
@@ -102,6 +103,16 @@ def render_room_page(
         for option in options
         if surprise.can_press_been_there(room["mode"], room["status"], option["source"])
     }
+    # F24: the options whose card gets a "Delete" button (only while collecting).
+    deletable_ids = set()
+    if participant is not None and room["status"] == "collecting":
+        deletable_ids = {
+            option["id"]
+            for option in options
+            if option_rules.may_delete(
+                bool(participant["is_creator"]), participant["id"], option["added_by"]
+            )
+        }
     return render_template(
         "room.html",
         room=room,
@@ -119,6 +130,7 @@ def render_room_page(
         widened_to=widened_to,
         option_ids=[option["id"] for option in options],
         been_there_ids=been_there_ids,
+        deletable_ids=deletable_ids,
         been_there_errors=been_there_errors or [],
         search_values=search_values or {},
         search_errors=search_errors or [],
@@ -232,12 +244,49 @@ def add_option(room_id: str):
     if errors:
         return render_room_page(room, participant, option_label=label, option_errors=errors), 400
 
-    if not db.add_manual_option(room_id, label):
+    if not db.add_manual_option(room_id, label, participant["id"]):
         return render_room_page(
             room, participant, option_label=label, option_errors=[OPTION_REFUSED_MESSAGE]
         ), 400
 
     return redirect(url_for("rooms.show_room", room_id=room_id), code=303)
+
+
+@bp.post("/rooms/<room_id>/options/<int:option_id>/delete")
+def delete_option(room_id: str, option_id: int):
+    """F24: the author or the creator deletes an option while collecting (Post/Redirect/Get)."""
+    room = db.get_room(room_id)
+    if room is None:
+        abort(404)
+
+    # Permission check on the server: hiding the button is not enough.
+    participant = db.get_participant(room_id, session_token_for(room_id))
+    if participant is None:
+        return render_room_page(room, None, errors=[NOT_JOINED_DELETE_MESSAGE]), 403
+
+    room_page = redirect(url_for("rooms.show_room", room_id=room_id), code=303)
+
+    option = db.get_option(room_id, option_id)
+    if option is None or option["is_replaced"]:
+        # Already gone, replaced, or not an option of this room: AGENTS.md says it changes nothing.
+        return room_page
+
+    error = option_rules.delete_error(
+        room["status"], bool(participant["is_creator"]), participant["id"], option["added_by"]
+    )
+    if error is not None:
+        message, status_code = error
+        return render_room_page(room, participant, option_errors=[message]), status_code
+
+    if not db.delete_option(room_id, option_id):
+        # Another request was first. If the option is still there, the voting has started.
+        option = db.get_option(room_id, option_id)
+        if option is not None and not option["is_replaced"]:
+            return render_room_page(
+                room, participant, option_errors=[option_rules.DELETE_NOT_COLLECTING_MESSAGE]
+            ), 400
+
+    return room_page
 
 
 @bp.get("/rooms/<room_id>/lobby")
