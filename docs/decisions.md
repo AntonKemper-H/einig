@@ -2,7 +2,7 @@
 
 Decisions the team has made so far, with the reason for each. When a decision changes, update this file and `AGENTS.md` in the same pull request.
 
-Last updated: 2026-11-12
+Last updated: 2026-11-15
 
 ---
 
@@ -107,6 +107,13 @@ Reviews go in a circle: A reviews B, B reviews C, C reviews A.
 - The tie-break order stays as in `AGENTS.md` and `docs/concept.md` §6.2: fewer "no", then more "yes", then random.
 - **Why:** with D11 and every weight at 1, the "more yes" step can never decide on its own: for n voters an option's score is `n + yes − 5 × no`, so equal score and equal "no" always means equal "yes" (see the note in `specs/b1-scoring.md`). It costs one element in the sort key, and it decides again as soon as fairness weights (F14–F21, parked) give voters different weights. Dropping it would mean changing `AGENTS.md`, the concept and the code for no gain today.
 - Raised in the B1 review (PR #6); Anton and Mika both saw no reason to drop it.
+
+## D13 – `segno` for the QR code (2026-11-15)
+
+- New dependency `segno==1.6.6`, pinned in `pyproject.toml` and `uv.lock`, for the QR code of the invite link (F22, A6, PR #16).
+- **Why:** JavaScript is only allowed in three fixed files (`AGENTS.md`), so the QR code has to be drawn on the server. `segno` is pure Python with no further dependencies and writes the code as SVG text, which goes straight into the page: no image library (e.g. Pillow), no image file, no external QR service (privacy: no external resources).
+- **Not chosen:** a JavaScript QR library (not allowed), an online QR API (sends the invite link to a third party).
+- Approved by AntonKemper-H on 2026-11-15, as `AGENTS.md` asks before adding a dependency. The team confirms it with the review of PR #16.
 
 ## Open questions
 
