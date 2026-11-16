@@ -62,6 +62,7 @@ Concept priorities M/S/C apply, with this cut for the submission:
 | F12–F13 surprise mode, "been there" | F18 fairness memory |
 | F23 find a place by name, F24 delete an option (D14) | F17 group history (only the group map of F26 is built, D15) |
 | F25 my rooms, F16 fixed groups, F26 place collection and map (D15) | |
+| F27 room setup, F28 hidden collecting, room page layout (D17) | |
 | F22 QR code | F19 meeting point, F20 travel times, F21 WebSockets |
 | F29 share and save the result (D18) | |
 
@@ -193,6 +194,43 @@ F4 in `docs/concept.md` says "buttons, optionally swipe gestures". With the plac
 - **Walkthrough:** the script is kept short and commented, because every team member must be able to explain it.
 
 **Task:** A10 (Track A, AntonKemper-H), own spec `specs/a10-swipe-rating.md`, built after C2c is merged. If time runs short, it is dropped without loss: the buttons are the complete feature.
+
+## D17 – Room setup (F27), a calmer room page and hidden collecting (F28) (2026-11-16)
+
+Feedback from clicking through the app: the room page is long (invite link twice, every place as a full card), the separate lobby is an extra step, the creator cannot say what kind of activity the room is about, and everyone sees everyone's ideas while collecting, which pushes people to copy instead of suggesting their own. F27 and F28 are not in `docs/concept.md`; this decision describes them.
+
+**F27 – Room setup (S).** While the room is `collecting`, the creator sets up:
+- **Activity and kind**, from a two-level catalogue in `app/services/activities.py`: Food (breakfast, brunch, restaurant), Drinks & café (bar, café, dessert), Sport (bowling, climbing, swimming, fitness, sports ground), Culture & leisure (cinema, museum and gallery, theatre, amusement park and zoo, park and hiking). Each kind maps to Google place types; "Places nearby" and "Surprise me" search with the kind's types instead of the creator choosing a category in the search form. Only types that exist in Google's place type table are used.
+- **Lunch or dinner** is not a Google type; it would need opening hours and is not part of F27. "Restaurant" covers both.
+- **Options per person** (1–5 or unlimited): how many own options each participant may add. Places from the Google searches do not count; places a participant found by name (C6) do. Uses the authors in `option_authors` (A7, D14).
+- **Changeable while collecting, fixed once voting starts**, so the basis of the ratings never moves.
+- **Stored in a new table `room_setups`** (one row per room), not in new columns of `rooms`: like `option_authors` (A7), `init-db` creates a new table on the deployed database by itself, without `ALTER TABLE`. The table also holds the two F28 choices below (`hide_ideas`, `reveal_places`), so A11 needs no second schema change.
+- **Groups:** every new activity in a group (A9) gets its own setup, with the same form. There is no group admin and no stored group default.
+- Rooms without a setup work exactly as today, so every existing test and room stays valid.
+
+**Room page layout (design task).** One page instead of room page + lobby:
+- Participants as a collapsible list (`<details>`, no JavaScript) with the "done" marks and, for the creator, "Start voting". On a wide screen it sits at the side, on a phone at the top.
+- Options as a compact list of names; a Google place opens its card when tapped (`<details>`).
+- Invite link and QR code at the end of the page.
+- **The lobby stays as the waiting page:** the room page cannot reload itself (it would wipe what someone is typing), and only a reloading page shows live without JavaScript when the voting starts. The room page links to it as "I'm done – wait for the others". The lobby tests stay unchanged.
+- **Invite link:** `tests/test_proxy_headers.py` checks both the text field and the link. Decided in the review of this decision: both stay, in one compact block, and the reviewed test helper (`invite_urls_in`) is not changed.
+
+**F28 – Hidden collecting (S).** While collecting, every participant sees only the options they added themselves; everything is revealed on the rating cards when the voting starts.
+- **A setup choice, on by default in the setup form:** "Keep everyone's ideas secret until voting". Rooms without a setup (and rooms where the creator turns it off) show all options as today, because a reviewed test (`test_options.py`) checks that participants see each other's options.
+- **Places from the Google searches** are a setup choice: "show suggested places to everyone while collecting" (then "Been there" works as today) or "keep them secret until voting" (full surprise, no "Been there").
+- Instead of the others' options, the page shows how many there are ("Others have added 4 options"), so the group still sees progress.
+- A name someone else already added is rejected with `Someone already had the same idea – it is already in the room.`, which reveals nothing more than that.
+- The creator sees only their own options as well; deleting other people's options (F24) is therefore not possible in a room with hidden collecting.
+- **Accepted trade-off:** in a hidden room nobody can remove someone else's typo or joke entry before the voting starts (collecting is the only time deleting works, and the reason for F24 in D14). The group can still rate it down. A creator who wants to clean up turns hidden collecting off for a moment, which shows all options **to everyone, not only to the creator** (the surprise is gone for the ideas seen so far) and allows deleting again.
+- Who added an option is never shown, also not after the reveal (as D14).
+
+**Tasks** (own spec and branch each, D9), in this order; cut from the end if time runs short:
+
+| Task | Feature | Track (proposal) | Needs |
+|---|---|---|---|
+| C9 | F27 Room setup | C (catalogue and searches; new table reviewed by Track A) | A7 (merged), C6 merged (#39; C9 puts C6's "save a place by name" under the per-person limit) |
+| B6 | Room page layout | B (Timonhio) | C9 merged (setup form on the page); starts only after B4 and B5 |
+| A11 | F28 Hidden collecting | A | C9 and B6 merged |
 
 ## D18 – Share and save the result (F29) (2026-11-16)
 
