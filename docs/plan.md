@@ -29,6 +29,7 @@ Each line is one task: own spec in `specs/`, own branch, own pull request, fresh
 - [x] A5 F7 Lobby with room status (meta refresh), including the creator's "Start voting" (collecting → voting) (PR #15)
 - [x] A6 F22 QR code for the invite link, scanned on a phone on the deployed app (PR #16)
 - [ ] A7 F24 Delete an option (author or creator; new table `option_authors`, `docs/decisions.md` D14)
+- [ ] A10 F4 Swipe to rate + menu link on the rating card (`specs/a10-swipe-rating.md`, D16) – after C2c
 
 ### Track B – Voting & result – Timonhio
 
