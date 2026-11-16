@@ -15,6 +15,7 @@ Someone who is in two or three rooms (Friday dinner, Sunday cinema) has no way b
 - **The cookie lasts 180 days:** `PERMANENT_SESSION_LIFETIME = timedelta(days=180)` in `create_app`, and `session.permanent = True` is set in `remember_token`. Before A8 the cookie ended when the browser closed.
 - **At most 30 rooms remembered** (`MAX_REMEMBERED_ROOMS = 30` in `app/services/rooms.py`): when a 31st room is remembered, the token of the oldest-remembered room is dropped. Why: browsers refuse cookies over about 4 KB, which would lose every token at once. Rooms are deleted after 7 days anyway, so 30 is plenty.
 - **Stale tokens are dropped:** when the home page finds a token whose room or participant no longer exists, it removes it from the cookie.
+- **C6's name searches go with them** (review of PR #41): C6 keeps `session["name_searches"] = {room_id: {...}}`. When a room's token is dropped (stale, or the oldest of more than 30), its entry in `name_searches` is dropped too, so the cookie stays under about 4 KB. If C6 is not merged when A8 is built, this point and its test fall away; the C6 spec then does it instead.
 - **Order:** newest room first (`rooms.created_at`, then room id for a stable order).
 - **The link goes to the page for the room's status:** `collecting` → room page (`/rooms/<id>`), `voting` → rating page (`/rooms/<id>/vote`), `closed` → result page (`/rooms/<id>/result`).
 
@@ -48,6 +49,7 @@ Checks (one line = one test), `tests/test_my_rooms.py`:
 - [ ] Stale token: after a room is deleted from the database, the home page does not list it and the cookie no longer contains its token.
 - [ ] A token that belongs to no participant (forged or from another room) is not listed and is removed.
 - [ ] Joining a 31st room drops the oldest-remembered room from the list.
+- [ ] A dropped room (stale token, or the oldest of more than 30) also loses its `name_searches` entry; entries of remembered rooms stay (only if C6 is merged).
 - [ ] The session is permanent after creating or joining a room, and the configured lifetime is 180 days.
 - [ ] Every page has the "My rooms" link to `/`.
 - [ ] The create form shown again with errors still shows the room list.
