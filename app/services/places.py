@@ -2,6 +2,7 @@
 
 C2a: the Nearby Search call and the search form rules.
 C2b: Place Details and photos for the option cards, and the card texts.
+C3: the map and the route link for the winner (specs/c3-winner-map.md).
 
 Only the place id of each result is kept. Names, photos and ratings are never
 stored (Google terms); they are loaded fresh every time a card is shown.
@@ -10,6 +11,8 @@ stored (Google terms); they are loaded fresh every time a card is shown.
 import json
 import math
 import re
+
+from urllib.parse import urlencode
 
 import requests
 
@@ -481,3 +484,47 @@ def load_cards(
                 pass  # Only this place failed; the next one is still loaded.
         cards.append(build_card(option, details, centre_latitude, centre_longitude))
     return cards
+
+
+# --- C3: map and route to the winner -----------------------------------------
+
+EMBED_PLACE_URL = "https://www.google.com/maps/embed/v1/place"
+ROUTE_URL = "https://www.google.com/maps/dir/"
+
+
+def map_embed_url(embed_key: str | None, place_id: str) -> str | None:
+    """The Maps Embed URL that shows this place, or None without an embed key or with a bad place id.
+
+    The embed key is the browser key restricted to our domain, so it may appear in the page.
+    """
+    if not embed_key or not PLACE_ID_PATTERN.fullmatch(place_id):
+        return None
+    return EMBED_PLACE_URL + "?" + urlencode({"key": embed_key, "q": "place_id:" + place_id})
+
+
+def route_url(place_id: str, name: str) -> str | None:
+    """A Google Maps link that opens the route to this place (no key, no API call), or None for a bad place id.
+
+    The place id decides the destination; the name is only shown while Google Maps loads.
+    """
+    if not PLACE_ID_PATTERN.fullmatch(place_id):
+        return None
+    query = {"api": "1", "destination": name, "destination_place_id": place_id}
+    return ROUTE_URL + "?" + urlencode(query)
+
+
+def load_winner(api_key: str | None, embed_key: str | None, option) -> dict:
+    """The card, map URL and route URL the result page shows for the winning option.
+
+    Manual options have no location, so they get neither map nor route and Google is not called.
+    Map and route only need the place id, so they stay even when the details fail.
+    """
+    if option["source"] != "google":
+        return {"card": build_card(option, None, None, None), "map_url": None, "route_url": None}
+    # No centre: it is deleted when the room closes (privacy), so the card has no distance.
+    card = load_cards(api_key, [option], None, None)[0]
+    return {
+        "card": card,
+        "map_url": map_embed_url(embed_key, option["place_id"]),
+        "route_url": route_url(option["place_id"], card["name"]),
+    }
