@@ -136,7 +136,7 @@ Two features that are not in `docs/concept.md`, added to the scope (D7) because 
 - Options from the "Places nearby" and "Surprise me" searches have no author (the search adds them for the group), so only the creator can delete them. "Been there" (F13) stays the way for everyone to swap a surprise place.
 - Checked on the server: hiding the button is not a permission check. Deleting an option that is already gone (e.g. two presses at once) changes nothing and is ignored.
 - Who added an option is never shown to others; it is only used for the permission check.
-- **Needs a schema change** (owner: Track A, D10): a nullable column `options.added_by` (participant id). `CREATE TABLE IF NOT EXISTS` never changes an existing table, so the A7 spec decides how the deployed database gets the column (e.g. an `ALTER TABLE` that is safe to run twice, or `reset-db` while it only holds test data).
+- **Schema change** (owner: Track A, D10), decided in the A7 spec: a new table `option_authors (option_id, room_id, participant_id)` instead of a column `options.added_by`. A reviewed C5 test checks the exact columns of `options`, and `init-db` adds a new table to the deployed database by itself (`CREATE TABLE IF NOT EXISTS`), with no `ALTER TABLE` and no `reset-db`. Search results have no row. A place found by name (F23, C6) gets a row for the participant who saved it.
 
 **Tasks:** C6 F23 (Track C, mkim-nova) and A7 F24 (Track A, owns the schema). Both follow D9: own spec, tests reviewed before the implementation.
 
@@ -156,7 +156,7 @@ Three features that turn single decisions into something a group comes back to: 
 - Guests who are not in the group can still join a group room with the room link, like any other room.
 - The home page lists the groups above the rooms.
 - **Not included:** the fairness memory (F18 stays parked), renaming or removing members, leaving a group, group admins. Every member has the same rights.
-- **Schema change** (owner: Track A, D10): tables `groups` and `group_members`, nullable columns `rooms.group_id` and `participants.group_member_id`. The deployed database gets them the same way A7 adds `options.added_by` (D14).
+- **Schema change** (owner: Track A, D10): new tables `groups`, `group_members`, `group_rooms` (room → group) and `group_participants` (room participant → group member). Like A7's `option_authors` (D14), only new tables and no new columns, so `init-db` adds them to the deployed database by itself.
 - Groups are deleted 90 days after their last new room (rule for the cleanup command; the command itself is not part of these tasks).
 
 **F26 – Place collection and map (S).** A small game: every person collects the places they have really been to and sees them as pins on their own map.
@@ -175,7 +175,7 @@ Three features that turn single decisions into something a group comes back to: 
 |---|---|---|---|
 | A8 | F25 My rooms | A | – |
 | A9 | F16 Fixed groups | A (schema) | A7 merged (same way of adding columns), A8 merged (home page) |
-| C7 | F26 "I was there" and "My places" | C (schema change reviewed by Track A) | A9 merged (`rooms.group_id`) |
+| C7 | F26 "I was there" and "My places" | C (schema change reviewed by Track A) | A9 merged (`group_rooms`) |
 | C8 | F26 Map of my places and of a group | C | C7 merged |
 
 **Why now and not parked:** the result page is the end of the current app; these features give a reason to open it again, and the demo can show a group planning its second evening. If time runs short, cut from the end of the table: A8 alone is already useful, C8 is the first to go.

@@ -3,7 +3,7 @@
 Branch: `feature-c7-collect-places`
 Tests: `tests/test_collection.py` (badge rules), `tests/test_collection_route.py` (result page, route, "My places" page, photo proxy)
 
-Decision: `docs/decisions.md`, D15. Built after **A9** is merged (needs `rooms.group_id` and the `groups` table). The new table is a schema change: Track A (schema owner, D10) reviews it.
+Decision: `docs/decisions.md`, D15. Built after **A9** is merged (needs the `groups` and `group_rooms` tables). The new table is a schema change: Track A (schema owner, D10) reviews it.
 
 ## Why
 The app ends at the result page. Collecting the places a group really went to turns every decision into a small step in a game, gives people a reason to come back, and is the data for the map (C8). It must stay as private as the rest: no account, nothing from Google stored but the place id, and nobody sees what someone else collected.
@@ -63,7 +63,7 @@ All counts are numbers of **different** place ids.
 | no winner | 400 | `There is no place to collect in this room.` | nothing |
 | winner is a manual option | 400 | `Only places from Google Maps can be collected.` | nothing |
 | this browser already has a visit for this room | 303 redirect to the result page (**ignored**) | – | nothing |
-| valid | 303 redirect to the result page | – | one visit: person token (created now if missing), the winner's place id, room id, the room's `group_id`, `from_surprise` = room mode is `surprise` |
+| valid | 303 redirect to the result page | – | one visit: person token (created now if missing), the winner's place id, room id, the room's group id from `group_rooms` (A9) or NULL, `from_surprise` = room mode is `surprise` |
 
 Error pages are the result page with the message (`role="alert"`). Two presses at once: the unique constraint lets only one insert win; the other is ignored the same way.
 
@@ -90,7 +90,7 @@ Checks (one line = one test):
 - [ ] The result page of a closed room with a Google winner shows the `I was there ✓` form to a participant.
 - [ ] No form for a manual winner, for a room without winner, for a room that is still voting, and nothing for a visitor.
 - [ ] Accepted: pressing it stores one visit with the winner's place id, the room id, `group_id` NULL for a normal room, `from_surprise` 0; the result page then shows `In your collection ✓` and the `My places` link.
-- [ ] Accepted: in a group room `group_id` is the room's group; in a "Surprise me" room `from_surprise` is 1.
+- [ ] Accepted: in a group room (`group_rooms` row) `group_id` is that group; in a "Surprise me" room `from_surprise` is 1.
 - [ ] Accepted: the first press creates a person token in the session; a second room uses the same token.
 - [ ] Ignored: pressing again for the same room redirects and stores nothing new.
 - [ ] Rejected: room not closed, no winner, manual winner – status 400, message, nothing saved.

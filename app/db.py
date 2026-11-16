@@ -248,9 +248,13 @@ def get_options(room_id: str) -> list[sqlite3.Row | dict]:
     Options replaced with "Been there" (F13) are left out everywhere: on the room
     page, in the lobby's count and in the check before voting starts.
     """
+    # added_by is the author's participant id (F24), or None for search results
+    # and options saved before A7. Used only for the delete permission, never shown.
     return get_db().execute(
-        "SELECT id, source, label, place_id, category FROM options"
-        " WHERE room_id = ? AND is_replaced = 0 ORDER BY id",
+        "SELECT options.id, options.source, options.label, options.place_id, options.category,"
+        " option_authors.participant_id AS added_by"
+        " FROM options LEFT JOIN option_authors ON option_authors.option_id = options.id"
+        " WHERE options.room_id = ? AND options.is_replaced = 0 ORDER BY options.id",
         (room_id,),
     ).fetchall()
 
@@ -258,8 +262,10 @@ def get_options(room_id: str) -> list[sqlite3.Row | dict]:
 def get_option(room_id: str, option_id: int) -> sqlite3.Row | dict | None:
     """Return this option if it belongs to this room (also when replaced), or None."""
     return get_db().execute(
-        "SELECT id, source, place_id, category, is_replaced FROM options"
-        " WHERE id = ? AND room_id = ?",
+        "SELECT options.id, options.source, options.place_id, options.category,"
+        " options.is_replaced, option_authors.participant_id AS added_by"
+        " FROM options LEFT JOIN option_authors ON option_authors.option_id = options.id"
+        " WHERE options.id = ? AND options.room_id = ?",
         (option_id, room_id),
     ).fetchone()
 
@@ -317,19 +323,41 @@ def get_option_labels(room_id: str) -> list[str]:
     return [row["label"] for row in rows]
 
 
-def add_manual_option(room_id: str, label: str) -> bool:
-    """Save a manually entered option. Return False if the database refuses it."""
+def add_manual_option(room_id: str, label: str, participant_id: int) -> bool:
+    """Save a manually entered option and who added it. Return False if the database refuses it."""
     try:
         # db.transaction() instead of "with connection:", which would close a Postgres connection.
+        # Option and author row are saved together, or neither (F24).
         with transaction() as connection:
-            connection.execute(
-                "INSERT INTO options (room_id, source, label) VALUES (?, 'manual', ?)",
+            option = connection.execute(
+                "INSERT INTO options (room_id, source, label) VALUES (?, 'manual', ?) RETURNING id",
                 (room_id, label),
+            ).fetchone()
+            connection.execute(
+                "INSERT INTO option_authors (option_id, room_id, participant_id) VALUES (?, ?, ?)",
+                (option["id"], room_id, participant_id),
             )
     except INTEGRITY_ERRORS:
         # The same label saved by another request a moment earlier (UNIQUE room_id, label).
         return False
     return True
+
+
+def delete_option(room_id: str, option_id: int) -> bool:
+    """F24: delete an active option of a collecting room. Return False if nothing was deleted.
+
+    The status check is part of the same statement, so a delete and "Start voting"
+    at the same moment can never both win. The author row goes with the option
+    (ON DELETE CASCADE).
+    """
+    with transaction() as connection:
+        cursor = connection.execute(
+            "DELETE FROM options WHERE id = ? AND room_id = ? AND is_replaced = 0"
+            " AND EXISTS (SELECT 1 FROM rooms WHERE rooms.id = options.room_id"
+            " AND rooms.status = 'collecting')",
+            (option_id, room_id),
+        )
+    return cursor.rowcount == 1
 
 
 def get_participants(room_id: str) -> list[sqlite3.Row | dict]:
@@ -354,9 +382,18 @@ def start_voting(room_id: str) -> bool:
 
 
 def has_google_options(room_id: str) -> bool:
-    """Return True if places from Google have already been saved for this room."""
+    """Return True if this room has used its one Google search, or has places from Google.
+
+    Since A7 the creator can delete Google options, so "no Google options left" no
+    longer means "not searched yet". radius_m is set by save_search's claim and never
+    cleared, so it still counts after every Google option was deleted (review of #38).
+    """
     row = get_db().execute(
-        "SELECT 1 FROM options WHERE room_id = ? AND source = 'google' LIMIT 1", (room_id,)
+        "SELECT 1 FROM rooms WHERE id = ? AND radius_m IS NOT NULL"
+        " UNION ALL"
+        " SELECT 1 FROM options WHERE room_id = ? AND source = 'google'"
+        " LIMIT 1",
+        (room_id, room_id),
     ).fetchone()
     return row is not None
 

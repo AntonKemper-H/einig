@@ -3,7 +3,7 @@
 Branch: `feature-a9-groups`
 Tests: `tests/test_groups.py` (rules), `tests/test_groups_route.py` (pages and routes), `tests/test_groups_schema.py` (tables, columns, safe to run twice)
 
-Decision: `docs/decisions.md`, D15 (F16 in a reduced form; F18 fairness memory stays parked). Built after **A7** (which decides how a deployed database gets a new column, D14) and **A8** (home page list) are merged.
+Decision: `docs/decisions.md`, D15 (F16 in a reduced form; F18 fairness memory stays parked). Built after **A8** (home page list) is merged. Follows A7's way of changing the schema (D14): **new tables only, no new columns** in existing tables, so `init-db` adds everything to the deployed database by itself and no reviewed test that checks the columns of an existing table breaks.
 
 ## Why
 A group of friends decides more than once. Today they need a new room, a new link and new nicknames every time. A fixed group keeps the members, so any member can start the next activity and everyone joins it with one tap, while guests from outside can still be invited to a single room.
@@ -14,19 +14,20 @@ A group of friends decides more than once. Today they need a new room, a new lin
 - **The group id is the invite:** `secrets.token_urlsafe(8)` like room ids; the invite link is `/groups/<group_id>`. A separate invite token is not needed: the room id is also the room's invite.
 - **Every member has the same rights:** start a new activity, see the invite link and QR code. The person who created the group is stored (`is_creator`) but has no extra rights in A9.
 - **Membership is remembered like rooms:** `session["group_tokens"]`, a dict group id → member token, permanent cookie (A8), at most `MAX_REMEMBERED_GROUPS = 10`.
-- **A group room is a normal room** with `rooms.group_id` set. Everything else (options, voting, result) works unchanged.
+- **A group room is a normal room** with a row in `group_rooms`. Everything else (options, voting, result) works unchanged.
 - **One-tap join:** a group member who opens a group room they have not joined sees `Join as <group nickname>` instead of the nickname form. Taken by a guest already → the normal nickname form with the message below.
 - **Whoever starts the activity becomes the room's creator** (start voting, close), as in F1, under their group nickname.
 - **Guests:** a person who is not a member can join a group room with the room link and any free nickname, like today; they do not become group members.
 - **Group nickname rules** are the same as room nicknames (A3): trimmed, 1–30 characters, unique within the group.
 - **Group name:** trimmed, 1–60 characters.
 
-### Schema (`app/schema.sql`, same way of adding columns as A7)
+### Schema (`app/schema.sql`, four new tables, no change to existing tables)
 - `groups (id TEXT PRIMARY KEY, name TEXT NOT NULL CHECK (trim(name) <> ''), created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, last_activity_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`
 - `group_members (id INTEGER PRIMARY KEY, group_id TEXT NOT NULL REFERENCES groups (id) ON DELETE CASCADE, nickname TEXT NOT NULL CHECK (trim(nickname) <> ''), member_token TEXT NOT NULL UNIQUE, is_creator INTEGER NOT NULL DEFAULT 0 CHECK (is_creator IN (0, 1)), joined_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, UNIQUE (group_id, nickname))`
-- `rooms.group_id TEXT` nullable, references `groups (id)` `ON DELETE SET NULL` (a room outlives its group's deletion until its own 7 days are over).
-- `participants.group_member_id INTEGER` nullable, references `group_members (id)` `ON DELETE SET NULL`.
-- `init-db` twice in a row changes nothing and deletes nothing; an existing database from before A9 gets the new tables and columns with its data kept.
+- `group_rooms (room_id TEXT PRIMARY KEY REFERENCES rooms (id) ON DELETE CASCADE, group_id TEXT NOT NULL REFERENCES groups (id) ON DELETE CASCADE)` – which room belongs to which group. Deleting the group removes only the link; the room stays until its own 7 days are over.
+- `group_participants (participant_id INTEGER PRIMARY KEY REFERENCES participants (id) ON DELETE CASCADE, group_member_id INTEGER NOT NULL REFERENCES group_members (id) ON DELETE CASCADE)` – which room participant is which group member (one-tap join). Guests have no row.
+- `rooms`, `participants` and every other existing table keep exactly their columns.
+- `init-db` twice in a row changes nothing and deletes nothing; an existing database from before A9 gets the new tables with its data kept.
 
 ### Rules (`app/services/groups.py`, no Flask, no database)
 - `validate_new_group(name, nickname) -> tuple[dict, list[str]]` – cleaned values and messages (`Please enter a group name.`, `The group name can be at most 60 characters.`, nickname messages as in A3).
@@ -42,7 +43,7 @@ A group of friends decides more than once. Today they need a new room, a new lin
 | `GET /groups/<id>` | member | name, members' nicknames, invite link and QR code (`_qr_code.html`), the group's rooms (newest first, status label and link as in A8), and the form "Plan a new activity" (title, mode) |
 | `GET /groups/<id>` | not a member | group name and the join form (nickname); nothing else, no member names, no rooms |
 | `POST /groups/<id>/join` | not a member | joins with a nickname, redirects to the group page; a member who posts again is redirected without a second member |
-| `POST /groups/<id>/rooms` | member | creates a room with `group_id`, the member as room creator under their group nickname with `group_member_id` set, remembers the room token, updates `groups.last_activity_at`, redirects to the room page |
+| `POST /groups/<id>/rooms` | member | creates a room, its `group_rooms` row, the member as room creator under their group nickname and their `group_participants` row, remembers the room token, updates `groups.last_activity_at`, redirects to the room page |
 
 Rejected (message shown, nothing saved):
 
@@ -56,19 +57,20 @@ Rejected (message shown, nothing saved):
 
 ### Changes to existing pages
 - **Room page** (`GET /rooms/<id>`) of a group room for a visitor who is a member of that group: a form with one button `Join as <nickname>` posting to `POST /rooms/<id>/join` with the field `as_group_member=1`. The room page also shows `Part of <group name>` with a link to the group page, for participants who are group members.
-- **Join route**: with `as_group_member=1`, the nickname is taken from the group membership in the cookie (never from the form) and `group_member_id` is stored. If the browser is not a member of the room's group: 403 `You are not a member of this group.` If the nickname is already taken in the room: the normal nickname form with `Your group nickname is already taken in this room. Please choose another one.` (status 400). Joining without `as_group_member` works as before.
+- **Join route**: with `as_group_member=1`, the nickname is taken from the group membership in the cookie (never from the form) and a `group_participants` row is stored in the same transaction as the participant. If the browser is not a member of the room's group: 403 `You are not a member of this group.` If the nickname is already taken in the room: the normal nickname form with `Your group nickname is already taken in this room. Please choose another one.` (status 400). Joining without `as_group_member` works as before.
 - **Home page** (A8): a section **"My groups"** above "My rooms" (name, number of members, link), from `group_tokens` (stale tokens dropped as in A8), and a link `Create a group` to `/groups/new`.
 
 ### `app/db.py`
-New: `create_group_with_member`, `get_group`, `get_group_member(group_id, member_token)`, `get_group_members(group_id)`, `add_group_member`, `get_group_rooms(group_id)`, `create_group_room(...)` (one transaction: room, creator participant with `group_member_id`, `last_activity_at`), `get_my_groups(tokens)`. `add_participant` gets an optional `group_member_id`.
+New: `create_group_with_member`, `get_group`, `get_group_member(group_id, member_token)`, `get_group_members(group_id)`, `add_group_member`, `get_group_rooms(group_id)`, `create_group_room(...)` (one transaction: room, `group_rooms` row, creator participant, `group_participants` row, `last_activity_at`), `get_room_group(room_id)` (the group or `None`), `add_group_participant(room_id, nickname, session_token, group_member_id) -> bool` (participant and `group_participants` row in one transaction), `get_my_groups(tokens)`. `add_participant` stays unchanged.
 
 Checks (one line = one test):
 
 `tests/test_groups_schema.py`
-- [ ] A fresh database has `groups`, `group_members`, `rooms.group_id` and `participants.group_member_id`.
-- [ ] `init-db` on a database from before A9 adds them and keeps every existing room, participant, option and vote; running it twice changes nothing.
+- [ ] A fresh database has `groups`, `group_members`, `group_rooms` and `group_participants` with the columns above, and `rooms` and `participants` have exactly the same columns as before A9.
+- [ ] `init-db` on a database from before A9 adds the four tables and keeps every existing room, participant, option and vote; running it twice changes nothing.
 - [ ] Two members with the same nickname in one group are refused by the database; the same nickname in two groups is fine.
-- [ ] Deleting a group deletes its members and sets `group_id` of its rooms to NULL; the rooms stay.
+- [ ] Deleting a group deletes its members, its `group_rooms` and `group_participants` rows; the rooms and their participants stay.
+- [ ] Deleting a room deletes its `group_rooms` row; a room can belong to at most one group (primary key).
 
 `tests/test_groups.py`
 - [ ] `validate_new_group` accepts a trimmed name and nickname; rejects empty, whitespace-only and too long values with the messages above.
@@ -78,8 +80,8 @@ Checks (one line = one test):
 `tests/test_groups_route.py`
 - [ ] Accepted: creating a group stores the group and one creator member, redirects to the group page, which shows the name, the creator's nickname, the invite link and the QR code.
 - [ ] Accepted: a second browser opens the invite link, sees only the name and the join form, joins, and then sees both members.
-- [ ] Accepted: a member plans an activity → a room with `group_id`, that member is the room's creator with their group nickname and `group_member_id`, the browser is in the room, and the group page lists the room.
-- [ ] Accepted: another member opens that room, sees `Join as <nickname>`, presses it and is a participant with the group nickname and `group_member_id`, without typing anything.
+- [ ] Accepted: a member plans an activity → a room with a `group_rooms` row, that member is the room's creator with their group nickname and a `group_participants` row, the browser is in the room, and the group page lists the room.
+- [ ] Accepted: another member opens that room, sees `Join as <nickname>`, presses it and is a participant with the group nickname and a `group_participants` row, without typing anything.
 - [ ] Accepted: a guest (not a member) opens the room link, sees the normal nickname form, joins with any free nickname; they are not added to the group and do not see the group page.
 - [ ] Accepted: the home page lists the browser's groups above its rooms; another browser sees none of them.
 - [ ] Rejected: invalid group name or nickname – 400, messages, nothing saved.
@@ -90,6 +92,7 @@ Checks (one line = one test):
 - [ ] Rejected: the group nickname is already taken in the room by a guest – 400, message, nickname form shown, nothing saved.
 - [ ] Edge case: joining the same group twice from one browser does not create a second member.
 - [ ] Edge case: pressing `Join as …` twice does not create a second participant.
+- [ ] Edge case: if saving the `group_participants` row fails, no participant is saved either (one transaction).
 - [ ] Edge case: unknown group id – 404 for every group route.
 - [ ] Privacy: a non-member never sees member nicknames or the group's rooms; no page shows who voted what.
 - [ ] Persistence: after an app restart, the group, its members and its rooms are still there and the browser is still a member.

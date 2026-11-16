@@ -28,9 +28,9 @@ Each line is one task: own spec in `specs/`, own branch, own pull request, fresh
 - [x] A4 F3 Add options manually (PR #14)
 - [x] A5 F7 Lobby with room status (meta refresh), including the creator's "Start voting" (collecting → voting) (PR #15)
 - [x] A6 F22 QR code for the invite link, scanned on a phone on the deployed app (PR #16)
-- [ ] A7 F24 Delete an option (author or creator; schema change `options.added_by`, `docs/decisions.md` D14)
+- [ ] A7 F24 Delete an option (author or creator; new table `option_authors`, `docs/decisions.md` D14)
 - [ ] A8 F25 My rooms on the home page, cookie kept 180 days (`specs/a8-my-rooms.md`, D15)
-- [ ] A9 F16 Fixed groups: plan one activity after another, one-tap join (`specs/a9-groups.md`, D15) – after A7 and A8
+- [ ] A9 F16 Fixed groups: plan one activity after another, one-tap join (`specs/a9-groups.md`, D15) – after A8
 
 ### Track B – Voting & result – Timonhio
 
@@ -63,7 +63,7 @@ A1 schema ──► A2 F1 ──► A3 F2 ──► A4 F3 ──► A5 F7
                  │          └──► B2 F4 ──► B3 F6 ──► B4 F10, B5 F11
                  └──► C2 F8 ──► C3 F9, C4 F12 ──► C5 F13
 B1 F5 (no dependencies)        C1 deploy (no dependencies)
-A7 F24 + A8 F25 ──► A9 F16 ──► C7 F26 ──► C8 F26 map
+A8 F25 ──► A9 F16 ──► C7 F26 ──► C8 F26 map
 ```
 
 ## 3. Milestones
