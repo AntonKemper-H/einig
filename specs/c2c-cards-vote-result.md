@@ -47,6 +47,7 @@ Rating page:
 - [ ] Room `collecting` or `closed`: the rating page does not call Google.
 - [ ] A Google name with HTML is shown escaped.
 - [ ] The API key never appears in the rating page.
+- [ ] A rejected vote (e.g. `rating=maybe` for a Google option) shows the page again with status 400, the message, the card's name, and exactly one Details call; nothing is saved (added after review of #36).
 - [ ] Rating a Google option still works (POST redirects, the vote is saved) and the next page view again calls Google at most once.
 
 Result page:

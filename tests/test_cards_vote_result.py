@@ -296,6 +296,23 @@ def test_rating_a_google_option_still_works(app, client, google):
     assert "Sushi Bar" in html
 
 
+
+def test_rejected_vote_shows_the_card_again(app, client, google):
+    room_id = create_room(client)
+    ids = setup_options(app, room_id, ["place-a"])
+    set_status(app, room_id, "voting")
+    response = client.post(
+        f"/rooms/{room_id}/vote", data={"option_id": ids["place-a"], "rating": "maybe"}
+    )
+    html = response.data.decode()
+    assert response.status_code == 400
+    assert "Please choose one of the three ratings." in html
+    assert "Pizza Roma" in html
+    assert google.detail_place_ids() == ["place-a"]
+    with app.app_context():
+        assert get_db().execute("SELECT COUNT(*) FROM votes").fetchone()[0] == 0
+
+
 # --- Result page -----------------------------------------------------------
 
 def closed_room(app, client, place_ids=("place-a", "place-b"), manual=("Cook at home",), winner="place-a"):
