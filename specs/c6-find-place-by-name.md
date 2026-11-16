@@ -3,7 +3,7 @@
 Branch: `feature-c6-find-place-by-name`
 Tests: `tests/test_place_by_name.py` (the Google call and the form rules, with fake responses) and `tests/test_place_by_name_route.py` (room page, the two routes, interactions with C2a/C4/C5)
 
-F23 is not in `docs/concept.md`; `docs/decisions.md` D14 describes it (merged with PR #37). **Built only after these tests are reviewed.**
+F23 is not in `docs/concept.md`; `docs/decisions.md` D14 describes it (merged with PR #37). **Built only after these tests are reviewed and PR #38 (A7, table `option_authors`) is merged**, because C6 writes an author row into that table (decision 9).
 
 ## Why
 A typed option ("Luigi's") gets no card: no photo, rating, map or route. With F23 a participant types the name, picks the right place from a short list, and it becomes a normal Google option with a C2b card, while the cost per search stays small and nothing but the place id is ever stored.
@@ -27,7 +27,8 @@ D14 (F23) in `docs/decisions.md`. `AGENTS.md`: "Adding options: only while the r
 5. **Location.** If the room has a search centre (`search_center_lat`/`search_center_lng`, from C2a or C4), it is the bias, and location fields sent by the browser are ignored. Otherwise the browser's `latitude`/`longitude` fields are used if both are valid (`places.parse_location`, rounded to 3 decimals); missing or invalid fields mean **search without a location** (no error: the location is only a hint). The participant's location is used for this one call only and **never stored**; the room's centre is never written by C6.
    "Use my location" (button, hidden fields, `geolocation.js` unchanged) is shown in the find form only when the room has no centre **and** the C2a/C4 search form is not on the same page: `geolocation.js` finds its fields by id, and two forms with the same ids would break it. So the creator of a `nearby`/`surprise` room searches by name without location until the room's search has run (then the centre is the bias).
 6. **Already an option.** A place that is already an option of the room, **active or replaced** (C5: the group has been there), is rejected at step 2 with `This place is already an option.` (400). The match list in step 1 shows all matches; marking duplicates there is not needed.
-7. **What is saved:** `source = 'google'`, `place_id`, `label` NULL, `category` **NULL**, `is_replaced = 0`. The NULL category is how C2a/C4/C5 tell a picked place from a place their search found (see "Interactions" below). No column is added.
+7. **What is saved:** `source = 'google'`, `place_id`, `label` NULL, `category` **NULL**, `is_replaced = 0`. The NULL category is how C2a/C4/C5 tell a picked place from a place their search found (see "Interactions" below). No column is added to `options`.
+9. **The participant who picks a place is its author** (agreement in the A7 spec, PR #38). In the same transaction as the option, C6 writes one row into A7's table `option_authors` (`option_id`, `room_id`, the participant's id). So, as with a manual option, the person who picked it and the creator can delete it (F24). The author is never shown to anyone. C6 does not change the table or A7's code; if the option is not saved, no author row is saved either.
 8. **When nothing can be found** (no key, Google error, no matches, limit reached): a friendly message, and the manual add form (A4) is shown **pre-filled with the typed name**, so one tap adds it as a manual option. The manual add form is also pre-filled when matches are shown ("Not in the list?"). The A4 route itself is unchanged.
 
 ### Interactions with C2a, C4 and C5 (please check in the review)
@@ -106,7 +107,7 @@ Never calls Google. Checked in this order:
 The new option appears at the end of the list as a normal C2b card (name, photo, rating, price; distance only if the room has a centre).
 
 ### `app/db.py`
-- New `add_place_option(room_id: str, place_id: str) -> bool`: in one transaction, `INSERT INTO options (room_id, source, place_id) SELECT ?, 'google', ? WHERE EXISTS (SELECT 1 FROM rooms WHERE id = ? AND status = 'collecting')`. Returns `False` if no row was added (room not collecting). Raises one of `INTEGRITY_ERRORS` if the place is already an option (as C5's `replace_option`).
+- New `add_place_option(room_id: str, place_id: str, participant_id: int) -> bool`: in one `db.transaction()`, (1) `INSERT INTO options (room_id, source, place_id) SELECT ?, 'google', ? WHERE EXISTS (SELECT 1 FROM rooms WHERE id = ? AND status = 'collecting') RETURNING id`, then (2) if a row was added, `INSERT INTO option_authors (option_id, room_id, participant_id) VALUES (?, ?, ?)` (decision 9), the same way A7's `add_manual_option` does it. Returns `False` if no option was added (room not collecting); then no author row is written. Raises one of `INTEGRITY_ERRORS` if the place is already an option (as C5's `replace_option`); the transaction is rolled back, so neither row is saved.
 - `has_google_options` and `save_search` as described in "Interactions".
 - Existing `get_room_place_ids` is reused for the duplicate check.
 
@@ -141,6 +142,8 @@ Checks (one line = one test):
 - [ ] Step 1: the session holds only the ids of the shown matches for this room, no names or addresses.
 - [ ] Step 2 accepted: redirect; one option with `source = 'google'`, the place id, label NULL, category NULL, `is_replaced = 0`; Google not called; the remembered matches are removed.
 - [ ] Step 2 accepted: the option appears on every participant's room page and in the lobby's option count.
+- [ ] Step 2 accepted: one `option_authors` row links the new option to the participant who picked it, in this room; the author's nickname is not shown next to the option.
+- [ ] Step 2 accepted (with A7): the participant who picked the place can delete it, another guest cannot (403).
 - [ ] Accepted: nothing from Google but the place id is in the database (no name, no address).
 - [ ] Accepted: works in `manual`, `nearby` and `surprise` rooms, for creator and guest.
 - [ ] Rejected step 1: no matches – 200, message, manual form pre-filled, nothing saved.
@@ -162,7 +165,8 @@ Checks (one line = one test):
 - [ ] Rejected step 2: visitor, participant of another room – 403, nothing saved.
 - [ ] Rejected step 2: unknown room – 404.
 - [ ] Edge case: the room starts voting between the checks and the insert (simulated by making `db.get_room` report `collecting`) – message, nothing saved.
-- [ ] Edge case: the database refuses the insert (simulated by making `db.get_room_place_ids` hide the existing option) – message, no crash, still one option.
+- [ ] Edge case: the database refuses the insert (simulated by making `db.get_room_place_ids` hide the existing option) – message, no crash, still one option and no author row from this request.
+- [ ] Rejected step 2 (any case above): no `option_authors` row is written.
 - [ ] Interaction: after a guest picked a place, the creator of a `nearby` room still sees the search form and the search saves its places; a found place that was already picked is kept once.
 - [ ] Interaction: a picked place in a `surprise` room has no `Been there` form; the surprise places still do.
 - [ ] Interaction: pressing `Been there` for a picked place anyway (hand-made request) – 400, `Only places from the surprise search can be replaced.`, Google not called, data unchanged; a surprise place of the same room can still be replaced.
@@ -170,7 +174,7 @@ Checks (one line = one test):
 - [ ] Persistence: after an app restart, the picked option is still stored and shown.
 
 ## Out of scope
-- **Deleting options (F24/A7) and the column `options.added_by`.** No schema change here. A7 decides who counts as the author of a C6 option (D14: the participant who picked it would be the natural author, but C6 does not store it).
+- **Deleting options (F24/A7)**, the delete route and the table `option_authors` itself: all from A7 (PR #38). C6 only writes the author row (decision 9). No schema change here.
 - Autocomplete, suggestions while typing, any new JavaScript, any change to `geolocation.js`.
 - Changes to the C2a/C4 routes, to the C5 route beyond the one check in "Interactions", `search_nearby`, the C2b card macro or `load_cards`.
 - Showing which matches are already options in the step-1 list.

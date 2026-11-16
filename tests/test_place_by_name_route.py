@@ -141,6 +141,26 @@ def all_options(app, room_id):
         ).fetchall()
 
 
+def author_rows(app, room_id):
+    """The rows of A7's table option_authors for this room (PR #38)."""
+    with app.app_context():
+        return [
+            tuple(row)
+            for row in get_db().execute(
+                "SELECT option_id, room_id, participant_id FROM option_authors"
+                " WHERE room_id = ? ORDER BY option_id",
+                (room_id,),
+            )
+        ]
+
+
+def participant_id(app, room_id, nickname):
+    with app.app_context():
+        return get_db().execute(
+            "SELECT id FROM participants WHERE room_id = ? AND nickname = ?", (room_id, nickname)
+        ).fetchone()["id"]
+
+
 def room_row(app, room_id):
     with app.app_context():
         return get_db().execute("SELECT * FROM rooms WHERE id = ?", (room_id,)).fetchone()
@@ -350,6 +370,32 @@ def test_picked_place_is_shown_to_everyone_and_counted_in_lobby(app, client, gue
         assert "Place from Google Maps" in html
         assert html.count("<article") == 1
     assert "2 options" in client.get(f"/rooms/{room_id}/lobby").data.decode()
+
+
+def test_picker_is_stored_as_author_and_not_shown(app, client, guest, room_id):
+    find(guest, room_id)
+    add(guest, room_id)
+    option_id = all_options(app, room_id)[0]["id"]
+    assert author_rows(app, room_id) == [(option_id, room_id, participant_id(app, room_id, "Ben"))]
+    # Who added an option is never shown to others.
+    assert "Ben" not in page(client, room_id)
+
+
+def test_picker_can_delete_the_place_and_other_guests_cannot(app, guest, room_id):
+    find(guest, room_id)
+    add(guest, room_id)
+    option_id = all_options(app, room_id)[0]["id"]
+
+    other_guest = app.test_client()
+    join(other_guest, room_id, "Cleo")
+    refused = other_guest.post(f"/rooms/{room_id}/options/{option_id}/delete")
+    assert refused.status_code == 403
+    assert len(all_options(app, room_id)) == 1
+
+    deleted = guest.post(f"/rooms/{room_id}/options/{option_id}/delete")
+    assert_redirects_to_room(deleted, room_id)
+    assert all_options(app, room_id) == []
+    assert author_rows(app, room_id) == []
 
 
 def test_nothing_but_place_id_is_stored(app, guest, room_id):
@@ -572,6 +618,24 @@ def test_database_refuses_duplicate_insert(app, guest, room_id, monkeypatch):
     assert response.status_code == 400
     assert ALREADY_OPTION_MESSAGE in response.data.decode()
     assert len(all_options(app, room_id)) == 1
+    assert author_rows(app, room_id) == []
+
+
+def test_rejected_step_two_writes_no_author_row(app, guest, room_id, monkeypatch):
+    add(guest, room_id)  # no search before: expired
+    find(guest, room_id)
+    add(guest, room_id, "place-somewhere-else")  # not among the matches
+    add_google_option(app, room_id, "place-luigi-2", category="restaurant")
+    add(guest, room_id, "place-luigi-2")  # already an option
+    set_room_status(app, room_id, "voting")
+    real_get_room = database.get_room
+    monkeypatch.setattr(
+        database, "get_room", lambda wanted: {**dict(real_get_room(wanted)), "status": "collecting"}
+    )
+    response = add(guest, room_id, "place-luigi-1")  # room started voting just before the insert
+    assert response.status_code == 400
+    assert [row["place_id"] for row in all_options(app, room_id)] == ["place-luigi-2"]
+    assert author_rows(app, room_id) == []
 
 
 # --- Interactions with C2a, C4, C5 -----------------------------------------
