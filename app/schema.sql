@@ -102,3 +102,19 @@ CREATE TABLE IF NOT EXISTS vetoes (
     FOREIGN KEY (participant_id, room_id) REFERENCES participants (id, room_id) ON DELETE CASCADE,
     FOREIGN KEY (option_id, room_id) REFERENCES options (id, room_id) ON DELETE CASCADE
 );
+
+
+-- Who added a manual option, for the delete permission (F24, specs/a7-delete-option.md).
+-- A table of its own instead of a column on options: init-db adds it to an existing
+-- database by itself, and the columns of options stay as they are (C5's test checks them).
+-- Options from the nearby/surprise search have no row: only the creator may delete those.
+-- Never shown to anyone; only used for the permission check.
+CREATE TABLE IF NOT EXISTS option_authors (
+    option_id      INTEGER NOT NULL,
+    room_id        TEXT NOT NULL,
+    participant_id INTEGER NOT NULL,
+    PRIMARY KEY (option_id),
+    -- Both foreign keys include room_id, so the author is always in the option's room.
+    FOREIGN KEY (option_id, room_id) REFERENCES options (id, room_id) ON DELETE CASCADE,
+    FOREIGN KEY (participant_id, room_id) REFERENCES participants (id, room_id) ON DELETE CASCADE
+);
