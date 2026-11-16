@@ -382,9 +382,18 @@ def start_voting(room_id: str) -> bool:
 
 
 def has_google_options(room_id: str) -> bool:
-    """Return True if places from Google have already been saved for this room."""
+    """Return True if this room has used its one Google search, or has places from Google.
+
+    Since A7 the creator can delete Google options, so "no Google options left" no
+    longer means "not searched yet". radius_m is set by save_search's claim and never
+    cleared, so it still counts after every Google option was deleted (review of #38).
+    """
     row = get_db().execute(
-        "SELECT 1 FROM options WHERE room_id = ? AND source = 'google' LIMIT 1", (room_id,)
+        "SELECT 1 FROM rooms WHERE id = ? AND radius_m IS NOT NULL"
+        " UNION ALL"
+        " SELECT 1 FROM options WHERE room_id = ? AND source = 'google'"
+        " LIMIT 1",
+        (room_id, room_id),
     ).fetchone()
     return row is not None
 
