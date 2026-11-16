@@ -219,6 +219,39 @@ def get_participant(room_id: str, session_token: str | None) -> sqlite3.Row | di
     ).fetchone()
 
 
+def get_my_rooms(tokens: dict[str, str]) -> list[dict]:
+    """Return the rooms these tokens belong to, newest first (A8, "My rooms").
+
+    A token counts only if it belongs to a participant of that room, so a forged
+    token or a token of a deleted room gives nothing. One query per token is fine:
+    a browser remembers at most 30 rooms.
+    """
+    found = []
+    for room_id, session_token in tokens.items():
+        row = get_db().execute(
+            "SELECT rooms.id, rooms.title, rooms.status, rooms.created_at,"
+            " participants.nickname, participants.is_creator, participants.id AS participant_id"
+            " FROM rooms JOIN participants ON participants.room_id = rooms.id"
+            " WHERE rooms.id = ? AND participants.session_token = ?",
+            (room_id, session_token),
+        ).fetchone()
+        if row is not None:
+            found.append(
+                {
+                    "id": row["id"],
+                    "title": row["title"],
+                    "status": row["status"],
+                    "created_at": str(row["created_at"]),
+                    "nickname": row["nickname"],
+                    "is_creator": bool(row["is_creator"]),
+                    "participant_id": row["participant_id"],
+                }
+            )
+    # Newest first; rooms created in the same second are ordered by id, so the order never changes.
+    found.sort(key=lambda room: (room["created_at"], room["id"]), reverse=True)
+    return found
+
+
 def get_nicknames(room_id: str) -> list[str]:
     """Return the nicknames of all participants in this room."""
     rows = get_db().execute(

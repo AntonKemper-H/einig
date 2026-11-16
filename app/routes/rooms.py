@@ -16,6 +16,7 @@ from flask import (
 )
 
 from app import db
+from app.routes.main import render_home
 from app.services import lobby as lobby_rules
 from app.services import options as option_rules
 from app.services import places, qr, surprise
@@ -47,11 +48,21 @@ def session_token_for(room_id: str) -> str | None:
 
 
 def remember_token(room_id: str, session_token: str) -> None:
-    """Store the participant's token in the signed session cookie, next to tokens for other rooms."""
+    """Store the participant's token in the signed session cookie, next to tokens for other rooms.
+
+    The cookie lasts 180 days (A8). With more than 30 rooms, the room this browser
+    joined longest ago is forgotten, so the cookie never grows too big for the browser.
+    """
+    tokens = room_rules.remember_room_token(
+        session.get("participant_tokens", {}), room_id, session_token
+    )
+    if len(tokens) > room_rules.MAX_REMEMBERED_ROOMS:
+        # Called after the participant is saved, so the new room counts as the newest.
+        keep = room_rules.rooms_to_keep(db.get_my_rooms(tokens))
+        tokens = {key: token for key, token in tokens.items() if key in keep}
     # A new dict is assigned so Flask notices the change and saves the cookie.
-    tokens = dict(session.get("participant_tokens", {}))
-    tokens[room_id] = session_token
     session["participant_tokens"] = tokens
+    session.permanent = True
 
 
 def invite_url_for(room_id: str) -> str:
@@ -167,7 +178,7 @@ def render_lobby(room, participant, errors: list[str] | None = None):
 
 def show_create_form_again(form: dict, errors: list[str]):
     """Show the create-room form with the entered values and the error messages (status 400)."""
-    return render_template("home.html", form=form, errors=errors, modes=room_rules.MODES), 400
+    return render_home(form, errors), 400
 
 
 @bp.post("/rooms")
