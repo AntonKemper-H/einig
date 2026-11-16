@@ -201,7 +201,7 @@ Feedback from clicking through the app: the room page is long (invite link twice
 **F27 – Room setup (S).** While the room is `collecting`, the creator sets up:
 - **Activity and kind**, from a two-level catalogue in `app/services/activities.py`: Food (breakfast, brunch, restaurant), Drinks & café (bar, café, dessert), Sport (bowling, climbing, swimming, fitness, sports ground), Culture & leisure (cinema, museum and gallery, theatre, amusement park and zoo, park and hiking). Each kind maps to Google place types; "Places nearby" and "Surprise me" search with the kind's types instead of the creator choosing a category in the search form. Only types that exist in Google's place type table are used.
 - **Lunch or dinner** is not a Google type; it would need opening hours and is not part of F27. "Restaurant" covers both.
-- **Options per person** (1–5 or unlimited): how many own options each participant may add. Places from the Google searches do not count. Uses the authors in `option_authors` (A7, D14).
+- **Options per person** (1–5 or unlimited): how many own options each participant may add. Places from the Google searches do not count; places a participant found by name (C6) do. Uses the authors in `option_authors` (A7, D14).
 - **Changeable while collecting, fixed once voting starts**, so the basis of the ratings never moves.
 - **Stored in a new table `room_setups`** (one row per room), not in new columns of `rooms`: like `option_authors` (A7), `init-db` creates a new table on the deployed database by itself, without `ALTER TABLE`. The table also holds the two F28 choices below (`hide_ideas`, `reveal_places`), so A11 needs no second schema change.
 - **Groups:** every new activity in a group (A9) gets its own setup, with the same form. There is no group admin and no stored group default.
@@ -220,14 +220,14 @@ Feedback from clicking through the app: the room page is long (invite link twice
 - Instead of the others' options, the page shows how many there are ("Others have added 4 options"), so the group still sees progress.
 - A name someone else already added is rejected with `Someone already had the same idea – it is already in the room.`, which reveals nothing more than that.
 - The creator sees only their own options as well; deleting other people's options (F24) is therefore not possible in a room with hidden collecting.
-- **Accepted trade-off:** in a hidden room nobody can remove someone else's typo or joke entry before the voting starts (collecting is the only time deleting works, and the reason for F24 in D14). The group can still rate it down. A creator who wants to clean up turns hidden collecting off for a moment, which shows all options and allows deleting again.
+- **Accepted trade-off:** in a hidden room nobody can remove someone else's typo or joke entry before the voting starts (collecting is the only time deleting works, and the reason for F24 in D14). The group can still rate it down. A creator who wants to clean up turns hidden collecting off for a moment, which shows all options **to everyone, not only to the creator** (the surprise is gone for the ideas seen so far) and allows deleting again.
 - Who added an option is never shown, also not after the reveal (as D14).
 
 **Tasks** (own spec and branch each, D9), in this order; cut from the end if time runs short:
 
 | Task | Feature | Track (proposal) | Needs |
 |---|---|---|---|
-| C9 | F27 Room setup | C (catalogue and searches; new table reviewed by Track A) | A7 (merged) |
+| C9 | F27 Room setup | C (catalogue and searches; new table reviewed by Track A) | A7 (merged), C6 merged (#39; C9 puts C6's "save a place by name" under the per-person limit) |
 | B6 | Room page layout | B (Timonhio) | C9 merged (setup form on the page); starts only after B4 and B5 |
 | A11 | F28 Hidden collecting | A | C9 and B6 merged |
 

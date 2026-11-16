@@ -3,7 +3,7 @@
 Branch: `feature-c9-room-setup`
 Tests: `tests/test_activities.py` (catalogue and rules), `tests/test_room_setup.py` (schema, setup route, room page, limits, searches with fake Google answers)
 
-Decision: `docs/decisions.md`, D17. Builds on A7 (`option_authors`, merged), C2a (`/suggest`), C4 (`/surprise`) and C5 ("Been there"). The new table is a schema change: Track A (schema owner, D10) reviews it.
+Decision: `docs/decisions.md`, D17. Builds on A7 (`option_authors`, merged), C2a (`/suggest`), C4 (`/surprise`), C5 ("Been there") and C6 (find a place by name, PR #39; **C9 starts only after #39 is merged**). The new table is a schema change: Track A (schema owner, D10) reviews it.
 
 ## Why
 Today a room only knows its title and where options come from; the creator picks "Restaurant / Bar / Café / Cinema" deep inside the search form, and anyone can add as many options as they like. The creator should say up front what the group is planning (brunch, bowling, a museum …) so that suggestions and surprises fit, and how many ideas each person may bring, while rooms without a setup keep working exactly as today.
@@ -73,7 +73,9 @@ New: `add_manual_option_within_limit(room_id, label, participant_id, options_per
 2. Count the participant's rows in `option_authors` for this room; at or above `options_per_person` → `"limit"`, nothing saved.
 3. Insert option and author row as `add_manual_option` does; a duplicate label (`UNIQUE (room_id, label)`) → `"duplicate"`, nothing saved. Otherwise `"added"`.
 
-`add_manual_option` stays unchanged (rooms without a limit keep using it; its reviewed tests stay valid). The route's own `limit_reached(...)` check before the call stays as a fast path for the message, but the database result decides. **C6** ("save a place by name", not built yet) must save its author row through the same locked check once it exists; its spec takes this over.
+`add_manual_option` stays unchanged (rooms without a limit keep using it; its reviewed tests stay valid). The route's own `limit_reached(...)` check before the call stays as a fast path for the message, but the database result decides.
+
+New: `add_place_option_within_limit(room_id, place_id, participant_id, options_per_person: int) -> str` – the same for a place found by name (C6, step 2). C6 is built and its tests are frozen (PR #39), so **C9 does this, not C6**: same three steps (lock the room row, count the participant's `option_authors` rows, insert option with `category` NULL and author row as C6's `add_place_option` does). A place that is already an option of the room (`UNIQUE (room_id, place_id)`) → `"duplicate"`. `add_place_option` stays unchanged for rooms without a limit, so C6's frozen tests stay valid. Without this, a participant could get past the limit with "Find on Google Maps".
 
 ### Route `POST /rooms/<room_id>/setup`
 
@@ -97,6 +99,8 @@ New: `add_manual_option_within_limit(room_id, label, participant_id, options_per
 - `surprise.surprise_search(..., subcategory_pool: list[str] | None = None)` – if given, sub-categories are chosen from this list instead of `SUBCATEGORIES[category]` (same `SUBCATEGORIES_PER_SEARCH`, same widening). Default unchanged.
 - `/suggest` and `/surprise` for a set-up room: validate with `category_required=False`, search with the kind's types, store in `filters` the main category `null` and the kind as `"kind": "food.brunch"` (C5's `read_filters` then gives `None` for the category, as decided above). Without a setup: unchanged.
 - `/rooms/<id>/options` (manual add) in a room with a limit: saves through `db.add_manual_option_within_limit(...)`. `"limit"` (from the route's fast check or from the database) → status 400 and `You can add at most 3 options in this room.`; `"duplicate"` and `"not_collecting"` → the existing messages of A4; nothing saved in all three cases. Rooms without a limit: unchanged (`add_manual_option`).
+- C6's `/rooms/<id>/find/add` (save a place by name) in a room with a limit: saves through `db.add_place_option_within_limit(...)`. `"limit"` → 400 and the same message as above; `"duplicate"` → C6's `This place is already an option.`; `"not_collecting"` → C6's message; nothing saved and the remembered matches stay in all three cases. Rooms without a limit: unchanged (`add_place_option`).
+- C6's `/rooms/<id>/find` (step 1) when the participant is already at the limit: 400 and the same message, **Google is not called** (the search could not lead to a saved place). At the limit the find form is replaced by the same `You have added 3 of 3 options.` text as the add form.
 
 Checks (one line = one test):
 
@@ -125,6 +129,12 @@ Checks (one line = one test):
 - [ ] Limit: with 2 per person, a guest adds 2 options; the third is rejected with the message and not saved; another guest can still add 2.
 - [ ] Simultaneous: the route's fast check sees "below the limit", but the database already holds the limit (another add a moment earlier) – `add_manual_option_within_limit` returns `"limit"`, 400, message, nothing saved, still exactly the limit in `option_authors`.
 - [ ] `add_manual_option_within_limit` directly: `"added"`, `"limit"`, `"duplicate"` and `"not_collecting"` each in its case, and nothing saved in the last three.
+- [ ] Limit with C6: with 1 per person, a guest who typed one option and then picks a place found by name is rejected – 400, message, no option and no author row saved.
+- [ ] Limit with C6: a place found by name counts – a guest with a limit of 1 who picked one place cannot type another option.
+- [ ] Limit with C6: a guest at the limit who sends a name search (step 1) gets the message, and Google is not called; the find form is not shown.
+- [ ] Simultaneous with C6: the route's fast check sees "below the limit", but the database already holds the limit – `add_place_option_within_limit` returns `"limit"`, 400, nothing saved.
+- [ ] `add_place_option_within_limit` directly: `"added"` (option with `category` NULL and author row), `"limit"`, `"duplicate"` and `"not_collecting"` each in its case, and nothing saved in the last three.
+- [ ] Rooms without a limit: C6's find-by-name flow is unchanged (C6's frozen tests still pass).
 - [ ] Limit: Google search results do not count (a room with 5 suggested places and a limit of 1: the guest can still add 1).
 - [ ] Limit lowered from 3 to 1 after someone added 2: their options stay; they cannot add another one.
 - [ ] Limit: the add form shows `1 of 3 options added`, and at the limit the text `You have added 3 of 3 options.` instead of the form.
@@ -135,7 +145,6 @@ Checks (one line = one test):
 - Lunch/dinner or any opening-hours filter, "open at the planned time".
 - A setup at room creation on the home page, a group default setup, a group admin (D17); the group form of A9 uses this setup only once A9 is built after C9.
 - Showing or using `hide_ideas` or `reveal_places`, hiding options (A11). Saving the setup in C9 leaves both columns unchanged. (A11 only reads the two checkboxes when its form sends a marker field, so the frozen C9 tests that post only kind and limit stay valid.)
-- The limit for C6's "save a place by name" (C6 is not built yet; its spec uses `add_manual_option_within_limit`'s locked check).
 - Searching again after a setup change, changing C5 to use other types of the kind.
 - Changing `surprise.SUBCATEGORIES`, `places.CATEGORIES`, or any existing test.
 - JavaScript.

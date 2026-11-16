@@ -28,7 +28,7 @@ When everyone sees everyone's ideas while collecting, people copy or simply wait
 - **From `voting` on, everything is shown** as today (rating cards, overview, result). Who added an option is never shown, also not after the reveal (D14).
 - **"Been there"** (C5) only on visible places, so not in a room with `reveal_places = 0`; the route rejects it there too (`"Been there" is not available while the suggested places are secret.`, status 400, nothing changed).
 - **Duplicates:** in a room with `hide_ideas = 1`, adding a label that already exists as someone else's idea is rejected with `Someone already had the same idea – it is already in the room.` (status 400, nothing saved). Adding a label that is the participant's own existing option keeps the normal message. Without `hide_ideas`, messages are unchanged.
-- **Deleting (F24):** only visible options can be deleted from the page; the delete route rejects deleting an option that is hidden from this participant with `This option does not exist in this room.` (same answer as for an unknown option, so it reveals nothing). So in a hidden room the creator cannot delete other people's ideas (D17).
+- **Deleting (F24):** only visible options can be deleted from the page; the delete route treats an option that is hidden from this participant **exactly like an unknown option**: a 303 redirect to the room page, nothing deleted, no message. A7 answers an unknown, already deleted or replaced option this way, and frozen A7 tests pin it (`test_option_id_that_does_not_exist_is_ignored`, `test_deleting_twice_changes_nothing_the_second_time`, `test_replaced_option_is_ignored`). Any other answer (e.g. a 400) would let someone try ids one by one and learn where hidden ideas are. So in a hidden room the creator cannot delete other people's ideas (D17).
 - **Lobby:** unchanged (it shows only the number of options).
 - **The creator's search result:** with `reveal_places = 0` the creator does not see the places either, only their number; the search form's "already searched" behaviour (C2a/C4) is unchanged.
 - **Changing the choices while collecting** takes effect immediately on the next page view; nothing is deleted.
@@ -50,9 +50,9 @@ Checks (one line = one test), `tests/test_hidden_collecting.py`:
 - [ ] `reveal_places = 1`: everyone sees the suggested places and the `Been there` button.
 - [ ] Rejected: "Been there" on a secret place – 400, message, nothing changed, Google not called.
 - [ ] Rejected: a guest types the same label as the creator's hidden idea – 400, `Someone already had the same idea – it is already in the room.`, nothing saved, the creator's idea is still not shown to the guest.
-- [ ] Rejected: deleting someone else's hidden idea (also by the creator) – 400 `This option does not exist in this room.`, nothing deleted.
+- [ ] Ignored: deleting someone else's hidden idea (also by the creator) – 303 to the room page, nothing deleted, the same response as for an option id that does not exist.
 - [ ] Accepted: deleting one's own idea in a hidden room works.
-- [ ] No leak through error pages: in a room with `hide_ideas = 1` and `reveal_places = 0`, a guest's rejected action (limit reached, an empty label, "Been there" on a secret place, deleting an unknown option) shows the room page with 400, and that page contains none of the creator's hidden ideas and none of the secret places, only the counts.
+- [ ] No leak through error pages: in a room with `hide_ideas = 1` and `reveal_places = 0`, a guest's rejected action (adding an option over the limit, an empty label, "Been there" on a secret place, an empty name in "Find on Google Maps" (C6)) shows the room page with 400, and that page contains none of the creator's hidden ideas and none of the secret places, only the counts.
 - [ ] After `Start voting`, every participant's rating page shows all options (own, others', suggested places).
 - [ ] The result page and the overview never show who added an option.
 - [ ] The lobby shows the full number of options in a hidden room.
