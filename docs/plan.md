@@ -3,7 +3,7 @@
 How we get from the skeleton to the submission on **2026-11-23, 23:59**.
 Scope and reasons: `docs/decisions.md`. Feature details: `docs/concept.md`.
 
-Last updated: 2026-11-15. Tick boxes as work is merged into `main`.
+Last updated: 2026-11-16. Tick boxes as work is merged into `main`.
 
 ---
 
@@ -45,8 +45,7 @@ Each line is one task: own spec in `specs/`, own branch, own pull request, fresh
 - [x] C2 F8 Places from Google (built and tested with fake responses first, real key later)
   - [x] C2a Search and save places as options (PR #12)
   - [x] C2b Cards with name, photo, rating, price, distance + photo proxy (PR #18)
-- [ ] C3 F9 Map and route to the winner
-  - [ ] Spec and failing tests in review (PR #24); implementation after B3 (#19) is merged
+- [x] C3 F9 Map and route to the winner (PR #24) – map needs `GOOGLE_MAPS_EMBED_KEY` (Google Cloud setup above)
 - [x] C4 F12 Surprise mode (PR #27)
 - [ ] C5 F13 "Been there"
   - [ ] Spec and failing tests in review (PR #29); implementation after the review and after C4 is merged
