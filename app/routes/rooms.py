@@ -1,6 +1,7 @@
 """Room pages: create a room (F1), show and join it (F2), add and delete options (F3, F24),
 lobby and start voting (F7), suggest places nearby (F8), surprise mode (F12),
-"Been there" (F13), rating (F4), close the room and show the result (F6)."""
+"Been there" (F13), find a place by name (F23), delete an option (F24),
+rating (F4), close the room and show the result (F6)."""
 
 import random
 
@@ -16,6 +17,7 @@ from flask import (
 )
 
 from app import db
+from app.routes.main import render_home
 from app.services import lobby as lobby_rules
 from app.services import options as option_rules
 from app.services import places, qr, surprise
@@ -38,7 +40,6 @@ PLACES_UNAVAILABLE_MESSAGE = (
 NO_PLACES_FOUND_MESSAGE = "No places found. Try a larger radius or fewer filters."
 NOT_JOINED_VOTE_MESSAGE = "Please join the room before voting."
 VOTE_REFUSED_MESSAGE = "Something went wrong while saving your rating. Please try again."
-GOOGLE_OPTION_LABEL = "Place from Google Maps"
 
 
 def session_token_for(room_id: str) -> str | None:
@@ -47,11 +48,64 @@ def session_token_for(room_id: str) -> str | None:
 
 
 def remember_token(room_id: str, session_token: str) -> None:
-    """Store the participant's token in the signed session cookie, next to tokens for other rooms."""
+    """Store the participant's token in the signed session cookie, next to tokens for other rooms.
+
+    The cookie lasts 180 days (A8). With more than 30 rooms, the room this browser
+    joined longest ago is forgotten, so the cookie never grows too big for the browser.
+    """
+    tokens = room_rules.remember_room_token(
+        session.get("participant_tokens", {}), room_id, session_token
+    )
+    if len(tokens) > room_rules.MAX_REMEMBERED_ROOMS:
+        # Called after the participant is saved, so the new room counts as the newest.
+        keep = room_rules.rooms_to_keep(db.get_my_rooms(tokens))
+        tokens = {key: token for key, token in tokens.items() if key in keep}
     # A new dict is assigned so Flask notices the change and saves the cookie.
-    tokens = dict(session.get("participant_tokens", {}))
-    tokens[room_id] = session_token
     session["participant_tokens"] = tokens
+    session.permanent = True
+
+
+# F23 (C6): how many rooms keep their search count in the session. Only the latest
+# room also keeps its matches, so the cookie stays small (review of #39).
+MAX_REMEMBERED_NAME_SEARCH_ROOMS = 5
+
+
+def name_search_entry(room_id: str) -> dict:
+    """This browser's name-search state for the room: {"place_ids": [...], "count": n}.
+
+    Anything unexpected in the cookie (e.g. an old format) counts as "no matches, no searches".
+    """
+    searches = session.get("name_searches")
+    entry = searches.get(room_id) if isinstance(searches, dict) else None
+    if not isinstance(entry, dict):
+        entry = {}
+    place_ids = entry.get("place_ids")
+    if not isinstance(place_ids, list) or not all(isinstance(item, str) for item in place_ids):
+        place_ids = []
+    count = entry.get("count")
+    if not isinstance(count, int) or isinstance(count, bool) or count < 0:
+        count = 0
+    return {"place_ids": place_ids, "count": count}
+
+
+def save_name_search_entry(room_id: str, place_ids: list[str], count: int) -> None:
+    """Store the room's matches (ids only, never names) and search count in the signed session.
+
+    Matches of other rooms are dropped, and only the most recent rooms keep their count.
+    """
+    old = session.get("name_searches")
+    searches = {}
+    if isinstance(old, dict):
+        for other_room_id in old:
+            if other_room_id != room_id:
+                other = name_search_entry(other_room_id)
+                searches[other_room_id] = {"place_ids": [], "count": other["count"]}
+    # The current room goes last, so the oldest rooms are the ones dropped below.
+    searches[room_id] = {"place_ids": place_ids, "count": count}
+    while len(searches) > MAX_REMEMBERED_NAME_SEARCH_ROOMS:
+        del searches[next(iter(searches))]
+    # A new dict is assigned so Flask notices the change and saves the cookie.
+    session["name_searches"] = searches
 
 
 def invite_url_for(room_id: str) -> str:
@@ -69,6 +123,9 @@ def render_room_page(
     search_values=None,
     search_errors: list[str] | None = None,
     been_there_errors: list[str] | None = None,
+    find_name: str = "",
+    find_errors: list[str] | None = None,
+    find_matches: list[dict] | None = None,
 ):
     """Render the room page: join form for visitors; options, add form and place search for participants."""
     invite_url = invite_url_for(room["id"])
@@ -98,11 +155,21 @@ def render_room_page(
     if participant is not None:
         widened_to = surprise.widened_to_text(room["mode"], room["radius_m"], room["filters"])
     # F13: the ids of the options whose card gets a "Been there" button.
+    # A place found by name (C6, no category) is someone's choice, not a surprise: no button.
     been_there_ids = {
         option["id"]
         for option in options
         if surprise.can_press_been_there(room["mode"], room["status"], option["source"])
+        and option["category"] is not None
     }
+    # F23: every participant can find a place by name while the room is collecting.
+    show_find_form = participant is not None and room["status"] == "collecting"
+    room_has_centre = room["search_center_lat"] is not None
+    # geolocation.js finds its fields by id, so "Use my location" may appear only once on
+    # the page: not here while the creator's search form (C2a/C4) is shown.
+    find_offers_location = (
+        not room_has_centre and not show_search_form and not show_surprise_form
+    )
     # F24: the options whose card gets a "Delete" button (only while collecting).
     deletable_ids = set()
     if participant is not None and room["status"] == "collecting":
@@ -132,6 +199,12 @@ def render_room_page(
         been_there_ids=been_there_ids,
         deletable_ids=deletable_ids,
         been_there_errors=been_there_errors or [],
+        show_find_form=show_find_form,
+        find_uses_room_centre=room_has_centre,
+        find_offers_location=find_offers_location,
+        find_name=find_name,
+        find_errors=find_errors or [],
+        find_matches=find_matches or [],
         search_values=search_values or {},
         search_errors=search_errors or [],
         categories=places.CATEGORIES,
@@ -167,7 +240,7 @@ def render_lobby(room, participant, errors: list[str] | None = None):
 
 def show_create_form_again(form: dict, errors: list[str]):
     """Show the create-room form with the entered values and the error messages (status 400)."""
-    return render_template("home.html", form=form, errors=errors, modes=room_rules.MODES), 400
+    return render_home(form, errors), 400
 
 
 @bp.post("/rooms")
@@ -495,6 +568,9 @@ def been_there(room_id: str, option_id: int):
         return show_message(places.NOT_COLLECTING_MESSAGE, 400)
     if option["source"] != "google":
         return show_message(surprise.MANUAL_OPTION_MESSAGE, 400)
+    if option["category"] is None:
+        # Found by name (C6): a deliberate choice with no sub-category to search in.
+        return show_message(surprise.PICKED_PLACE_MESSAGE, 400)
     if option["is_replaced"]:
         # Someone else pressed it first: AGENTS.md says later requests are ignored.
         return room_page
@@ -542,22 +618,144 @@ def been_there(room_id: str, option_id: int):
     return room_page
 
 
+@bp.post("/rooms/<room_id>/find")
+def find_place(room_id: str):
+    """F23 step 1: one Text Search for the typed name; the matches are shown in this response.
+
+    No redirect: names and addresses may not be stored anywhere, so they could not be
+    shown again after one. Nothing is written to the database here, so a reload cannot
+    add anything twice (specs/c6-find-place-by-name.md, decision 1). A reload does send
+    the search again: the browser asks first, and it costs one more Google call and
+    counts one more search towards the limit (review of #39).
+    """
+    room = db.get_room(room_id)
+    if room is None:
+        abort(404)
+
+    # Permission check on the server: hiding the form is not enough.
+    participant = db.get_participant(room_id, session_token_for(room_id))
+    if participant is None:
+        return render_room_page(room, None, errors=[NOT_JOINED_MESSAGE]), 403
+    if room["status"] != "collecting":
+        return render_room_page(room, participant, find_errors=[places.NOT_COLLECTING_MESSAGE]), 400
+
+    name, errors = places.validate_name(request.form.get("name"))
+
+    def show_page(status_code: int, messages: list[str], matches: list[dict] | None = None):
+        """The room page with the typed name in the find form and in the manual add form."""
+        return render_room_page(
+            room,
+            participant,
+            option_label=name,
+            find_name=name,
+            find_errors=messages,
+            find_matches=matches,
+        ), status_code
+
+    if errors:
+        return show_page(400, errors)
+
+    entry = name_search_entry(room_id)
+    if entry["count"] >= places.MAX_NAME_SEARCHES:
+        return show_page(400, [places.NAME_SEARCH_LIMIT_MESSAGE])
+
+    # Without a key the app still works with manual options (docs/decisions.md, D6).
+    api_key = current_app.config.get("GOOGLE_MAPS_API_KEY")
+    if not api_key:
+        return show_page(503, [PLACES_UNAVAILABLE_MESSAGE])
+
+    # The room's search centre comes first; otherwise the participant's location, if shared.
+    # The participant's location is used for this one call only and never stored.
+    if room["search_center_lat"] is not None:
+        location = (room["search_center_lat"], room["search_center_lng"])
+    else:
+        location = places.parse_location(request.form.get("latitude"), request.form.get("longitude"))
+    latitude, longitude = location if location is not None else (None, None)
+
+    # Counted before the call: a failed search may also cost a call.
+    count = entry["count"] + 1
+    try:
+        matches = places.search_by_name(api_key, name, latitude, longitude)
+    except places.PlacesError:
+        save_name_search_entry(room_id, [], count)
+        return show_page(503, [PLACES_UNAVAILABLE_MESSAGE])
+
+    # Only the ids of the shown matches are remembered: step 2 accepts nothing else.
+    save_name_search_entry(room_id, [match["place_id"] for match in matches], count)
+    if not matches:
+        return show_page(200, [places.NO_MATCHES_MESSAGE])
+    return show_page(200, [], matches)
+
+
+@bp.post("/rooms/<room_id>/find/add")
+def add_found_place(room_id: str):
+    """F23 step 2: save the chosen match as a Google option, then redirect (Post/Redirect/Get).
+
+    Never calls Google: the place id must be one of the matches just shown.
+    """
+    room = db.get_room(room_id)
+    if room is None:
+        abort(404)
+
+    participant = db.get_participant(room_id, session_token_for(room_id))
+    if participant is None:
+        return render_room_page(room, None, errors=[NOT_JOINED_MESSAGE]), 403
+
+    def show_message(message: str):
+        return render_room_page(room, participant, find_errors=[message]), 400
+
+    if room["status"] != "collecting":
+        return show_message(places.NOT_COLLECTING_MESSAGE)
+
+    place_id = request.form.get("place_id") or ""
+    entry = name_search_entry(room_id)
+    if place_id not in entry["place_ids"]:
+        # No search before, an older search, another room, or a made-up id.
+        return show_message(places.EXPIRED_MATCHES_MESSAGE)
+    # Also replaced places (C5): the group has been there, so it must not come back.
+    if place_id in db.get_room_place_ids(room_id):
+        return show_message(places.ALREADY_AN_OPTION_MESSAGE)
+
+    try:
+        added = db.add_place_option(room_id, place_id, participant["id"])
+    except db.INTEGRITY_ERRORS:
+        # The same place added by another request a moment earlier.
+        return show_message(places.ALREADY_AN_OPTION_MESSAGE)
+    if not added:
+        # The voting started between the check above and the insert.
+        return show_message(places.NOT_COLLECTING_MESSAGE)
+
+    save_name_search_entry(room_id, [], entry["count"])
+    return redirect(url_for("rooms.show_room", room_id=room_id), code=303)
+
+
 def render_vote_page(room, participant, errors: list[str] | None = None):
     """Render the rating page: the next unrated card, or the overview once everything is rated (F4)."""
-    options = db.get_rateable_options(room["id"])
-    # Google options have no stored name (Google terms); C2b shows the real name later.
-    labels = {option["id"]: option["label"] or GOOGLE_OPTION_LABEL for option in options}
+    options = {option["id"]: option for option in db.get_rateable_options(room["id"])}
     # Only this participant's own ratings are loaded: nobody sees how others voted.
     own_ratings = db.get_own_ratings(participant["id"])
     # The seed is the token from this browser's session, which nobody else knows.
-    order = voting_rules.rating_order(list(labels), session_token_for(room["id"]))
+    order = voting_rules.rating_order(list(options), session_token_for(room["id"]))
     next_option = voting_rules.next_option_to_rate(order, set(own_ratings))
     # "Option 2 of 5": counts only rateable options, not ratings of replaced ones.
     position = sum(1 for option_id in order if option_id in own_ratings) + 1
+
+    # C2c: load Google details only for the options this page view shows, because every
+    # Place Details call costs quota: the one next card, or every option in the overview.
+    shown_ids = []
+    if room["status"] == "voting":
+        shown_ids = [next_option] if next_option is not None else order
+    loaded = places.load_cards(
+        current_app.config.get("GOOGLE_MAPS_API_KEY"),
+        [options[option_id] for option_id in shown_ids],
+        room["search_center_lat"],
+        room["search_center_lng"],
+    )
+    cards = dict(zip(shown_ids, loaded))
     return render_template(
         "vote.html",
         room=room,
-        labels=labels,
+        cards=cards,
         order=order,
         own_ratings=own_ratings,
         next_option=next_option,
@@ -670,20 +868,35 @@ def show_result(room_id: str):
         return redirect(url_for("rooms.show_room", room_id=room_id), code=303)
 
     options = db.get_rateable_options(room_id)
-    # Google options have no stored name (Google terms); C3 shows the winner's real name.
-    labels = {option["id"]: option["label"] or GOOGLE_OPTION_LABEL for option in options}
-    counts = result_rules.rating_counts(list(labels), db.get_votes(room_id))
+    option_ids = [option["id"] for option in options]
+    counts = result_rules.rating_counts(option_ids, db.get_votes(room_id))
     winner_option_id = db.get_winner_option_id(room_id)
-    # C3: card, map and route for the winner. Only the winner is loaded from Google,
-    # and only once the room is closed.
+
+    # C2c: names for the count list. Google is only called once the room is closed (before
+    # that the page shows no list), with one Place Details call per Google option.
+    labels = {}
+    cards = {}
     winner = None
-    if room["status"] == "closed" and winner_option_id in labels:
-        winner_option = next(option for option in db.get_options(room_id) if option["id"] == winner_option_id)
-        winner = places.load_winner(
-            current_app.config.get("GOOGLE_MAPS_API_KEY"),
-            current_app.config.get("GOOGLE_MAPS_EMBED_KEY"),
-            winner_option,
-        )
+    if room["status"] == "closed":
+        # Without a winner nobody rated anything (every count is 0), so the names are
+        # not worth a Google call: the cards fall back without calling Google.
+        api_key = current_app.config.get("GOOGLE_MAPS_API_KEY") if winner_option_id is not None else None
+        # No centre: B3 deletes it when the room closes, so there is no distance.
+        loaded = places.load_cards(api_key, options, None, None)
+        cards = dict(zip(option_ids, loaded))
+        labels = {
+            option_id: card["name"] if card["source"] == "google" else card["label"]
+            for option_id, card in cards.items()
+        }
+        # C3: card, map and route for the winner. Its card is reused, not loaded a second time.
+        if winner_option_id in cards:
+            winner_option = next(option for option in options if option["id"] == winner_option_id)
+            winner = places.load_winner(
+                current_app.config.get("GOOGLE_MAPS_API_KEY"),
+                current_app.config.get("GOOGLE_MAPS_EMBED_KEY"),
+                winner_option,
+                card=cards[winner_option_id],
+            )
     return render_template(
         "result.html",
         room=room,

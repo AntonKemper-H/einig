@@ -1,12 +1,29 @@
 {% extends "base.html" %}
 
 {# Used by main.home (empty form) and rooms.create_room (form shown again with errors).
-   Both pass form, errors and modes; the list of modes lives only in services/rooms.py. #}
+   Both go through main.render_home, which passes form, errors, modes and my_rooms;
+   the list of modes lives only in services/rooms.py. #}
 {% set mode_labels = {"manual": "Enter options myself", "nearby": "Places nearby", "surprise": "Surprise me"} %}
 
 {% block content %}
   <h1>Einig</h1>
   <p>Decide together – pick the option everyone can live with.</p>
+
+  <h2>My rooms</h2>
+
+  {% if my_rooms %}
+    {# F25: only rooms this browser joined; nothing about other people or their votes. #}
+    <ul>
+      {% for room in my_rooms %}
+        <li>
+          <a href="{{ room.url }}">{{ room.title }}</a>
+          <br><small>{{ room.status_label }} · You are {{ room.nickname }}{% if room.is_creator %} · Creator{% endif %}</small>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>You are not in any room yet. Create one below or open an invite link.</p>
+  {% endif %}
 
   <h2>Create a room</h2>
 

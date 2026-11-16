@@ -353,9 +353,12 @@ def test_result_page_shows_map_and_route(client, google_room, who):
     assert links[0]["attrs"]["rel"] == "noopener noreferrer"
 
 
-def test_only_the_winner_is_loaded_from_google(client, google_room, google):
+def test_each_google_option_is_loaded_once(client, google_room, google):
+    # C2c (specs/c2c-cards-vote-result.md) replaces C3's "only the winner is loaded":
+    # the count list shows every option's name, so each Google option is loaded once,
+    # and the winner's card is reused, not loaded a second time.
     result_page(client, google_room["id"])
-    assert google.details_urls() == [DETAILS_URL + "place-a"]
+    assert sorted(google.details_urls()) == [DETAILS_URL + "place-a", DETAILS_URL + "place-b"]
 
 
 def test_server_key_never_in_page_and_embed_key_only_in_iframe(client, google_room):
