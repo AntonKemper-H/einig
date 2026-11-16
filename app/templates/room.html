@@ -32,6 +32,15 @@
           {% set option_id = option_ids[loop.index0] %}
           <li>
             {% if card.source == "google" %}{{ place_card(card) }}{% else %}{{ card.label }}{% endif %}
+            {% if option_id in deletable_ids %}
+              {# F24: the author or the creator; the route checks the permission again. #}
+              <form action="{{ url_for('rooms.delete_option', room_id=room.id, option_id=option_id) }}" method="post">
+                {# Small and outlined, so it does not look like the page's main action
+                   (Pico classless makes every button full-width and blue). #}
+                <button type="submit"
+                        style="width: auto; padding: 0.25rem 0.75rem; font-size: 0.875rem; background: transparent; color: inherit; border-color: currentColor;">Delete</button>
+              </form>
+            {% endif %}
             {% if option_id in been_there_ids %}
               {# F13: anyone in the group can swap a place they already know for a new one. #}
               <form action="{{ url_for('rooms.been_there', room_id=room.id, option_id=option_id) }}" method="post">
