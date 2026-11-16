@@ -62,6 +62,7 @@ Concept priorities M/S/C apply, with this cut for the submission:
 | F12–F13 surprise mode, "been there" | F16–F18 groups, history, fairness memory |
 | F23 find a place by name, F24 delete an option (D14) | |
 | F22 QR code | F19 meeting point, F20 travel times, F21 WebSockets |
+| F29 share and save the result (D18) | |
 
 **Why:** Claude Code writes code fast, but reviews, understanding every part for the walkthrough, browser testing and merges take time. A smaller app that never crashes scores better than a big one that does.
 
@@ -153,6 +154,26 @@ F4 in `docs/concept.md` says "buttons, optionally swipe gestures". With the plac
 - **Walkthrough:** the script is kept short and commented, because every team member must be able to explain it.
 
 **Task:** A10 (Track A, AntonKemper-H), own spec `specs/a10-swipe-rating.md`, built after C2c is merged. If time runs short, it is dropped without loss: the buttons are the complete feature.
+
+## D18 – Share and save the result (F29) (2026-11-16)
+
+After the vote the group has a winner, but the app stops there: someone still has to copy the name into the group chat and put the date into a calendar. F29 closes that gap with two buttons on the result page. Like the route link in C3, both are plain links and a downloaded file: no new API, no key, no new dependency, no JavaScript.
+
+**F29 – Share and save the result (S).** On the result page of a closed room with a winner, every participant sees:
+- **"Share in WhatsApp"**: a normal link to `https://wa.me/?text=…` with a ready-made message, e.g. "Dinner on Friday: we're going to Pizza Roma! Route: <Google Maps route link>". WhatsApp opens (app on the phone, WhatsApp Web on a laptop) and the person picks the chat. The app sends nothing itself.
+- **"Add to calendar"**: a small form with a date and a time (plain `<input type="date">` and `<input type="time">`, defaults: today, next full hour). It downloads an `.ics` file that every calendar app opens (iPhone, Android, Google, Outlook): title "<room title>: <winner>", the place name, the Google Maps link, 2 hours long.
+
+Rules:
+- **Nothing new is stored.** The message and the file are built when the button is pressed; the date and time are not saved. No schema change.
+- **Privacy:** the message and the file contain only the room title, the winner's name and the route link. No nicknames, no counts, no jokers, and never the invite link. Who shares it with whom is up to the person.
+- **Google terms:** the winner's name comes fresh from Place Details, as on the result page (C3, C2c); it is not written to the database. A manual winner has no place id, so its message and file have no route link.
+- **Who and when:** only joined participants of the room, only when the room is `closed` and has a winner. Otherwise there is no button, and the `.ics` route answers like the result page (visitors to the join form, no winner → a message).
+- **Time zone:** the file uses "floating" local time (no time zone in the file), so 19:00 stays 19:00 on everyone's phone. Fine for groups that meet in one city.
+- **Code:** two pure helpers in `app/services/` (build the WhatsApp text and link; build the `.ics` text with correct escaping, CRLF line endings and line folding), both unit-tested; the route stays thin. Only the Python standard library (`urllib.parse`, `datetime`).
+
+**Task:** B7 F29 (Track B, Timonhio), own spec `specs/b7-share-result.md`, tests reviewed before the implementation (D9). It comes after B4 and B5. If time runs short it is dropped without loss: the result page is complete without it.
+
+**Why:** it is small, it works without new risk, everyone understands it in the live demo at once, and it turns "we decided" into "we are actually going".
 
 ## Open questions
 

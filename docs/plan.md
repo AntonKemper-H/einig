@@ -38,6 +38,7 @@ Each line is one task: own spec in `specs/`, own branch, own pull request, fresh
 - [x] B3 F6 Result page (PR #19)
 - [ ] B4 F10 Joker / veto
 - [ ] B5 F11 Deadline
+- [ ] B7 F29 Share and save the result: WhatsApp link and calendar file (`docs/decisions.md` D18)
 
 ### Track C – Online & places – mkim-nova
 
