@@ -18,7 +18,7 @@ from flask import (
 from app import db
 from app.services import lobby as lobby_rules
 from app.services import options as option_rules
-from app.services import places, surprise
+from app.services import places, qr, surprise
 from app.services import rooms as room_rules
 from app.services import voting as voting_rules
 
@@ -51,6 +51,11 @@ def remember_token(room_id: str, session_token: str) -> None:
     session["participant_tokens"] = tokens
 
 
+def invite_url_for(room_id: str) -> str:
+    """The full link friends open to join (A2); also what the QR code holds (A6)."""
+    return url_for("rooms.show_room", room_id=room_id, _external=True)
+
+
 def render_room_page(
     room,
     participant,
@@ -63,7 +68,7 @@ def render_room_page(
     been_there_errors: list[str] | None = None,
 ):
     """Render the room page: join form for visitors; options, add form and place search for participants."""
-    invite_url = url_for("rooms.show_room", room_id=room["id"], _external=True)
+    invite_url = invite_url_for(room["id"])
     # Only participants may see the options, so visitors get an empty list
     # (and their page view never calls Google).
     options = db.get_options(room["id"]) if participant else []
@@ -100,6 +105,7 @@ def render_room_page(
         room=room,
         participant=participant,
         invite_url=invite_url,
+        qr_svg=qr.invite_qr_svg(invite_url),
         join_nickname=join_nickname,
         errors=errors or [],
         cards=cards,
@@ -139,6 +145,7 @@ def render_lobby(room, participant, errors: list[str] | None = None):
         finished_count=finished_count,
         option_count=option_count,
         start_hints=start_hints,
+        qr_svg=qr.invite_qr_svg(invite_url_for(room["id"])),
         status_text=lobby_rules.status_text(room["status"]),
         errors=errors or [],
     )

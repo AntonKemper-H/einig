@@ -12,6 +12,7 @@
     <p>Invite your friends with this link:</p>
     <p><input type="text" readonly value="{{ invite_url }}" aria-label="Invite link"></p>
     <p><a href="{{ invite_url }}">{{ invite_url }}</a></p>
+    {% include "_qr_code.html" %}
 
     <p><a href="{{ url_for('rooms.show_lobby', room_id=room.id) }}">Go to the lobby</a> to see who has joined.</p>
 
