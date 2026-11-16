@@ -28,7 +28,9 @@ Cost rule for this task: **at most one Place Details call per Google option that
 - `load_cards` is called **once** for all rateable options (no centre: B3 deletes it when the room closes, so there is no distance). The winner's card is taken from these cards instead of being loaded a second time:
   - `places.load_winner(api_key, embed_key, option, card=None)` gets an optional `card`. If a card is passed, Google is not called and that card is used; map and route URLs are built as before (C3). Without `card` it works exactly as in C3.
   - So a closed room with *n* Google options costs exactly *n* Place Details calls per view (plus the map, which the browser loads with the embed key).
+- **Closed without a winner** (nobody rated anything, so every count is 0): the names are not loaded. The count list shows `Place from Google Maps` for Google options and Google is not called (added after review of #36).
 - The heading "The group's choice: …" and the C3 card/map/route stay as they are.
+- **This replaces C3's rule "only the winner is loaded from Google"** (`specs/c3-winner-map.md`). The frozen C3 test `test_only_the_winner_is_loaded_from_google` becomes `test_each_google_option_is_loaded_once` (each Google option once, the winner not twice); changed with Timonhio's OK in #36.
 - `GOOGLE_OPTION_LABEL` is no longer used by the result page.
 
 ### Unchanged
@@ -56,6 +58,7 @@ Result page:
 - [ ] No API key: count list and heading use the fallback, Google not called.
 - [ ] Google times out on the first place: page loads (200), Google called once, the winner's route link is still there.
 - [ ] Room not closed: the result page does not call Google.
+- [ ] Closed room without a winner: the result page does not call Google; the count list shows `Place from Google Maps` once per Google option.
 - [ ] The count list shows only names: no `/photo/` image for non-winning places.
 - [ ] A Google name with HTML is shown escaped in the count list.
 - [ ] `places.load_winner(..., card=card)` does not call Google and returns that card with the C3 map and route URLs; without `card` it still loads the details (C3 behaviour).

@@ -296,7 +296,6 @@ def test_rating_a_google_option_still_works(app, client, google):
     assert "Sushi Bar" in html
 
 
-
 def test_rejected_vote_shows_the_card_again(app, client, google):
     room_id = create_room(client)
     ids = setup_options(app, room_id, ["place-a"])
@@ -367,6 +366,17 @@ def test_result_page_before_closing_does_not_call_google(app, client, google):
     set_status(app, room_id, "voting")
     client.get(f"/rooms/{room_id}/result")
     assert google.calls == []
+
+
+def test_result_without_winner_does_not_call_google(app, client, google):
+    room_id = create_room(client)
+    setup_options(app, room_id, ["place-a", "place-b"], manual_labels=["Cook at home"])
+    close_with_winner(app, room_id, None)  # nobody rated anything
+    html = get_page(client, f"/rooms/{room_id}/result")
+    assert google.calls == []
+    counts = count_list(html)
+    assert counts.count(FALLBACK_NAME) == 2
+    assert "Cook at home" in counts
 
 
 def test_result_count_list_shows_only_names(app, client, google):
