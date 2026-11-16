@@ -12,6 +12,7 @@ from app.services.results import every_option_vetoed, veto_counts
 from app.services.voting import JOKER_USED_MESSAGE, veto_errors
 
 NOT_STARTED_MESSAGE = "Voting has not started yet."
+NO_WINNER_MESSAGE = "No winner: nobody rated any option."
 CLOSED_MESSAGE = "This room is closed. You can no longer vote."
 UNKNOWN_OPTION_MESSAGE = "This option does not exist in this room."
 JOKER_BUTTON = "Use my joker on this option (cannot be undone)"
@@ -154,6 +155,13 @@ def test_rating_page_shows_the_used_joker(client, room):
     assert "You used your joker on: Pizza" in html
     assert joker_forms(html, room["id"]) == []
     assert JOKER_BUTTON not in html
+
+
+def test_joker_does_not_change_the_done_flag(app, client, room):
+    use_joker(client, room["id"], room["options"]["Pizza"])
+    with app.app_context():
+        participant = db.get_participant(room["id"], token_of(client, room["id"]))
+    assert not participant["has_finished"]
 
 
 def test_joker_is_not_a_rating(app, client, room):
@@ -379,6 +387,17 @@ def test_result_page_notes_when_every_option_got_a_joker(app, client, room):
     html = page(client, f"/rooms/{room['id']}/result")
     assert ALL_VETOED_NOTE in html
     assert "The group's choice: Tacos" in html
+
+
+def test_no_joker_note_when_nobody_rated(app, client, room):
+    cara = join(app, room["id"], "Cara")
+    for browser, label in zip((client, room["guest"], cara), LABELS):
+        use_joker(browser, room["id"], room["options"][label])
+    close(client, room["id"])
+    html = page(client, f"/rooms/{room['id']}/result")
+    assert winner_of(app, room["id"]) is None
+    assert NO_WINNER_MESSAGE in html
+    assert ALL_VETOED_NOTE not in html
 
 
 def test_result_page_shows_no_nicknames_with_jokers(app):
