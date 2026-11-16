@@ -3,7 +3,7 @@
 Branch: `feature-c6-find-place-by-name`
 Tests: `tests/test_place_by_name.py` (the Google call and the form rules, with fake responses) and `tests/test_place_by_name_route.py` (room page, the two routes, interactions with C2a/C4/C5)
 
-F23 is not in `docs/concept.md`; `docs/decisions.md` D14 describes it (PR #37). **Built only after PR #37 is merged and these tests are reviewed.**
+F23 is not in `docs/concept.md`; `docs/decisions.md` D14 describes it (merged with PR #37). **Built only after these tests are reviewed.**
 
 ## Why
 A typed option ("Luigi's") gets no card: no photo, rating, map or route. With F23 a participant types the name, picks the right place from a short list, and it becomes a normal Google option with a C2b card, while the cost per search stays small and nothing but the place id is ever stored.
