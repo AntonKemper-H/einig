@@ -1,0 +1,14 @@
+{# QR code of the invite link (A6), used on the room page and in the lobby.
+   Hidden in a closed room, because nobody can join it any more (A3).
+   "safe" is fine here: the SVG comes only from segno and our own invite URL,
+   never from user input. #}
+{% if room.status != "closed" %}
+  <figure>
+    {# segno leaves the background transparent. A white box keeps dark modules on a
+       light ground with a light border, also in dark mode, so phone cameras can read it. #}
+    <div style="display: inline-block; background: #fff; line-height: 0;">
+      {{ qr_svg|safe }}
+    </div>
+    <figcaption>Scan to join this room.</figcaption>
+  </figure>
+{% endif %}
