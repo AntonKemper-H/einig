@@ -55,6 +55,7 @@ No schema change: the `vetoes` table exists since A1.
 - [ ] Afterwards the rating page shows "You used your joker on: Pizza" and no form posting to `/veto`.
 - [ ] Using the joker does not rate: the participant's ratings are unchanged and the option is still shown to rate (or with its rating in the overview).
 - [ ] Two participants can each use their joker, also on the same option (two rows).
+- [ ] Using the joker does not change the "done" flag (`has_finished`, shown in the lobby); only rating every option does (B2).
 
 #### Using the joker (rejected, nothing changes)
 - [ ] A second joker by the same participant, on the same or another option: "You have already used your joker in this room." (400), still exactly one row, on the first option.
@@ -80,6 +81,7 @@ No schema change: the `vetoes` table exists since A1.
 #### Result page
 - [ ] A vetoed option shows "excluded by 1× joker" (with two jokers "excluded by 2× joker"); an option without a joker shows no "excluded" text.
 - [ ] Every option vetoed: the page shows "Every option got a joker, so the option with the fewest jokers won." It is not shown when at least one option has no joker.
+- [ ] Every option vetoed but nobody rated anything: there is no winner, so the page shows "No winner: nobody rated any option." and **not** the joker note.
 - [ ] No nickname appears on the result page, also with jokers (only counts).
 
 #### Helpers
