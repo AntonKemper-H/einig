@@ -190,7 +190,7 @@ With hidden collecting (F28, D17), no page shows another participant's options b
 
 - Location sharing is optional and requires an explicit tap. Coordinates are rounded to about 3 decimal places in JavaScript and again on the server.
 - Participant coordinates are deleted when a room closes.
-- Rooms are deleted after 7 days (CLI command `uv run flask --app app cleanup`). Groups are deleted 90 days after their last new room, collected places (visits) one year after their date (D15).
+- Rooms are deleted after 7 days (CLI command `uv run flask --app app cleanup`). Groups are deleted 90 days after their last new room, collected places (visits) 180 days after their date, as long as the cookie lives (D15). The cleanup command is **planned, not built yet**: no task builds it so far, so until then these are the target periods, not something the app does.
 - The session cookie lasts 180 days and holds only random tokens (rooms, groups, the person token for collected places).
 - No analytics, no tracking scripts, no external fonts.
 
