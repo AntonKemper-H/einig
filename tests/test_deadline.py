@@ -300,10 +300,12 @@ def test_two_closes_at_once_keep_the_first_winner(app, client, room, monkeypatch
 
 
 def test_a_joker_counts_in_the_automatic_close(app, client, room):
-    pizza, sushi = room["options"]["Pizza"], room["options"]["Sushi"]
+    pizza, sushi, tacos = (room["options"][label] for label in LABELS)
+    join(app, room["id"], "Cara")  # never rates, so only the deadline closes the room
     for browser in (client, room["guest"]):
         vote(browser, room["id"], pizza, "yes")
         vote(browser, room["id"], sushi, "ok")
+        vote(browser, room["id"], tacos, "no")
     with app.app_context():
         connection = get_db()
         connection.execute(
@@ -344,6 +346,93 @@ def test_creator_can_still_close_before_the_deadline(app, client, room):
     set_deadline(app, room["id"], in_utc(seconds=-5))
     page(client, f"/rooms/{room['id']}/vote")
     assert room_row(app, room["id"])["winner_option_id"] == room["options"]["Pizza"]
+
+
+# --- Closing when everyone is done -----------------------------------------
+
+def rate_all(browser, room, rating="ok"):
+    responses = [vote(browser, room["id"], option_id, rating) for option_id in room["options"].values()]
+    return responses[-1]
+
+
+def test_last_rating_of_the_last_participant_closes_the_room(app, client, room):
+    set_search_centre(app, room["id"])
+    rate_all(client, room, "ok")
+    assert room_row(app, room["id"])["status"] == "voting"
+    vote(room["guest"], room["id"], room["options"]["Pizza"], "no")
+    vote(room["guest"], room["id"], room["options"]["Sushi"], "yes")
+    winner = None
+    with app.app_context():
+        # What B3's close will store once Ben's last rating is in.
+        option_ids = [option["id"] for option in db.get_rateable_options(room["id"])]
+        votes = db.get_votes(room["id"])
+        votes[participant_id_of(app, room["guest"], room["id"])][room["options"]["Tacos"]] = "no"
+        winner = pick_winner(option_ids, votes, [], rng=random.Random(room["id"]))
+    response = vote(room["guest"], room["id"], room["options"]["Tacos"], "no")
+    assert response.status_code == 303
+    assert response.headers["Location"].endswith(f"/rooms/{room['id']}/result")
+    row = room_row(app, room["id"])
+    assert row["status"] == "closed"
+    assert row["winner_option_id"] == winner == room["options"]["Sushi"]
+    assert row["search_center_lat"] is None and row["search_center_lng"] is None
+
+
+def test_partly_rated_keeps_the_room_open(app, client, room):
+    rate_all(client, room)
+    response = vote(room["guest"], room["id"], room["options"]["Pizza"], "yes")
+    assert response.status_code == 303
+    assert response.headers["Location"].endswith(f"/rooms/{room['id']}/vote")
+    assert room_row(app, room["id"])["status"] == "voting"
+
+
+def test_a_participant_who_rated_nothing_keeps_the_room_open(app, client, room):
+    join(app, room["id"], "Cara")
+    rate_all(client, room)
+    response = rate_all(room["guest"], room)
+    assert response.headers["Location"].endswith(f"/rooms/{room['id']}/vote")
+    assert room_row(app, room["id"])["status"] == "voting"
+
+
+def test_a_joker_does_not_count_as_done(app, client, room):
+    with app.app_context():
+        connection = get_db()
+        connection.execute(
+            "INSERT INTO vetoes (room_id, participant_id, option_id) VALUES (?, ?, ?)",
+            (room["id"], participant_id_of(app, room["guest"], room["id"]), room["options"]["Pizza"]),
+        )
+        connection.commit()
+    rate_all(client, room)
+    assert room_row(app, room["id"])["status"] == "voting"
+
+
+def test_room_closed_by_everyone_done_is_not_recalculated(app, client, room):
+    rate_all(client, room, "ok")
+    vote(room["guest"], room["id"], room["options"]["Pizza"], "ok")
+    vote(room["guest"], room["id"], room["options"]["Sushi"], "ok")
+    vote(room["guest"], room["id"], room["options"]["Tacos"], "yes")
+    first = room_row(app, room["id"])["winner_option_id"]
+    assert first == room["options"]["Tacos"]
+    with app.app_context():
+        connection = get_db()
+        connection.execute("UPDATE votes SET rating = 'no' WHERE option_id = ?", (room["options"]["Tacos"],))
+        connection.commit()
+    set_deadline(app, room["id"], in_utc(seconds=-5))
+    page(client, f"/rooms/{room['id']}/vote")
+    assert client.post(f"/rooms/{room['id']}/close").status_code == 303
+    assert room_row(app, room["id"])["winner_option_id"] == first
+
+
+def test_everyone_finished(app, client, room):
+    with app.app_context():
+        assert db.everyone_finished(room["id"]) is False
+    rate_all(client, room)
+    with app.app_context():
+        assert db.everyone_finished(room["id"]) is False
+        connection = get_db()
+        connection.execute("UPDATE participants SET has_finished = 1 WHERE room_id = ?", (room["id"],))
+        connection.commit()
+        assert db.everyone_finished(room["id"]) is True
+        assert db.everyone_finished("no-such-room") is False
 
 
 # --- Votes after the deadline ----------------------------------------------
