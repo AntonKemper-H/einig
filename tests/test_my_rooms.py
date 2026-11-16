@@ -10,6 +10,9 @@ from app.db import get_db
 from app.services import rooms as room_rules
 
 NO_ROOMS_TEXT = "You are not in any room yet. Create one below or open an invite link."
+# Attributes, line breaks and tags inside the link may change; the target and the text may not.
+HEADER_LINK = re.compile(r'<a href="/"[^>]*>\s*My rooms\s*</a>')
+SECTION_HEADING = re.compile(r"<h2[^>]*>\s*My rooms\s*</h2>")
 CREATE_FORM_ACTION = 'action="/rooms"'
 CREATE_HEADING = "Create a room"
 
@@ -71,7 +74,9 @@ def entries(html, titles):
 
 def links_to(html, title):
     """The href of every link whose text is the room title."""
-    return re.findall(r'<a href="([^"]*)"[^>]*>\s*' + re.escape(title) + r"\s*</a>", my_rooms_part(html))
+    inside = r"(?:\s|<[^>]+>)*"
+    pattern = r'<a href="([^"]*)"[^>]*>' + inside + re.escape(title) + inside + "</a>"
+    return re.findall(pattern, my_rooms_part(html))
 
 
 @pytest.fixture
@@ -132,7 +137,8 @@ def test_room_link_endpoint_for_each_status():
 
 def test_new_browser_sees_no_rooms_text_and_create_form(client):
     html = home(client)
-    assert "My rooms" in html
+    # The header link alone also says "My rooms", so the section heading is checked by itself.
+    assert SECTION_HEADING.search(my_rooms_part(html))
     assert NO_ROOMS_TEXT in html
     assert CREATE_FORM_ACTION in html
 
@@ -162,6 +168,20 @@ def test_home_lists_own_rooms_newest_first(app, anna, ben):
     assert "Creator" in pieces["Sunday cinema"]
     assert "Creator" not in pieces["Hiking trip"]
     assert CREATE_FORM_ACTION in html
+
+
+def test_rooms_created_in_the_same_second_are_ordered_by_room_id(app, anna):
+    first = create_room(anna, "First room")
+    second = create_room(anna, "Second room")
+    for room_id in (first, second):
+        set_created_at(app, room_id, "2026-11-05 10:00:00")
+    titles = {first: "First room", second: "Second room"}
+    higher, lower = sorted(titles, reverse=True)
+
+    # Newest first, then room id descending: the same order on every request.
+    for _ in range(3):
+        part = my_rooms_part(home(anna))
+        assert part.index(titles[higher]) < part.index(titles[lower])
 
 
 def test_links_follow_the_room_status(app, anna):
@@ -272,7 +292,7 @@ def test_session_is_permanent_with_180_days(app, anna, ben):
 def test_every_page_has_my_rooms_link(app, anna, path_of):
     room_id = create_room(anna, "Dinner")
     html = anna.get(path_of(room_id)).data.decode()
-    assert '<a href="/">My rooms</a>' in html
+    assert HEADER_LINK.search(html)
 
 
 def test_create_form_with_errors_still_shows_the_list(anna):
@@ -296,7 +316,7 @@ def test_list_shows_no_other_participants_and_no_votes(app, anna, ben):
     assert "Dinner" in part
     assert "Bernadette" not in part
     assert "Thai Garden" not in part
-    assert "vote" not in part.replace(f"/rooms/{room_id}/vote", "").lower()
+    assert not re.search(r"\d+\s*(votes?|ratings?)", part, re.IGNORECASE)
 
 
 def test_rooms_are_still_listed_after_restart(app, anna):

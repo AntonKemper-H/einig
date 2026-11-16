@@ -14,9 +14,9 @@ Someone who is in two or three rooms (Friday dinner, Sunday cinema) has no way b
 - **Source of the list:** only the tokens in this browser's signed session cookie. No new table, no account. A token counts only if `db.get_participant(room_id, token)` finds a participant (the room still exists and the token belongs to it).
 - **The cookie lasts 180 days:** `PERMANENT_SESSION_LIFETIME = timedelta(days=180)` in `create_app`, and `session.permanent = True` is set in `remember_token`. Before A8 the cookie ended when the browser closed.
 - **At most 30 rooms remembered** (`MAX_REMEMBERED_ROOMS = 30` in `app/services/rooms.py`): when a 31st room is remembered, the token of the oldest-remembered room is dropped. Why: browsers refuse cookies over about 4 KB, which would lose every token at once. Rooms are deleted after 7 days anyway, so 30 is plenty.
-- **"Oldest remembered" comes from the database, not from the cookie (⚠ changed while writing the tests, please check in review):** the first version of this spec used the order of the dict in the cookie. Flask writes the session cookie with sorted keys, so that order is lost after every request and a random room would be dropped. Instead, the participant id of this browser in each room is used: ids only grow, so the smallest id is the room joined (or created) longest ago. Tokens of rooms that no longer exist are dropped at the same moment.
+- **"Oldest remembered" comes from the database, not from the cookie (⚠ changed while writing the tests, please check in review):** the first version of this spec used the order of the dict in the cookie. Flask writes the session cookie with sorted keys, so that order is lost after every request and a random room would be dropped. Instead, the participant id of this browser in each room is used: ids only grow, so the smallest id is the room joined (or created) longest ago. Tokens of rooms that no longer exist are dropped at the same moment. The ids compared are all this browser's own: `get_my_rooms` looks up the browser's token in each room, so each id is the browser's own participant row in that room, never another person's.
 - **Stale tokens are dropped:** when the home page finds a token whose room or participant no longer exists, it removes it from the cookie.
-- **Order:** newest room first (`rooms.created_at`, then room id for a stable order).
+- **Order:** newest room first (`rooms.created_at` descending, then room id descending for a stable order: two rooms created one after the other often have the same `created_at`).
 - **The link goes to the page for the room's status:** `collecting` → room page (`/rooms/<id>`), `voting` → rating page (`/rooms/<id>/vote`), `closed` → result page (`/rooms/<id>/result`).
 
 ### Pure functions (`app/services/rooms.py`, no Flask, no database)
@@ -45,6 +45,7 @@ Checks (one line = one test), `tests/test_my_rooms.py`:
 - [ ] `room_link_endpoint` gives the right endpoint for each status and the room page for an unknown one.
 - [ ] A new browser: the home page shows the "not in any room yet" text and the create form.
 - [ ] Accepted: after creating two rooms and joining a third (another creator), the home page lists all three, newest first, with title, status label, own nickname, and "Creator" only for the two own rooms.
+- [ ] Two rooms with the same `created_at` are listed by room id, descending, on every request.
 - [ ] Each entry links to the room page while collecting, to the rating page while voting, and to the result page when closed.
 - [ ] Another browser that has joined none of these rooms sees none of them (no information about other people's rooms).
 - [ ] A visitor who only opened a room link without joining does not see that room in the list.
