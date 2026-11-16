@@ -29,6 +29,8 @@ Each line is one task: own spec in `specs/`, own branch, own pull request, fresh
 - [x] A5 F7 Lobby with room status (meta refresh), including the creator's "Start voting" (collecting → voting) (PR #15)
 - [x] A6 F22 QR code for the invite link, scanned on a phone on the deployed app (PR #16)
 - [ ] A7 F24 Delete an option (author or creator; new table `option_authors`, `docs/decisions.md` D14)
+- [ ] A8 F25 My rooms on the home page, cookie kept 180 days (`specs/a8-my-rooms.md`, D15)
+- [ ] A9 F16 Fixed groups: plan one activity after another, one-tap join (`specs/a9-groups.md`, D15) – after A8
 - [ ] A10 F4 Swipe to rate + menu link on the rating card (`specs/a10-swipe-rating.md`, D16) – after C2c
 
 ### Track B – Voting & result – Timonhio
@@ -51,6 +53,8 @@ Each line is one task: own spec in `specs/`, own branch, own pull request, fresh
 - [x] C4 F12 Surprise mode (PR #27)
 - [x] C5 F13 "Been there" (PR #29)
 - [ ] C6 F23 Find a place by name and pick the right match (`docs/decisions.md` D14)
+- [ ] C7 F26 "I was there", "My places" and badges (`specs/c7-collect-places.md`, D15) – after A9; Track A reviews the new table
+- [ ] C8 F26 Map of my places and of a group, Maps Static API (`specs/c8-place-map.md`, D15) – after C7; enable the Maps Static API for the server key first
 
 ### Dependencies
 
@@ -60,6 +64,7 @@ A1 schema ──► A2 F1 ──► A3 F2 ──► A4 F3 ──► A5 F7
                  │          └──► B2 F4 ──► B3 F6 ──► B4 F10, B5 F11
                  └──► C2 F8 ──► C3 F9, C4 F12 ──► C5 F13
 B1 F5 (no dependencies)        C1 deploy (no dependencies)
+A8 F25 ──► A9 F16 ──► C7 F26 ──► C8 F26 map
 ```
 
 ## 3. Milestones
@@ -68,7 +73,8 @@ B1 F5 (no dependencies)        C1 deploy (no dependencies)
 |---|---|
 | **12 Nov** | Skeleton merged · app **online** · schema merged · algorithm done |
 | **16 Nov** | **Minimum version F1–F7 online** – from here we always have a submittable app |
-| **20 Nov** | F8–F13, F22 |
+| **20 Nov** | F8–F13, F22, F23, F24; A8 F25 |
+| **21 Nov** | A9 F16, C7 + C8 F26 (D15) – cut from the end if time runs short |
 | **21–22 Nov** | Click through every workflow with invalid input, fix bugs, README, rehearse the demo |
 | **23 Nov** | Submit only, nothing new |
 
