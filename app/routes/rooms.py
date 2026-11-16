@@ -625,7 +625,9 @@ def find_place(room_id: str):
 
     No redirect: names and addresses may not be stored anywhere, so they could not be
     shown again after one. Nothing is written to the database here, so a reload cannot
-    add anything twice (specs/c6-find-place-by-name.md, decision 1).
+    add anything twice (specs/c6-find-place-by-name.md, decision 1). A reload does send
+    the search again: the browser asks first, and it costs one more Google call and
+    counts one more search towards the limit (review of #39).
     """
     room = db.get_room(room_id)
     if room is None:
