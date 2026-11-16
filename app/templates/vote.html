@@ -21,6 +21,7 @@
 
 {% block content %}
   <h1>{{ room.title }}</h1>
+  {% if time_left %}<p>{{ time_left }}</p>{% endif %}
 
   {% if errors %}
     <ul role="alert">

@@ -21,6 +21,8 @@ from flask import Flask, current_app, g
 from flask.cli import with_appcontext
 from psycopg.rows import dict_row
 
+from app.services import deadline as deadline_rules
+
 SCHEMA_FILE = Path(__file__).parent / "schema.sql"
 
 # Catch these to handle a broken UNIQUE rule (e.g. a second veto) on both databases.
@@ -202,8 +204,8 @@ def create_room_with_creator(
 def get_room(room_id: str) -> sqlite3.Row | dict | None:
     """Return the room with this id, or None if it does not exist."""
     return get_db().execute(
-        "SELECT id, title, mode, status, search_center_lat, search_center_lng, radius_m, filters"
-        " FROM rooms WHERE id = ?",
+        "SELECT id, title, mode, status, search_center_lat, search_center_lng, radius_m, filters,"
+        " deadline FROM rooms WHERE id = ?",
         (room_id,),
     ).fetchone()
 
@@ -434,14 +436,18 @@ def get_participants(room_id: str) -> list[sqlite3.Row | dict]:
     ).fetchall()
 
 
-def start_voting(room_id: str) -> bool:
-    """Switch the room from collecting to voting. Return False if it was no longer collecting."""
+def start_voting(room_id: str, deadline: str | None = None) -> bool:
+    """Switch the room from collecting to voting. Return False if it was no longer collecting.
+
+    `deadline` (B5, F11) is stored in the same UPDATE, as UTC text, or NULL for
+    no time limit, so a room is never voting without its deadline.
+    """
     # "AND status = 'collecting'" makes two starts at the same moment change the room
     # only once: the second UPDATE finds no matching row.
     with transaction() as connection:
         cursor = connection.execute(
-            "UPDATE rooms SET status = 'voting' WHERE id = ? AND status = 'collecting'",
-            (room_id,),
+            "UPDATE rooms SET status = 'voting', deadline = ? WHERE id = ? AND status = 'collecting'",
+            (deadline, room_id),
         )
     return cursor.rowcount == 1
 
@@ -565,20 +571,30 @@ def get_votes(room_id: str) -> dict[int, dict[int, str]]:
     return votes
 
 
-def save_vote(room_id: str, participant_id: int, option_id: int, rating: str) -> bool:
+def save_vote(
+    room_id: str, participant_id: int, option_id: int, rating: str, now: str | None = None
+) -> bool:
     """Save a rating, or replace this participant's earlier rating for the option.
 
-    Returns False (and saves nothing) if the room is no longer voting. Call it
-    inside db.transaction(), which commits.
+    Returns False (and saves nothing) if the room is no longer voting, or if its
+    deadline has passed (B5: `now` is the UTC text to compare with, default the
+    server time). Call it inside db.transaction(), which commits.
     """
+    if now is None:
+        now = deadline_rules.format_utc(deadline_rules.now_utc())
     connection = get_db()
     # First "touch" the room row. This locks it until the transaction ends, so a vote
     # and closing the room (B3) never overlap: a vote that started first finishes
     # before the close reads the votes, and a vote that comes after the close finds
     # the room closed. SQLite allows one writer at a time; Postgres locks the row.
     # rowcount works on sqlite3 and psycopg alike (total_changes would be SQLite-only).
+    # The deadline is checked in the same statement (B5): a vote that arrives after
+    # it is never saved, even while the room still says "voting" in the database.
+    # Both times are UTC text in the same format, so comparing text is correct.
     lock = connection.execute(
-        "UPDATE rooms SET status = status WHERE id = ? AND status = 'voting'", (room_id,)
+        "UPDATE rooms SET status = status"
+        " WHERE id = ? AND status = 'voting' AND (deadline IS NULL OR deadline > ?)",
+        (room_id, now),
     )
     if lock.rowcount != 1:
         return False
@@ -598,6 +614,21 @@ def mark_finished(participant_id: int) -> None:
     get_db().execute(
         "UPDATE participants SET has_finished = 1 WHERE id = ?", (participant_id,)
     )
+
+
+def everyone_finished(room_id: str) -> bool:
+    """True if the room has participants and every one of them has rated every option (B5).
+
+    "Done" is A5's has_finished flag, set by mark_finished (B2). A participant who
+    rated nothing keeps this False, so the room then waits for the deadline or the creator.
+    """
+    row = get_db().execute(
+        "SELECT COUNT(*) AS total,"
+        " SUM(CASE WHEN has_finished = 1 THEN 1 ELSE 0 END) AS done"
+        " FROM participants WHERE room_id = ?",
+        (room_id,),
+    ).fetchone()
+    return row["total"] > 0 and row["done"] == row["total"]
 
 
 def get_vetoed_option_ids(room_id: str) -> list[int]:
