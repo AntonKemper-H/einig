@@ -32,7 +32,8 @@ UNAVAILABLE_MESSAGE = (
 NO_MATCHES_MESSAGE = "No places found with this name. You can still add it as your own option."
 EXPIRED_MESSAGE = "This search result has expired. Please search again."
 ALREADY_OPTION_MESSAGE = "This place is already an option."
-NEAR_CENTRE_TEXT = "Places near the room&#39;s search area are shown first."
+PICKED_PLACE_MESSAGE = "Only places from the surprise search can be replaced."
+NEAR_CENTRE_TEXT ="Places near the room&#39;s search area are shown first."
 
 # What Google finds for "Trattoria Luigi" (names without quotes, so the HTML check is simple).
 MATCHES = [
@@ -617,6 +618,29 @@ def test_picked_place_in_surprise_room_has_no_been_there_form(app, client, guest
     html = page(guest, room_id)
     assert f'action="/rooms/{room_id}/options/{surprise_id}/been-there"' in html
     assert f'action="/rooms/{room_id}/options/{picked_id}/been-there"' not in html
+
+
+def test_been_there_route_rejects_picked_place(app, client, guest, google):
+    room_id = create_room(client, mode="surprise")
+    join(guest, room_id, "Ben")
+    set_centre(app, room_id)
+    surprise_id = add_google_option(app, room_id, "thai-1", category="thai_restaurant")
+    # Stored directly as C6 stores a picked place (no category), so this test checks only the C5 route.
+    picked_id = add_google_option(app, room_id, "place-luigi-1")
+
+    calls_before = len(google.calls)
+    before = snapshot(app)
+    response = guest.post(f"/rooms/{room_id}/options/{picked_id}/been-there")
+    assert response.status_code == 400
+    assert PICKED_PLACE_MESSAGE in response.data.decode()
+    assert len(google.calls) == calls_before
+    assert snapshot(app) == before
+
+    # The surprise place of the same room can still be replaced.
+    response = guest.post(f"/rooms/{room_id}/options/{surprise_id}/been-there")
+    assert_redirects_to_room(response, room_id)
+    replaced = [row["place_id"] for row in all_options(app, room_id) if row["is_replaced"]]
+    assert replaced == ["thai-1"]
 
 
 # --- Security and persistence ----------------------------------------------

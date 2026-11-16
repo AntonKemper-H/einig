@@ -32,10 +32,17 @@ D14 (F23) in `docs/decisions.md`. `AGENTS.md`: "Adding options: only while the r
 
 ### Interactions with C2a, C4 and C5 (please check in the review)
 
-These are not new features, but without them F23 would break existing flows. They change two functions in `app/db.py` and what the room page shows; **no C2a/C4/C5 route is changed.**
+These are not new features, but without them F23 would break existing flows. They change two functions in `app/db.py`, what the room page shows and **one check in the C5 route**; the C2a and C4 routes are not changed.
 - **The nearby/surprise search must still be possible after a name search.** C2a/C4 use `db.has_google_options` to decide "this room has already been searched". A picked place is a Google option, so a guest picking "Luigi's" would block the creator's search. → `has_google_options` counts only options **with a category** (`source = 'google' AND category IS NOT NULL`). C2a, C4 and C5 always store a category, C6 never does.
 - **A place picked by name must not make the room's search fail.** `db.save_search` inserts every found place; if one of them is already a picked place, `UNIQUE (room_id, place_id)` refuses it and the whole search is rejected as "already suggested". → `save_search` **skips place ids that are already options of the room** (the picked option stays as it is, the other places are added). Two requests at the very same moment can still collide; then the existing "already suggested" message appears and nothing from that search is saved, as today.
-- **"Been there" (C5) is not offered for picked places.** In a `surprise` room a picked place is someone's deliberate choice, not a surprise, and it has no sub-category to search a replacement in. → The room page shows no `Been there` form for a Google option without a category. The C5 route is not changed: a hand-made request for such an option reaches Google with an empty type, gets an error and shows C5's friendly 503 message; nothing is saved. A one-line check in the C5 route would reject it earlier – **follow-up for C5 if the reviewer wants it.**
+- **"Been there" (C5) is not offered for picked places.** In a `surprise` room a picked place is someone's deliberate choice, not a surprise, and it has no sub-category to search a replacement in. → The room page shows no `Been there` form for a Google option without a category.
+- **The C5 route rejects picked places too** (hiding the button is not a permission check). In `POST /rooms/<room_id>/options/<option_id>/been-there`, directly after C5's check "option is a manual option", one new row in C5's table:
+
+  | Case | Status | Message | Saved |
+  |---|---|---|---|
+  | option is a Google option without a category (picked by name, C6) | 400 | `Only places from the surprise search can be replaced.` | nothing; Google is not called |
+
+  Without this check, such a request would send an empty place type to Google, which costs a call and only ends in C5's 503 message. The message is a constant in `app/services/surprise.py` (`PICKED_PLACE_MESSAGE`). C5's other checks, their order and `can_press_been_there` stay as they are; the room page decides about the button with the option's category (above).
 
 ### The Google call (`app/services/places.py`)
 
@@ -158,13 +165,14 @@ Checks (one line = one test):
 - [ ] Edge case: the database refuses the insert (simulated by making `db.get_room_place_ids` hide the existing option) – message, no crash, still one option.
 - [ ] Interaction: after a guest picked a place, the creator of a `nearby` room still sees the search form and the search saves its places; a found place that was already picked is kept once.
 - [ ] Interaction: a picked place in a `surprise` room has no `Been there` form; the surprise places still do.
+- [ ] Interaction: pressing `Been there` for a picked place anyway (hand-made request) – 400, `Only places from the surprise search can be replaced.`, Google not called, data unchanged; a surprise place of the same room can still be replaced.
 - [ ] Security: the API key never appears in any page (find form, matches, error).
 - [ ] Persistence: after an app restart, the picked option is still stored and shown.
 
 ## Out of scope
 - **Deleting options (F24/A7) and the column `options.added_by`.** No schema change here. A7 decides who counts as the author of a C6 option (D14: the participant who picked it would be the natural author, but C6 does not store it).
 - Autocomplete, suggestions while typing, any new JavaScript, any change to `geolocation.js`.
-- Changes to the C2a/C4/C5 routes, `search_nearby`, the C2b card macro or `load_cards`; the been-there route check (see "Interactions").
+- Changes to the C2a/C4 routes, to the C5 route beyond the one check in "Interactions", `search_nearby`, the C2b card macro or `load_cards`.
 - Showing which matches are already options in the step-1 list.
 - Storing the participant's location, a text address search for the room centre (F19 parked).
 - New dependencies, changes to `app/schema.sql` or existing tests.
