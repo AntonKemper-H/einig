@@ -130,6 +130,57 @@
       <script src="{{ url_for('static', filename='js/geolocation.js') }}" defer></script>
     {% endif %}
 
+    {% if find_errors %}
+      <ul role="alert">
+        {% for error in find_errors %}
+          <li>{{ error }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+
+    {% if show_find_form %}
+      {# F23: step 1 – type a name; the server runs one Text Search (no JavaScript needed). #}
+      <form action="{{ url_for('rooms.find_place', room_id=room.id) }}" method="post">
+        <h3>Find a place on Google Maps</h3>
+        <label>
+          Name of the place
+          <input type="text" name="name" maxlength="80" required
+                 placeholder="Trattoria Roma" value="{{ find_name }}">
+        </label>
+        {% if find_uses_room_centre %}
+          <p>Places near the room&#39;s search area are shown first.</p>
+        {% elif find_offers_location %}
+          {# Optional. Filled by geolocation.js with rounded coordinates after the tap below. #}
+          <input type="hidden" name="latitude" id="latitude" value="">
+          <input type="hidden" name="longitude" id="longitude" value="">
+          <button type="button" id="use-location" class="secondary">Use my location</button>
+          <p id="location-status" aria-live="polite">Optional: places near you are shown first. Your location is only used for this search.</p>
+        {% endif %}
+        <button type="submit">Find on Google Maps</button>
+      </form>
+      {% if find_offers_location %}
+        <script src="{{ url_for('static', filename='js/geolocation.js') }}" defer></script>
+      {% endif %}
+    {% endif %}
+
+    {% if find_matches %}
+      {# F23: step 2 – pick the right match. Names and addresses are only shown, never stored. #}
+      <h3>Which one do you mean?</h3>
+      <ul>
+        {% for match in find_matches %}
+          <li>
+            <strong>{{ match.name }}</strong>
+            {% if match.address %}<br>{{ match.address }}{% endif %}
+            <form action="{{ url_for('rooms.add_found_place', room_id=room.id) }}" method="post">
+              <input type="hidden" name="place_id" value="{{ match.place_id }}">
+              <button type="submit">Add this place</button>
+            </form>
+          </li>
+        {% endfor %}
+      </ul>
+      <p>Not in the list? Add it as your own option below.</p>
+    {% endif %}
+
     {% if option_errors %}
       <ul role="alert">
         {% for error in option_errors %}

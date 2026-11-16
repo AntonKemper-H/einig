@@ -53,7 +53,7 @@ Each line is one task: own spec in `specs/`, own branch, own pull request, fresh
 - [x] C3 F9 Map and route to the winner (PR #24) – map needs `GOOGLE_MAPS_EMBED_KEY` (Google Cloud setup above)
 - [x] C4 F12 Surprise mode (PR #27)
 - [x] C5 F13 "Been there" (PR #29) – checked on the deployed app with a real key
-- [ ] C6 F23 Find a place by name and pick the right match (`docs/decisions.md` D14)
+- [ ] C6 F23 Find a place by name and pick the right match (`docs/decisions.md` D14) – in progress: tests reviewed, implementation in PR #39
 - [ ] C7 F26 "I was there", "My places" and badges (`specs/c7-collect-places.md`, D15) – after A9; Track A reviews the new table
 - [ ] C8 F26 Map of my places and of a group, Maps Static API (`specs/c8-place-map.md`, D15) – after C7; enable the Maps Static API for the server key first
 
