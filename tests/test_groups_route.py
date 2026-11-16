@@ -319,6 +319,17 @@ def test_join_as_member_from_a_non_member_is_rejected(app, ben, zoe, group_id):
     assert room_id not in tokens(zoe, "participant_tokens")
 
 
+def test_join_as_member_on_a_room_without_a_group_is_rejected(app, anna, ben, group_id):
+    # Anna is a group member, but this room was made the normal way, not from the group.
+    response = ben.post("/rooms", data={"title": "Plain room", "mode": "manual", "nickname": "Ben"})
+    room_id = response.headers["Location"].rsplit("/rooms/", 1)[1]
+    before = snapshot(app)
+    response = join_as_member(anna, room_id, nickname_in_form="Anna")
+    assert response.status_code == 403
+    assert NOT_IN_GROUP_MESSAGE in response.data.decode()
+    assert snapshot(app) == before
+
+
 def test_group_nickname_taken_in_the_room_by_a_guest(app, anna, ben, zoe, group_id):
     room_id = plan_room(ben, group_id)
     assert zoe.post(f"/rooms/{room_id}/join", data={"nickname": "Anna"}).status_code in (302, 303)
@@ -352,6 +363,15 @@ def test_failed_group_participant_row_saves_no_participant(app, ben, group_id):
     with app.app_context():
         # A group member id that does not exist: the database refuses the link row.
         saved = database.add_group_participant(room_id, "Ghost", "ghost-token", 999999)
+    assert saved is False
+    assert snapshot(app) == before
+
+
+def test_second_member_with_the_same_nickname_is_refused_by_the_database(app, group_id):
+    # Two "Join" taps at the same moment both pass the route's check; the database decides.
+    before = snapshot(app)
+    with app.app_context():
+        saved = database.add_group_member(group_id, "Ben", "another-token")
     assert saved is False
     assert snapshot(app) == before
 

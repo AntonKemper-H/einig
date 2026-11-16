@@ -59,11 +59,13 @@ Rejected (message shown, nothing saved):
 
 ### Changes to existing pages
 - **Room page** (`GET /rooms/<id>`) of a group room for a visitor who is a member of that group: a form with one button `Join as <nickname>` posting to `POST /rooms/<id>/join` with the field `as_group_member=1`. The room page also shows `Part of <group name>` with a link to the group page, for participants whose browser is a member of that group (guests do not see it).
-- **Join route**: with `as_group_member=1`, the nickname is taken from the group membership in the cookie (never from the form) and a `group_participants` row is stored in the same transaction as the participant. If the browser is not a member of the room's group: 403 `You are not a member of this group.` If the nickname is already taken in the room: the normal nickname form with `Your group nickname is already taken in this room. Please choose another one.` (status 400). Joining without `as_group_member` works as before.
+- **Join route**: with `as_group_member=1`, the nickname is taken from the group membership in the cookie (never from the form) and a `group_participants` row is stored in the same transaction as the participant. If the browser is not a member of the room's group, or the room belongs to no group at all: 403 `You are not a member of this group.`, nothing saved. If the nickname is already taken in the room: the normal nickname form with `Your group nickname is already taken in this room. Please choose another one.` (status 400). Joining without `as_group_member` works as before.
 - **Home page** (A8): a section **"My groups"** above "My rooms" (name as a link to the group page, `<n> members`), from `group_tokens` (stale tokens dropped as in A8), and a link `Create a group` to `/groups/new`.
 
 ### `app/db.py`
-New: `create_group_with_member`, `get_group`, `get_group_member(group_id, member_token)`, `get_group_members(group_id)`, `add_group_member`, `get_group_rooms(group_id)`, `create_group_room(...)` (one transaction: room, `group_rooms` row, creator participant, `group_participants` row, `last_activity_at`), `get_room_group(room_id)` (the group or `None`), `add_group_participant(room_id, nickname, session_token, group_member_id) -> bool` (participant and `group_participants` row in one transaction), `get_my_groups(tokens)` (each group with `id`, `name`, `member_count` and this browser's own `member_id`, which is only used by `groups_to_keep` and never shown). `add_participant` stays unchanged.
+Every function that writes uses `db.transaction()` and catches `db.INTEGRITY_ERRORS`, like `add_participant` and `save_vote`, and returns `False` when the database refuses (nothing saved).
+
+New: `create_group_with_member(...) -> bool`, `get_group`, `get_group_member(group_id, member_token)`, `get_group_members(group_id)`, `add_group_member(group_id, nickname, member_token) -> bool` (`False` for a nickname taken a moment earlier, e.g. a double tap on "Join"; the route then shows `This nickname is already taken in this group.` with 400), `get_group_rooms(group_id)`, `create_group_room(...) -> bool` (one transaction: room, `group_rooms` row, creator participant, `group_participants` row, `last_activity_at`), `get_room_group(room_id)` (the group or `None`), `add_group_participant(room_id, nickname, session_token, group_member_id) -> bool` (participant and `group_participants` row in one transaction), `get_my_groups(tokens)` (each group with `id`, `name`, `member_count` and this browser's own `member_id`, which is only used by `groups_to_keep` and never shown). `add_participant` stays unchanged.
 
 Checks (one line = one test):
 
@@ -101,8 +103,10 @@ Checks (one line = one test):
 - [ ] Rejected: planning an activity with an empty title or an unknown mode – 400, messages, nothing saved.
 - [ ] Rejected: `as_group_member=1` from a browser that is not in the room's group – 403, nothing saved; a nickname sent in the form is ignored.
 - [ ] Rejected: the group nickname is already taken in the room by a guest – 400, message, nickname form shown, nothing saved.
+- [ ] Rejected: `as_group_member=1` on a room that belongs to no group – 403, `You are not a member of this group.`, nothing saved (no crash).
 - [ ] Edge case: joining the same group twice from one browser does not create a second member.
 - [ ] Edge case: pressing `Join as …` twice does not create a second participant.
+- [ ] Edge case: `db.add_group_member` with a nickname that is already in the group returns `False` and saves nothing (two joins at the same moment).
 - [ ] Edge case: if saving the `group_participants` row fails, no participant is saved either (one transaction).
 - [ ] Edge case: unknown group id – 404 for every group route.
 - [ ] Privacy: a non-member never sees member nicknames or the group's rooms; no page shows who voted what.
@@ -117,6 +121,6 @@ Checks (one line = one test):
 
 ## Done when
 - All tests in the three test files and all earlier tests pass (`uv run pytest`), output pasted.
-- The deployed database has the new tables and columns without losing data (the A7 way), documented in the PR.
+- The deployed database has the new tables without losing data (the A7 way), documented in the PR.
 - On two phones: create a group, join it by QR code, plan two activities in a row; the second phone joins each with one tap.
 - Work is on branch `feature-a9-groups`, pushed, pull request opened for review.
