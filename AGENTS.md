@@ -119,7 +119,7 @@ Keep this structure. Routes stay thin: they read the request, call `db.py` and `
 
 ## Scope
 
-Build now: **F1–F13, F16, F22, F23, F24, F25 and F26** (see `docs/decisions.md`, D7, D14 and D15). F23–F26 are not in `docs/concept.md`; D14 and D15 describe them. F16 is built in the reduced form of D15.
+Build now: **F1–F13, F16, F22, F23, F24, F25, F26 and F29** (see `docs/decisions.md`, D7, D14, D15 and D18). F23–F26 and F29 are not in `docs/concept.md`; D14, D15 and D18 describe them. F16 is built in the reduced form of D15.
 Parked: **F14, F15 and F17–F21.** Do not build parked features, and do not prepare code "for later", unless a spec explicitly asks for it.
 
 ## Domain rules
