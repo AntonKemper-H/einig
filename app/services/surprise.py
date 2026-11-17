@@ -111,14 +111,23 @@ def surprise_search(
     max_price_level: int | None,
     min_rating: float | None,
     rng: random.Random,
+    subcategory_pool: list[str] | None = None,
 ) -> dict:
     """Search a few random sub-categories, widen the radius if too little is found, and pick a varied mix.
+
+    With subcategory_pool (F27: the types of the room's kind), the sub-categories are
+    chosen from that list instead of SUBCATEGORIES[category].
 
     Returns {"choices": [(place id, sub-category), ...], "radius_m": radius of the last round}.
     Any PlacesError stops everything at once and is raised: after a timeout, waiting
     for up to 15 more calls would take longer than the server allows.
     """
-    subcategories = choose_subcategories(category, rng)
+    if subcategory_pool:
+        subcategories = rng.sample(
+            subcategory_pool, min(SUBCATEGORIES_PER_SEARCH, len(subcategory_pool))
+        )
+    else:
+        subcategories = choose_subcategories(category, rng)
     widenings = 0
     while True:
         results = []
@@ -175,16 +184,20 @@ def surprise_refusal(
     return None
 
 
-def filters_json(search: dict) -> str:
-    """The filters as JSON text for the room's `filters` column, with the radius the creator chose."""
-    return json.dumps(
-        {
-            "category": search["category"],
-            "min_rating": search["min_rating"],
-            "max_price_level": search["max_price_level"],
-            "requested_radius_m": search["radius_m"],
-        }
-    )
+def filters_json(search: dict, kind: str | None = None) -> str:
+    """The filters as JSON text for the room's `filters` column, with the radius the creator chose.
+
+    In a room with a setup (F27) the category is null and the kind ("food.brunch") is stored.
+    """
+    filters = {
+        "category": search.get("category"),
+        "min_rating": search["min_rating"],
+        "max_price_level": search["max_price_level"],
+        "requested_radius_m": search["radius_m"],
+    }
+    if kind is not None:
+        filters["kind"] = kind
+    return json.dumps(filters)
 
 
 def widened_to_text(mode: str, radius_m: int | None, filters: str | None) -> str | None:
