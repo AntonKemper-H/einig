@@ -77,6 +77,7 @@ class ElementFinder(HTMLParser):
         super().__init__(convert_charrefs=False)
         self.attribute = attribute
         self.found = []        # list of (attributes, inner html)
+        self.starts = []       # (line, column) where each found element starts
         self.open = []         # stack of [tag, attributes, parts, depth]
         self.depth = 0
 
@@ -88,7 +89,7 @@ class ElementFinder(HTMLParser):
             return
         self.depth += 1
         if self.attribute in dict(attrs):
-            self.open.append([tag, dict(attrs), [], self.depth])
+            self.open.append([tag, dict(attrs), [], self.depth, self.getpos()])
 
     def handle_endtag(self, tag):
         if tag in self.VOID:
@@ -96,6 +97,7 @@ class ElementFinder(HTMLParser):
         for element in list(self.open):
             if element[3] == self.depth:
                 self.found.append((element[1], "".join(element[2])))
+                self.starts.append(element[4])
                 self.open.remove(element)
         for element in self.open:
             element[2].append(f"</{tag}>")
@@ -116,6 +118,16 @@ def elements_with(page_html, attribute):
     finder = ElementFinder(attribute)
     finder.feed(page_html)
     return finder.found
+
+
+def start_of(page_html, attribute, inner_text=None):
+    """(line, column) of the first element with the attribute (and that inner text)."""
+    finder = ElementFinder(attribute)
+    finder.feed(page_html)
+    for (_, inner), start in zip(finder.found, finder.starts):
+        if inner_text is None or html_lib.unescape(inner).strip() == inner_text:
+            return start
+    return None
 
 
 def menu_links(page_html):
@@ -225,7 +237,8 @@ def test_next_card_has_the_swipe_markers(app, client):
     assert len(hints) == 1
     # The hint sits above the card, not inside it.
     assert HINT not in html_lib.unescape(cards[0][1])
-    assert html.index(HINT) < html.index("data-swipe-card")
+    # Compare the elements, not the text: the page's <style> block may mention data-swipe-card.
+    assert start_of(html, "hidden", HINT) < start_of(html, "data-swipe-card")
 
 
 def test_buttons_and_option_id_stay_inside_the_swipe_card(app, client):
