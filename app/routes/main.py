@@ -10,14 +10,19 @@ bp = Blueprint("main", __name__)
 
 @bp.get("/")
 def home():
-    """Home page: "My rooms" (F25) and the "create a room" form (F1)."""
+    """Home page: "My groups" (F16), "My rooms" (F25) and the "create a room" form (F1)."""
     return render_home({}, [])
 
 
 def render_home(form: dict, errors: list[str]) -> str:
     """The home page; also used by rooms.create_room to show the form again with errors."""
     return render_template(
-        "home.html", form=form, errors=errors, modes=room_rules.MODES, my_rooms=load_my_rooms()
+        "home.html",
+        form=form,
+        errors=errors,
+        modes=room_rules.MODES,
+        my_groups=load_my_groups(),
+        my_rooms=load_my_rooms(),
     )
 
 
@@ -44,3 +49,15 @@ def load_my_rooms() -> list[dict]:
 def health():
     """Plain 'ok' so the hosting service can check that the app is running."""
     return "ok", 200, {"Content-Type": "text/plain; charset=utf-8"}
+
+
+def load_my_groups() -> list[dict]:
+    """The groups this browser is a member of (A9); tokens of deleted groups are removed."""
+    tokens = session.get("group_tokens", {})
+    my_groups = db.get_my_groups(tokens)
+    found_ids = {group["id"] for group in my_groups}
+    if found_ids != set(tokens):
+        session["group_tokens"] = {
+            group_id: token for group_id, token in tokens.items() if group_id in found_ids
+        }
+    return my_groups
