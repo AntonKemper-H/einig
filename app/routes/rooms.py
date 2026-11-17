@@ -1,7 +1,7 @@
 """Room pages: create a room (F1), show and join it (F2), add and delete options (F3, F24),
 lobby and start voting (F7), suggest places nearby (F8), surprise mode (F12),
 "Been there" (F13), find a place by name (F23), delete an option (F24),
-rating (F4), close the room and show the result (F6)."""
+rating (F4), close the room and show the result (F6), "Join as ..." in a group room (F16)."""
 
 import random
 
@@ -40,11 +40,20 @@ PLACES_UNAVAILABLE_MESSAGE = (
 NO_PLACES_FOUND_MESSAGE = "No places found. Try a larger radius or fewer filters."
 NOT_JOINED_VOTE_MESSAGE = "Please join the room before voting."
 VOTE_REFUSED_MESSAGE = "Something went wrong while saving your rating. Please try again."
+NOT_IN_GROUP_MESSAGE = "You are not a member of this group."
+GROUP_NICKNAME_TAKEN_MESSAGE = (
+    "Your group nickname is already taken in this room. Please choose another one."
+)
 
 
 def session_token_for(room_id: str) -> str | None:
     """Return the token this browser stored for the room, or None."""
     return session.get("participant_tokens", {}).get(room_id)
+
+
+def group_member_for(group_id: str):
+    """Return this browser's member row in the group (A9), or None."""
+    return db.get_group_member(group_id, session.get("group_tokens", {}).get(group_id))
 
 
 def remember_token(room_id: str, session_token: str) -> None:
@@ -126,6 +135,7 @@ def render_room_page(
     find_name: str = "",
     find_errors: list[str] | None = None,
     find_matches: list[dict] | None = None,
+    offer_group_join: bool = True,
 ):
     """Render the room page: join form for visitors; options, add form and place search for participants."""
     invite_url = invite_url_for(room["id"])
@@ -180,10 +190,16 @@ def render_room_page(
                 bool(participant["is_creator"]), participant["id"], option["added_by"]
             )
         }
+    # A9: a group room links to its group for members, and offers members "Join as ...".
+    group = db.get_room_group(room["id"])
+    group_member = group_member_for(group["id"]) if group is not None else None
     return render_template(
         "room.html",
         room=room,
         participant=participant,
+        group=group,
+        group_member=group_member,
+        offer_group_join=offer_group_join and group_member is not None,
         invite_url=invite_url,
         qr_svg=qr.invite_qr_svg(invite_url),
         join_nickname=join_nickname,
@@ -285,6 +301,9 @@ def join_room(room_id: str):
     if db.get_participant(room_id, session_token_for(room_id)) is not None:
         return redirect(url_for("rooms.show_room", room_id=room_id), code=303)
 
+    if request.form.get("as_group_member") == "1":
+        return join_as_group_member(room)
+
     nickname = room_rules.clean_text(request.form.get("nickname"))
     errors = room_rules.join_errors(
         nickname, room["status"], db.get_nicknames(room_id)
@@ -298,6 +317,35 @@ def join_room(room_id: str):
 
     remember_token(room_id, session_token)
     return redirect(url_for("rooms.show_room", room_id=room_id), code=303)
+
+
+def join_as_group_member(room):
+    """A9: "Join as <nickname>" – join a group room under the group nickname, without typing.
+
+    The nickname always comes from the group membership in the cookie, never from the form.
+    """
+    group = db.get_room_group(room["id"])
+    member = group_member_for(group["id"]) if group is not None else None
+    if member is None:
+        return render_room_page(room, None, errors=[NOT_IN_GROUP_MESSAGE]), 403
+
+    errors = room_rules.join_errors(member["nickname"], room["status"], db.get_nicknames(room["id"]))
+    if errors:
+        if room["status"] != "closed":
+            # The only other reason: a guest already uses this nickname in the room.
+            errors = [GROUP_NICKNAME_TAKEN_MESSAGE]
+        # The normal nickname form, so the member can pick another nickname.
+        return render_room_page(room, None, errors=errors, offer_group_join=False), 400
+
+    session_token = room_rules.new_session_token()
+    if not db.add_group_participant(room["id"], member["nickname"], session_token, member["id"]):
+        # Someone took the nickname a moment earlier; nothing was saved.
+        return render_room_page(
+            room, None, errors=[GROUP_NICKNAME_TAKEN_MESSAGE], offer_group_join=False
+        ), 400
+
+    remember_token(room["id"], session_token)
+    return redirect(url_for("rooms.show_room", room_id=room["id"]), code=303)
 
 
 @bp.post("/rooms/<room_id>/options")
