@@ -255,8 +255,16 @@ def pretend_route_sees_below_limit(monkeypatch):
 
     Only the route uses limit_reached; the database functions count option_authors
     themselves, so their check inside the transaction still sees the real number.
+    Returns the list of calls, so a test can prove the route really used this check.
     """
-    monkeypatch.setattr(activities, "limit_reached", lambda *args, **kwargs: False)
+    calls = []
+
+    def below_limit(*args, **kwargs):
+        calls.append(args)
+        return False
+
+    monkeypatch.setattr(activities, "limit_reached", below_limit)
+    return calls
 
 
 @pytest.fixture
@@ -610,9 +618,11 @@ def test_database_holds_limit_when_route_check_misses_it(app, client, guest, roo
     add_option(guest, room_id, "Two")
     # The route's fast check sees "below the limit", as if the other add came a moment later.
     # Only the route's check is patched: the count inside the database transaction stays real.
-    pretend_route_sees_below_limit(monkeypatch)
+    route_checks = pretend_route_sees_below_limit(monkeypatch)
     before = snapshot(app)
     response = add_option(guest, room_id, "Three")
+    # The route used the patched check, so the rejection below came from the database.
+    assert route_checks
     assert response.status_code == 400
     assert limit_message(2) in response.data.decode()
     assert snapshot(app) == before
@@ -743,9 +753,11 @@ def test_database_holds_limit_for_place_by_name(app, client, guest, room_id, mon
     save_setup(client, room_id, kind="food.brunch", options_per_person="1")
     find(guest, room_id)
     add_option(guest, room_id, "Own idea")
-    pretend_route_sees_below_limit(monkeypatch)
+    route_checks = pretend_route_sees_below_limit(monkeypatch)
     before = snapshot(app)
     response = add_found(guest, room_id)
+    # The route used the patched check, so the rejection below came from the database.
+    assert route_checks
     assert response.status_code == 400
     assert limit_message(1) in response.data.decode()
     assert snapshot(app) == before
@@ -813,7 +825,9 @@ def test_place_by_name_duplicate_message_with_limit(app, client, guest, room_id)
 
 
 def test_place_by_name_unchanged_in_set_up_room_without_limit(app, client, guest, room_id):
-    save_setup(client, room_id, kind="food.brunch", options_per_person="")
+    # Checked, so this test really runs in a set-up room (not in one whose setup failed).
+    assert_redirects_to_room(save_setup(client, room_id, kind="food.brunch", options_per_person=""), room_id)
+    assert len(setup_rows(app, room_id)) == 1
     for name in ["One", "Two", "Three", "Four", "Five", "Six"]:
         add_option(guest, room_id, name)
     find(guest, room_id)
