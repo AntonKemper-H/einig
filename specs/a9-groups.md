@@ -59,7 +59,7 @@ Rejected (message shown, nothing saved):
 
 ### Changes to existing pages
 - **Room page** (`GET /rooms/<id>`) of a group room for a visitor who is a member of that group: a form with one button `Join as <nickname>` posting to `POST /rooms/<id>/join` with the field `as_group_member=1`. The room page also shows `Part of <group name>` with a link to the group page, for participants whose browser is a member of that group (guests do not see it).
-- **Join route**: with `as_group_member=1`, the nickname is taken from the group membership in the cookie (never from the form) and a `group_participants` row is stored in the same transaction as the participant. If the browser is not a member of the room's group, or the room belongs to no group at all: 403 `You are not a member of this group.`, nothing saved. If the nickname is already taken in the room: the normal nickname form with `Your group nickname is already taken in this room. Please choose another one.` (status 400). Joining without `as_group_member` works as before.
+- **Join route**: with `as_group_member=1`, the nickname is taken from the group membership in the cookie (never from the form) and a `group_participants` row is stored in the same transaction as the participant. If the browser is not a member of the room's group, or the room belongs to no group at all: 403 `You are not a member of this group.`, nothing saved. If the nickname is already taken in the room: the normal nickname form with `Your group nickname is already taken in this room. Please choose another one.` (status 400). Joining from that form with another nickname is a normal join: no `group_participants` row; the room page still shows `Part of <group name>`, because the browser is a member of the group. In a `closed` room, `Join as …` is refused like a normal join (400, `This room is closed. You can no longer join.`). Joining without `as_group_member` works as before.
 - **Home page** (A8): a section **"My groups"** above "My rooms" (name as a link to the group page, `<n> members`), from `group_tokens` (stale tokens dropped as in A8), and a link `Create a group` to `/groups/new`.
 
 ### `app/db.py`
@@ -99,17 +99,20 @@ Checks (one line = one test):
 - [ ] Joining an 11th group drops the oldest-remembered group; a group joined last stays even if it is older than all others.
 - [ ] Rejected: invalid group name or nickname – 400, messages, nothing saved.
 - [ ] Rejected: joining a group with a taken nickname – 400, message, nothing saved.
+- [ ] Rejected: joining a group with an empty nickname – 400, message, nothing saved.
 - [ ] Rejected: a non-member posts to `/groups/<id>/rooms` – 403, nothing saved.
 - [ ] Rejected: planning an activity with an empty title or an unknown mode – 400, messages, nothing saved.
 - [ ] Rejected: `as_group_member=1` from a browser that is not in the room's group – 403, nothing saved; a nickname sent in the form is ignored.
 - [ ] Rejected: the group nickname is already taken in the room by a guest – 400, message, nickname form shown, nothing saved.
+- [ ] Rejected: `Join as …` in a `closed` room – 400, the normal closed-room message, nothing saved.
+- [ ] Accepted: a member whose group nickname is taken in the room joins with another nickname – a normal participant without a `group_participants` row; the page shows `Part of <group name>`.
 - [ ] Rejected: `as_group_member=1` on a room that belongs to no group – 403, `You are not a member of this group.`, nothing saved (no crash).
 - [ ] Edge case: joining the same group twice from one browser does not create a second member.
 - [ ] Edge case: pressing `Join as …` twice does not create a second participant.
 - [ ] Edge case: `db.add_group_member` with a nickname that is already in the group returns `False` and saves nothing (two joins at the same moment).
 - [ ] Edge case: if saving the `group_participants` row fails, no participant is saved either (one transaction).
 - [ ] Edge case: unknown group id – 404 for every group route.
-- [ ] Privacy: a non-member never sees member nicknames or the group's rooms; no page shows who voted what.
+- [ ] Privacy: a non-member never sees member nicknames or the group's rooms; a member's group page shows no options of the rooms (so no votes either).
 - [ ] Persistence: after an app restart, the group, its members and its rooms are still there and the browser is still a member.
 
 ## Out of scope

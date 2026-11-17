@@ -17,6 +17,7 @@ NICKNAME_TAKEN_IN_GROUP = "This nickname is already taken in this group."
 NAME_EMPTY = "Please enter a group name."
 NICKNAME_EMPTY = "Please enter a nickname."
 TITLE_EMPTY = "Please enter a title."
+ROOM_CLOSED_MESSAGE = "This room is closed. You can no longer join."
 MODE_INVALID = "Please choose a valid mode."
 ROOM_NICKNAME_FIELD = 'name="nickname"'
 
@@ -287,6 +288,15 @@ def test_joining_a_group_with_a_taken_nickname_is_rejected(app, zoe, group_id):
     assert snapshot(app) == before
 
 
+def test_joining_a_group_with_an_empty_nickname_is_rejected(app, zoe, group_id):
+    before = snapshot(app)
+    response = join_group(zoe, group_id, "   ")
+    assert response.status_code == 400
+    assert NICKNAME_EMPTY in response.data.decode()
+    assert snapshot(app) == before
+    assert tokens(zoe, "group_tokens") == {}
+
+
 def test_non_member_cannot_plan_an_activity(app, zoe, group_id):
     before = snapshot(app)
     response = plan(zoe, group_id, "Party")
@@ -342,6 +352,37 @@ def test_group_nickname_taken_in_the_room_by_a_guest(app, anna, ben, zoe, group_
     assert snapshot(app) == before
 
 
+def test_member_who_types_another_nickname_joins_as_a_guest(app, anna, ben, zoe, group_id):
+    room_id = plan_room(ben, group_id)
+    assert zoe.post(f"/rooms/{room_id}/join", data={"nickname": "Anna"}).status_code in (302, 303)
+    assert join_as_member(anna, room_id).status_code == 400
+
+    # The normal nickname form: a normal join, no link to the group member.
+    response = anna.post(f"/rooms/{room_id}/join", data={"nickname": "Annie"})
+    assert_redirects(response, f"/rooms/{room_id}")
+    annie = rows(app, "SELECT id FROM participants WHERE room_id = ? AND nickname = 'Annie'", (room_id,))
+    assert len(annie) == 1
+    linked = [participant for participant, _ in rows(app, "SELECT * FROM group_participants")]
+    assert annie[0][0] not in linked
+    # The browser is still a member of the group, so the room page links to it.
+    html = page(anna, f"/rooms/{room_id}")
+    assert "You joined as Annie." in html
+    assert "Part of Friday friends" in html
+
+
+def test_join_as_member_in_a_closed_room_follows_the_join_rule(app, anna, ben, group_id):
+    room_id = plan_room(ben, group_id)
+    with app.app_context():
+        connection = get_db()
+        connection.execute("UPDATE rooms SET status = 'closed' WHERE id = ?", (room_id,))
+        connection.commit()
+    before = snapshot(app)
+    response = join_as_member(anna, room_id)
+    assert response.status_code == 400
+    assert ROOM_CLOSED_MESSAGE in response.data.decode()
+    assert snapshot(app) == before
+
+
 # --- Edge cases --------------------------------------------------------------
 
 def test_joining_the_same_group_twice_keeps_one_member(app, ben, group_id):
@@ -389,7 +430,7 @@ def test_unknown_group_is_404(anna, method, path):
 
 # --- Privacy and persistence -------------------------------------------------
 
-def test_non_member_sees_no_members_rooms_or_votes(app, anna, ben, zoe, group_id):
+def test_non_member_sees_no_members_or_rooms_and_members_see_no_options(app, anna, ben, zoe, group_id):
     room_id = plan_room(anna, group_id, "Sunday cinema")
     anna.post(f"/rooms/{room_id}/options", data={"label": "Thai Garden"})
     anna.post(f"/rooms/{room_id}/options", data={"label": "Burger Bar"})

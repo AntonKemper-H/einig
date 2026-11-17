@@ -1,6 +1,7 @@
 """Schema tests for A9 – F16 Fixed groups (specs/a9-groups.md)."""
 
 import sqlite3
+from pathlib import Path
 
 import pytest
 
@@ -16,6 +17,7 @@ ROOM_COLUMNS = [
     "id", "title", "mode", "status", "deadline", "search_center_lat", "search_center_lng",
     "radius_m", "filters", "winner_option_id", "created_at",
 ]
+PROJECT_ROOT = Path(__file__).parent.parent
 PARTICIPANT_COLUMNS = ["id", "room_id", "nickname", "session_token", "is_creator", "has_finished"]
 
 
@@ -190,8 +192,7 @@ def test_postgres_schema_has_no_identity_on_link_columns():
     """
     from app.db import schema_to_postgres
 
-    with open("app/schema.sql") as schema_file:
-        translated = schema_to_postgres(schema_file.read())
+    translated = schema_to_postgres((PROJECT_ROOT / "app" / "schema.sql").read_text())
     start = translated.index("CREATE TABLE IF NOT EXISTS group_participants")
     end = translated.index(";", start)
     assert "IDENTITY" not in translated[start:end]
