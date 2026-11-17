@@ -52,6 +52,7 @@ Each line is one task: own spec in `specs/`, own branch, own pull request, fresh
 - [x] C2 F8 Places from Google (built and tested with fake responses first, real key later)
   - [x] C2a Search and save places as options (PR #12)
   - [x] C2b Cards with name, photo, rating, price, distance + photo proxy (PR #18)
+  - [x] C2c Place cards on the rating page, real names in the result list (PR #36)
 - [x] C3 F9 Map and route to the winner (PR #24) – map needs `GOOGLE_MAPS_EMBED_KEY` (Google Cloud setup above)
 - [x] C4 F12 Surprise mode (PR #27)
 - [x] C5 F13 "Been there" (PR #29) – checked on the deployed app with a real key

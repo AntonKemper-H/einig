@@ -13,6 +13,7 @@ import re
 import sqlite3
 from collections.abc import Iterator
 from contextlib import contextmanager
+from datetime import datetime, timezone
 from pathlib import Path
 
 import click
@@ -696,3 +697,176 @@ def init_app(app: Flask) -> None:
     app.teardown_appcontext(close_db)
     app.cli.add_command(init_db_command)
     app.cli.add_command(reset_db_command)
+
+
+# --- Fixed groups (A9, F16, specs/a9-groups.md) ------------------------------------
+
+def utc_now_text() -> str:
+    """The current UTC time as 'YYYY-MM-DD HH:MM:SS', the format of every time column.
+
+    Made in Python, because CURRENT_TIMESTAMP in a query gives another text format on Postgres.
+    """
+    return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+
+
+def create_group_with_member(group_id: str, name: str, nickname: str, member_token: str) -> bool:
+    """Save a new group and its first member (the creator) together. False if the database refuses."""
+    try:
+        with transaction() as connection:
+            connection.execute("INSERT INTO groups (id, name) VALUES (?, ?)", (group_id, name))
+            connection.execute(
+                "INSERT INTO group_members (group_id, nickname, member_token, is_creator)"
+                " VALUES (?, ?, ?, 1)",
+                (group_id, nickname, member_token),
+            )
+    except INTEGRITY_ERRORS:
+        # A duplicate group id or token (extremely unlikely with random tokens).
+        return False
+    return True
+
+
+def get_group(group_id: str) -> sqlite3.Row | dict | None:
+    """Return the group with this id, or None if it does not exist."""
+    return get_db().execute("SELECT id, name FROM groups WHERE id = ?", (group_id,)).fetchone()
+
+
+def get_group_member(group_id: str, member_token: str | None) -> sqlite3.Row | dict | None:
+    """Return the member of this group with this token, or None."""
+    if not member_token:
+        return None
+    return get_db().execute(
+        "SELECT id, nickname, is_creator FROM group_members WHERE group_id = ? AND member_token = ?",
+        (group_id, member_token),
+    ).fetchone()
+
+
+def get_group_members(group_id: str) -> list[sqlite3.Row | dict]:
+    """Return the group's members in the order they joined."""
+    return get_db().execute(
+        "SELECT id, nickname FROM group_members WHERE group_id = ? ORDER BY id", (group_id,)
+    ).fetchall()
+
+
+def add_group_member(group_id: str, nickname: str, member_token: str) -> bool:
+    """Save a new member. False if the database refuses, e.g. the same nickname a moment earlier."""
+    try:
+        with transaction() as connection:
+            connection.execute(
+                "INSERT INTO group_members (group_id, nickname, member_token) VALUES (?, ?, ?)",
+                (group_id, nickname, member_token),
+            )
+    except INTEGRITY_ERRORS:
+        return False
+    return True
+
+
+def get_group_rooms(group_id: str) -> list[sqlite3.Row | dict]:
+    """Return the group's rooms, newest first (ties by room id, so the order never changes)."""
+    return get_db().execute(
+        "SELECT rooms.id, rooms.title, rooms.status FROM rooms"
+        " JOIN group_rooms ON group_rooms.room_id = rooms.id"
+        " WHERE group_rooms.group_id = ?"
+        " ORDER BY rooms.created_at DESC, rooms.id DESC",
+        (group_id,),
+    ).fetchall()
+
+
+def create_group_room(
+    group_id: str,
+    room_id: str,
+    title: str,
+    mode: str,
+    nickname: str,
+    session_token: str,
+    group_member_id: int,
+) -> bool:
+    """Save a group's new activity: the room, its creator, both links and the group's activity time.
+
+    Everything in one transaction, so there is never a group room without its creator.
+    """
+    try:
+        with transaction() as connection:
+            connection.execute(
+                "INSERT INTO rooms (id, title, mode) VALUES (?, ?, ?)", (room_id, title, mode)
+            )
+            participant = connection.execute(
+                "INSERT INTO participants (room_id, nickname, session_token, is_creator)"
+                " VALUES (?, ?, ?, 1) RETURNING id",
+                (room_id, nickname, session_token),
+            ).fetchone()
+            connection.execute(
+                "INSERT INTO group_rooms (room_id, group_id) VALUES (?, ?)", (room_id, group_id)
+            )
+            connection.execute(
+                "INSERT INTO group_participants (participant_id, group_member_id) VALUES (?, ?)",
+                (participant["id"], group_member_id),
+            )
+            connection.execute(
+                "UPDATE groups SET last_activity_at = ? WHERE id = ?", (utc_now_text(), group_id)
+            )
+    except INTEGRITY_ERRORS:
+        return False
+    return True
+
+
+def get_room_group(room_id: str) -> sqlite3.Row | dict | None:
+    """Return the group this room belongs to, or None for a normal room."""
+    return get_db().execute(
+        "SELECT groups.id, groups.name FROM groups"
+        " JOIN group_rooms ON group_rooms.group_id = groups.id"
+        " WHERE group_rooms.room_id = ?",
+        (room_id,),
+    ).fetchone()
+
+
+def add_group_participant(
+    room_id: str, nickname: str, session_token: str, group_member_id: int
+) -> bool:
+    """Save a group member as a room participant ("Join as ...") together with the link row.
+
+    False if the database refuses either row; then neither is saved.
+    """
+    try:
+        with transaction() as connection:
+            participant = connection.execute(
+                "INSERT INTO participants (room_id, nickname, session_token) VALUES (?, ?, ?)"
+                " RETURNING id",
+                (room_id, nickname, session_token),
+            ).fetchone()
+            connection.execute(
+                "INSERT INTO group_participants (participant_id, group_member_id) VALUES (?, ?)",
+                (participant["id"], group_member_id),
+            )
+    except INTEGRITY_ERRORS:
+        return False
+    return True
+
+
+def get_my_groups(tokens: dict[str, str]) -> list[dict]:
+    """Return the groups these tokens belong to (home page, A9), newest-joined first.
+
+    A token counts only if it belongs to a member of that group. member_id is this
+    browser's own member id; it is only used to find the oldest group, never shown.
+    One query per token is fine: a browser remembers at most 10 groups.
+    """
+    found = []
+    for group_id, member_token in tokens.items():
+        row = get_db().execute(
+            "SELECT groups.id, groups.name, group_members.id AS member_id,"
+            " (SELECT COUNT(*) FROM group_members AS everyone"
+            "  WHERE everyone.group_id = groups.id) AS member_count"
+            " FROM groups JOIN group_members ON group_members.group_id = groups.id"
+            " WHERE groups.id = ? AND group_members.member_token = ?",
+            (group_id, member_token),
+        ).fetchone()
+        if row is not None:
+            found.append(
+                {
+                    "id": row["id"],
+                    "name": row["name"],
+                    "member_id": row["member_id"],
+                    "member_count": row["member_count"],
+                }
+            )
+    found.sort(key=lambda group: group["member_id"], reverse=True)
+    return found
