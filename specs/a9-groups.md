@@ -115,7 +115,7 @@ Checks (one line = one test):
 ## Out of scope
 - F18 fairness weights, F17 history and "Been there" marks per group, the group map (C8).
 - Renaming a group, removing or renaming members, leaving a group, admin rights, deleting a group by hand.
-- The cleanup command (groups deleted 90 days after the last activity, D15).
+- The cleanup command (groups deleted 90 days after the last activity, D15; planned, not built yet).
 - Notifying members about a new activity (no e-mail, no push); members see it on the group page.
 - JavaScript, changes to existing tests.
 

@@ -59,6 +59,7 @@ Checks (one line = one test):
 #### Result page
 - [ ] Closed room with a Google winner: the page shows "The group's choice: Pizza Roma", the photo through `/photo/…`, the rating, an iframe whose `src` is the embed URL for the winner's place id and whose `title` is `Map of Pizza Roma`, and the link `Open route in Google Maps` to the route URL (opens in a new tab, `rel="noopener noreferrer"`).
 - [ ] Only the winner's details are loaded: one Place Details call per page view, none for the other options.
+  **Replaced by C2c** (`specs/c2c-cards-vote-result.md`, #36): the count list now shows every option's name, so each Google option is loaded once per page view and the winner is not loaded twice. The test is now `test_each_google_option_is_loaded_once`.
 - [ ] The server key never appears in the page; the embed key appears only inside the iframe `src`.
 - [ ] Without an embed key: no `<iframe>`, the route link is still there, status 200.
 - [ ] Google fails for the winner: status 200, "The group's choice: Place from Google Maps", "Details are not available right now.", the map and the route link still there.

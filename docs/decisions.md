@@ -62,7 +62,9 @@ Concept priorities M/S/C apply, with this cut for the submission:
 | F12–F13 surprise mode, "been there" | F18 fairness memory |
 | F23 find a place by name, F24 delete an option (D14) | F17 group history (only the group map of F26 is built, D15) |
 | F25 my rooms, F16 fixed groups, F26 place collection and map (D15) | |
+| F27 room setup, F28 hidden collecting, room page layout (D17) | |
 | F22 QR code | F19 meeting point, F20 travel times, F21 WebSockets |
+| F29 share and save the result (D18) | |
 
 **Why:** Claude Code writes code fast, but reviews, understanding every part for the walkthrough, browser testing and merges take time. A smaller app that never crashes scores better than a big one that does.
 
@@ -157,12 +159,12 @@ Three features that turn single decisions into something a group comes back to: 
 - The home page lists the groups above the rooms.
 - **Not included:** the fairness memory (F18 stays parked), renaming or removing members, leaving a group, group admins. Every member has the same rights.
 - **Schema change** (owner: Track A, D10): new tables `groups`, `group_members`, `group_rooms` (room → group) and `group_participants` (room participant → group member). Like A7's `option_authors` (D14), only new tables and no new columns, so `init-db` adds them to the deployed database by itself.
-- Groups are deleted 90 days after their last new room (rule for the cleanup command; the command itself is not part of these tasks).
+- Groups are deleted 90 days after their last new room (rule for the cleanup command; the command itself is not part of these tasks and is not built yet, see AGENTS.md).
 
 **F26 – Place collection and map (S).** A small game: every person collects the places they have really been to and sees them as pins on their own map.
 - **"I was there":** on the result page of a closed room whose winner is a Google place, every participant can press "I was there ✓". Only then is the place collected, because a winner is not always where the group really went. Manual options cannot be collected (no place id, no location).
 - **A person, not an account:** the collection belongs to a random `person_token` in the cookie, created at the first "I was there". Losing the cookie loses the collection; moving it to another phone is not part of this decision.
-- **Stored:** only person token, place id, room id, group id (if any), whether the room was a "Surprise me" room, and the date (Google terms: only the place id is ours to keep). The table is not linked to the room, so a visit stays when the room is deleted after 7 days. Visits are deleted one year after the date (rule for the cleanup command).
+- **Stored:** only person token, place id, room id, group id (if any), whether the room was a "Surprise me" room, and the date (Google terms: only the place id is ours to keep). The table is not linked to the room, so a visit stays when the room is deleted after 7 days. Visits are deleted 180 days after the date (rule for the cleanup command), the same as the cookie: once the cookie is gone, nobody can see them any more, so keeping them longer would only store data (review of PR #41).
 - **"My places" page:** the number of collected places, badges (e.g. "First place", "Explorer" for 10 places, "Surprise hunter" for 3 places from surprise mode, with the progress to the next one) and the places as cards (C2b).
 - **Group map:** the group page shows every place that someone collected in one of the group's rooms (members or guests). Who was there is never shown, only the places.
 - **The map without JavaScript:** a picture from the **Maps Static API** with one pin per place; Google fits the view to the pins. It is loaded by the server through a proxy route (like the photos), so the key never appears in HTML. The Embed map (C3) cannot show more than one place, and the Maps JavaScript API would need a script, which AGENTS.md does not allow.
@@ -192,6 +194,63 @@ F4 in `docs/concept.md` says "buttons, optionally swipe gestures". With the plac
 - **Walkthrough:** the script is kept short and commented, because every team member must be able to explain it.
 
 **Task:** A10 (Track A, AntonKemper-H), own spec `specs/a10-swipe-rating.md`, built after C2c is merged. If time runs short, it is dropped without loss: the buttons are the complete feature.
+
+## D17 – Room setup (F27), a calmer room page and hidden collecting (F28) (2026-11-16)
+
+Feedback from clicking through the app: the room page is long (invite link twice, every place as a full card), the separate lobby is an extra step, the creator cannot say what kind of activity the room is about, and everyone sees everyone's ideas while collecting, which pushes people to copy instead of suggesting their own. F27 and F28 are not in `docs/concept.md`; this decision describes them.
+
+**F27 – Room setup (S).** While the room is `collecting`, the creator sets up:
+- **Activity and kind**, from a two-level catalogue in `app/services/activities.py`: Food (breakfast, brunch, restaurant), Drinks & café (bar, café, dessert), Sport (bowling, climbing, swimming, fitness, sports ground), Culture & leisure (cinema, museum and gallery, theatre, amusement park and zoo, park and hiking). Each kind maps to Google place types; "Places nearby" and "Surprise me" search with the kind's types instead of the creator choosing a category in the search form. Only types that exist in Google's place type table are used.
+- **Lunch or dinner** is not a Google type; it would need opening hours and is not part of F27. "Restaurant" covers both.
+- **Options per person** (1–5 or unlimited): how many own options each participant may add. Places from the Google searches do not count; places a participant found by name (C6) do. Uses the authors in `option_authors` (A7, D14).
+- **Changeable while collecting, fixed once voting starts**, so the basis of the ratings never moves.
+- **Stored in a new table `room_setups`** (one row per room), not in new columns of `rooms`: like `option_authors` (A7), `init-db` creates a new table on the deployed database by itself, without `ALTER TABLE`. The table also holds the two F28 choices below (`hide_ideas`, `reveal_places`), so A11 needs no second schema change.
+- **Groups:** every new activity in a group (A9) gets its own setup, with the same form. There is no group admin and no stored group default.
+- Rooms without a setup work exactly as today, so every existing test and room stays valid.
+
+**Room page layout (design task).** One page instead of room page + lobby:
+- Participants as a collapsible list (`<details>`, no JavaScript) with the "done" marks and, for the creator, "Start voting". On a wide screen it sits at the side, on a phone at the top.
+- Options as a compact list of names; a Google place opens its card when tapped (`<details>`).
+- Invite link and QR code at the end of the page.
+- **The lobby stays as the waiting page:** the room page cannot reload itself (it would wipe what someone is typing), and only a reloading page shows live without JavaScript when the voting starts. The room page links to it as "I'm done – wait for the others". The lobby tests stay unchanged.
+- **Invite link:** `tests/test_proxy_headers.py` checks both the text field and the link. Decided in the review of this decision: both stay, in one compact block, and the reviewed test helper (`invite_urls_in`) is not changed.
+
+**F28 – Hidden collecting (S).** While collecting, every participant sees only the options they added themselves; everything is revealed on the rating cards when the voting starts.
+- **A setup choice, on by default in the setup form:** "Keep everyone's ideas secret until voting". Rooms without a setup (and rooms where the creator turns it off) show all options as today, because a reviewed test (`test_options.py`) checks that participants see each other's options.
+- **Places from the Google searches** are a setup choice: "show suggested places to everyone while collecting" (then "Been there" works as today) or "keep them secret until voting" (full surprise, no "Been there").
+- Instead of the others' options, the page shows how many there are ("Others have added 4 options"), so the group still sees progress.
+- A name someone else already added is rejected with `Someone already had the same idea – it is already in the room.`, which reveals nothing more than that.
+- The creator sees only their own options as well; deleting other people's options (F24) is therefore not possible in a room with hidden collecting.
+- **Accepted trade-off:** in a hidden room nobody can remove someone else's typo or joke entry before the voting starts (collecting is the only time deleting works, and the reason for F24 in D14). The group can still rate it down. A creator who wants to clean up turns hidden collecting off for a moment, which shows all options **to everyone, not only to the creator** (the surprise is gone for the ideas seen so far) and allows deleting again.
+- Who added an option is never shown, also not after the reveal (as D14).
+
+**Tasks** (own spec and branch each, D9), in this order; cut from the end if time runs short:
+
+| Task | Feature | Track (proposal) | Needs |
+|---|---|---|---|
+| C9 | F27 Room setup | C (catalogue and searches; new table reviewed by Track A) | A7 (merged), C6 merged (#39; C9 puts C6's "save a place by name" under the per-person limit) |
+| B6 | Room page layout | B (Timonhio) | C9 merged (setup form on the page); starts only after B4 and B5 |
+| A11 | F28 Hidden collecting | A | C9 and B6 merged |
+
+## D18 – Share and save the result (F29) (2026-11-16)
+
+After the vote the group has a winner, but the app stops there: someone still has to copy the name into the group chat and put the date into a calendar. F29 closes that gap with two buttons on the result page. Like the route link in C3, both are plain links and a downloaded file: no new API, no key, no new dependency, no JavaScript.
+
+**F29 – Share and save the result (S).** On the result page of a closed room with a winner, every participant sees:
+- **"Share in WhatsApp"**: a normal link to `https://wa.me/?text=…` with a ready-made message, e.g. "Dinner on Friday: we're going to Pizza Roma! Route: <Google Maps route link>". WhatsApp opens (app on the phone, WhatsApp Web on a laptop) and the person picks the chat. The app sends nothing itself.
+- **"Add to calendar"**: a small form with a date and a time (plain `<input type="date">` and `<input type="time">`, defaults: today, next full hour). It downloads an `.ics` file that every calendar app opens (iPhone, Android, Google, Outlook): title "<room title>: <winner>", the place name, the Google Maps link, 2 hours long.
+
+Rules:
+- **Nothing new is stored.** The message and the file are built when the button is pressed; the date and time are not saved. No schema change.
+- **Privacy:** the message and the file contain only the room title, the winner's name and the route link. No nicknames, no counts, no jokers, and never the invite link. Who shares it with whom is up to the person.
+- **Google terms:** the winner's name comes fresh from Place Details, as on the result page (C3, C2c); it is not written to the database. A manual winner has no place id, so its message and file have no route link.
+- **Who and when:** only joined participants of the room, only when the room is `closed` and has a winner. Otherwise there is no button, and the `.ics` route answers like the result page (visitors to the join form, no winner → a message).
+- **Time zone:** the file uses "floating" local time (no time zone in the file), so 19:00 stays 19:00 on everyone's phone. Fine for groups that meet in one city.
+- **Code:** two pure helpers in `app/services/` (build the WhatsApp text and link; build the `.ics` text with correct escaping, CRLF line endings and line folding), both unit-tested; the route stays thin. Only the Python standard library (`urllib.parse`, `datetime`).
+
+**Task:** B7 F29 (Track B, Timonhio), own spec `specs/b7-share-result.md`, tests reviewed before the implementation (D9). It comes after B4 and B5. If time runs short it is dropped without loss: the result page is complete without it.
+
+**Why:** it is small, it works without new risk, everyone understands it in the live demo at once, and it turns "we decided" into "we are actually going".
 
 ## Open questions
 

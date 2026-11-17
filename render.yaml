@@ -1,5 +1,8 @@
 # Render Blueprint for Einig (spec: specs/c1-deployment.md).
 # Render reads this file when the service is created via "New > Blueprint".
+# OUR service was created by hand, so Render does NOT read this file for it: it is the
+# reference for the commands and variables, and changes must also be made in the
+# dashboard (see "Deploy on Render" in README.md).
 # Secrets are only listed by name here; their values are entered in Render's
 # dashboard and never stored in the repository.
 
