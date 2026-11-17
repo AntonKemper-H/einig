@@ -18,7 +18,6 @@ from app.services import places
 
 PROJECT_ROOT = Path(__file__).parent.parent
 SWIPE_JS = PROJECT_ROOT / "app" / "static" / "js" / "swipe.js"
-SCRIPT_SRC = 'src="/static/js/swipe.js"'
 HINT = "Swipe right: Rather yes · up: Fine with me · left: Rather not"
 MENU_TEXT = "Menu & reviews on Google Maps"
 FALLBACK_NAME = "Place from Google Maps"
@@ -206,7 +205,10 @@ def test_swipe_js_only_presses_existing_buttons():
 def test_next_card_has_the_swipe_markers(app, client):
     room_id, ids = voting_room(app, client, place_ids=["place-a"])
     html = page(client, f"/rooms/{room_id}/vote")
-    assert SCRIPT_SRC in html
+    scripts = [attributes for attributes, _ in elements_with(html, "src")
+               if attributes["src"].startswith("/static/js/swipe.js")]
+    assert len(scripts) == 1
+    assert "defer" in scripts[0]
 
     cards = elements_with(html, "data-swipe-card")
     assert len(cards) == 1
@@ -221,6 +223,9 @@ def test_next_card_has_the_swipe_markers(app, client):
     hints = [attributes for attributes, inner in elements_with(html, "hidden")
              if html_lib.unescape(inner).strip() == HINT]
     assert len(hints) == 1
+    # The hint sits above the card, not inside it.
+    assert HINT not in html_lib.unescape(cards[0][1])
+    assert html.index(HINT) < html.index("data-swipe-card")
 
 
 def test_buttons_and_option_id_stay_inside_the_swipe_card(app, client):
@@ -274,14 +279,16 @@ def test_manual_option_has_no_menu_link_but_swipes(app, client):
 
 
 def test_rating_page_shows_no_ratings_of_others(app, client):
-    room_id, ids = voting_room(app, client, place_ids=["place-a"], labels=["Burger Bar"])
+    room_id, ids = voting_room(app, client, place_ids=["place-a"], labels=["Burger Bar", "Taco Truck"])
     ben = join(app, room_id, "Bernadette")
-    rate(ben, room_id, ids["place-a"], "no")
-    rate(ben, room_id, ids["Burger Bar"], "no")
+    for option_id in ids.values():
+        rate(ben, room_id, option_id, "no")
+    # Anna rates one option, so a next card is still left for her.
+    rate(client, room_id, ids["Burger Bar"], "yes")
     html = page(client, f"/rooms/{room_id}/vote")
+    assert elements_with(html, "data-swipe-card")
     assert "Bernadette" not in html
     assert "Your rating" not in html
-    assert elements_with(html, "data-swipe-card")
 
 
 # --- The menu link -----------------------------------------------------------
