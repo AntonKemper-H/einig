@@ -543,7 +543,7 @@ def save_search(
 def get_rateable_options(room_id: str) -> list[sqlite3.Row | dict]:
     """Return the options a participant can rate: every option of the room that is not replaced (F13)."""
     return get_db().execute(
-        "SELECT id, label FROM options WHERE room_id = ? AND is_replaced = 0 ORDER BY id",
+        "SELECT id, source, label, place_id FROM options WHERE room_id = ? AND is_replaced = 0 ORDER BY id",
         (room_id,),
     ).fetchall()
 

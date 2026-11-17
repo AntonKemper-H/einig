@@ -119,7 +119,7 @@ Keep this structure. Routes stay thin: they read the request, call `db.py` and `
 
 ## Scope
 
-Build now: **F1–F13, F16, F22, F23, F24, F25, F26 and F29** (see `docs/decisions.md`, D7, D14, D15 and D18). F23–F26 and F29 are not in `docs/concept.md`; D14, D15 and D18 describe them. F16 is built in the reduced form of D15.
+Build now: **F1–F13, F16, F22, F23, F24, F25, F26, F27, F28 and F29** (see `docs/decisions.md`, D7, D14, D15, D17 and D18). F23–F29 are not in `docs/concept.md`; D14, D15, D17 and D18 describe them. F16 is built in the reduced form of D15.
 Parked: **F14, F15 and F17–F21.** Do not build parked features, and do not prepare code "for later", unless a spec explicitly asks for it.
 
 ## Domain rules
@@ -144,9 +144,10 @@ Enforced on the server and covered by tests:
 - **Deadline:** compared with server time (UTC) only. A vote after the deadline is rejected, even if the page was opened earlier.
 - **Closing a room:** idempotent. If already closed, return the existing result instead of recalculating.
 - **Voting in a closed room:** rejected with a message.
-- **"Been there" (replace option):** the first request replaces it; later requests for the same, already replaced option are ignored.
-- **Adding options:** only while the room status is `collecting`.
-- **Deleting an option (F24):** only while the room status is `collecting`, by the participant who added it or by the creator. Deleting an option that is already gone changes nothing.
+- **"Been there" (replace option):** the first request replaces it; later requests for the same, already replaced option are ignored. Not available while the suggested places are kept secret (F28, D17).
+- **Adding options:** only while the room status is `collecting`, and at most the room's "options per person" (F27, D17) own options per participant. The limit is checked and the option saved in one transaction, after locking the room row (as for votes), so two adds at the same moment never pass the limit.
+- **Room setup (F27):** only the creator, only while `collecting`.
+- **Deleting an option (F24):** only while the room status is `collecting`, by the participant who added it or by the creator. With hidden collecting (F28, D17), only by the participant who added it: the creator cannot delete other people's hidden options. Deleting an option that is already gone changes nothing.
 
 ### Rejected actions
 
@@ -162,6 +163,8 @@ Every invalid input or forbidden action shows a clear message and **leaves saved
 ### Individual votes are private
 
 No route, template, or debug output may reveal who voted what. Results show only anonymous counts per option.
+
+With hidden collecting (F28, D17), no page shows another participant's options before the voting starts, only their number.
 
 ## Google Maps integration (`services/places.py`)
 
@@ -187,7 +190,7 @@ No route, template, or debug output may reveal who voted what. Results show only
 
 - Location sharing is optional and requires an explicit tap. Coordinates are rounded to about 3 decimal places in JavaScript and again on the server.
 - Participant coordinates are deleted when a room closes.
-- Rooms are deleted after 7 days (CLI command `uv run flask --app app cleanup`). Groups are deleted 90 days after their last new room, collected places (visits) one year after their date (D15).
+- Rooms are deleted after 7 days (CLI command `uv run flask --app app cleanup`). Groups are deleted 90 days after their last new room, collected places (visits) 180 days after their date, as long as the cookie lives (D15). The cleanup command is **planned, not built yet**: no task builds it so far, so until then these are the target periods, not something the app does.
 - The session cookie lasts 180 days and holds only random tokens (rooms, groups, the person token for collected places).
 - No analytics, no tracking scripts, no external fonts.
 
