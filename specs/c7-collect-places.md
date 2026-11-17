@@ -110,7 +110,7 @@ Checks (one line = one test):
 - Removing a place from the collection, collecting without a decision (e.g. any place by name), collecting manual options.
 - Moving the collection to another phone, sharing it, leaderboards, comparing with friends.
 - Storing names, types, locations or anything else from Google.
-- The cleanup command (visits deleted after one year, D15).
+- The cleanup command (visits deleted after 180 days, D15; planned, not built yet).
 - JavaScript, changes to existing tests.
 
 ## Done when

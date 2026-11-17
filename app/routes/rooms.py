@@ -40,7 +40,6 @@ PLACES_UNAVAILABLE_MESSAGE = (
 NO_PLACES_FOUND_MESSAGE = "No places found. Try a larger radius or fewer filters."
 NOT_JOINED_VOTE_MESSAGE = "Please join the room before voting."
 VOTE_REFUSED_MESSAGE = "Something went wrong while saving your rating. Please try again."
-GOOGLE_OPTION_LABEL = "Place from Google Maps"
 
 
 def session_token_for(room_id: str) -> str | None:
@@ -732,20 +731,48 @@ def add_found_place(room_id: str):
 
 def render_vote_page(room, participant, errors: list[str] | None = None):
     """Render the rating page: the next unrated card, or the overview once everything is rated (F4)."""
-    options = db.get_rateable_options(room["id"])
-    # Google options have no stored name (Google terms); C2b shows the real name later.
-    labels = {option["id"]: option["label"] or GOOGLE_OPTION_LABEL for option in options}
+    options = {option["id"]: option for option in db.get_rateable_options(room["id"])}
     # Only this participant's own ratings are loaded: nobody sees how others voted.
     own_ratings = db.get_own_ratings(participant["id"])
     # The seed is the token from this browser's session, which nobody else knows.
-    order = voting_rules.rating_order(list(labels), session_token_for(room["id"]))
+    order = voting_rules.rating_order(list(options), session_token_for(room["id"]))
     next_option = voting_rules.next_option_to_rate(order, set(own_ratings))
     # "Option 2 of 5": counts only rateable options, not ratings of replaced ones.
     position = sum(1 for option_id in order if option_id in own_ratings) + 1
+
+    # C2c: load Google details only for the options this page view shows, because every
+    # Place Details call costs quota: the one next card, or every option in the overview.
+    shown_ids = []
+    if room["status"] == "voting":
+        shown_ids = [next_option] if next_option is not None else order
+    loaded = places.load_cards(
+        current_app.config.get("GOOGLE_MAPS_API_KEY"),
+        [options[option_id] for option_id in shown_ids],
+        room["search_center_lat"],
+        room["search_center_lng"],
+    )
+    cards = dict(zip(shown_ids, loaded))
+
+    # F10: only this participant's own joker (nobody sees who used a joker on what).
+    # Its name comes from the cards already loaded; if that option is not shown on this
+    # page, only that one option is loaded (at most one extra call, and only after a joker).
+    own_veto = db.get_own_veto(room["id"], participant["id"])
+    own_veto_name = None
+    if room["status"] == "voting" and own_veto in options:
+        if own_veto in cards:
+            veto_card = cards[own_veto]
+        else:
+            veto_card = places.load_cards(
+                current_app.config.get("GOOGLE_MAPS_API_KEY"),
+                [options[own_veto]],
+                room["search_center_lat"],
+                room["search_center_lng"],
+            )[0]
+        own_veto_name = veto_card["name"] if veto_card["source"] == "google" else veto_card["label"]
     return render_template(
         "vote.html",
         room=room,
-        labels=labels,
+        cards=cards,
         order=order,
         own_ratings=own_ratings,
         next_option=next_option,
@@ -756,8 +783,8 @@ def render_vote_page(room, participant, errors: list[str] | None = None):
         errors=errors or [],
         # Only the creator gets the close button (B3); the close route checks it again.
         is_creator=bool(participant["is_creator"]),
-        # Only this participant's own joker (F10): nobody sees who used a joker on what.
-        own_veto=db.get_own_veto(room["id"], participant["id"]),
+        own_veto=own_veto,
+        own_veto_name=own_veto_name,
     )
 
 
@@ -891,24 +918,39 @@ def show_result(room_id: str):
         return redirect(url_for("rooms.show_room", room_id=room_id), code=303)
 
     options = db.get_rateable_options(room_id)
-    # Google options have no stored name (Google terms); C3 shows the winner's real name.
-    labels = {option["id"]: option["label"] or GOOGLE_OPTION_LABEL for option in options}
-    counts = result_rules.rating_counts(list(labels), db.get_votes(room_id))
+    option_ids = [option["id"] for option in options]
+    counts = result_rules.rating_counts(option_ids, db.get_votes(room_id))
     # F10: anonymous joker counts only, never who used a joker.
     vetoed_option_ids = db.get_vetoed_option_ids(room_id)
-    joker_counts = result_rules.veto_counts(list(labels), vetoed_option_ids)
-    every_option_vetoed = result_rules.every_option_vetoed(list(labels), vetoed_option_ids)
+    joker_counts = result_rules.veto_counts(option_ids, vetoed_option_ids)
+    every_option_vetoed = result_rules.every_option_vetoed(option_ids, vetoed_option_ids)
     winner_option_id = db.get_winner_option_id(room_id)
-    # C3: card, map and route for the winner. Only the winner is loaded from Google,
-    # and only once the room is closed.
+
+    # C2c: names for the count list. Google is only called once the room is closed (before
+    # that the page shows no list), with one Place Details call per Google option.
+    labels = {}
+    cards = {}
     winner = None
-    if room["status"] == "closed" and winner_option_id in labels:
-        winner_option = next(option for option in db.get_options(room_id) if option["id"] == winner_option_id)
-        winner = places.load_winner(
-            current_app.config.get("GOOGLE_MAPS_API_KEY"),
-            current_app.config.get("GOOGLE_MAPS_EMBED_KEY"),
-            winner_option,
-        )
+    if room["status"] == "closed":
+        # Without a winner nobody rated anything (every count is 0), so the names are
+        # not worth a Google call: the cards fall back without calling Google.
+        api_key = current_app.config.get("GOOGLE_MAPS_API_KEY") if winner_option_id is not None else None
+        # No centre: B3 deletes it when the room closes, so there is no distance.
+        loaded = places.load_cards(api_key, options, None, None)
+        cards = dict(zip(option_ids, loaded))
+        labels = {
+            option_id: card["name"] if card["source"] == "google" else card["label"]
+            for option_id, card in cards.items()
+        }
+        # C3: card, map and route for the winner. Its card is reused, not loaded a second time.
+        if winner_option_id in cards:
+            winner_option = next(option for option in options if option["id"] == winner_option_id)
+            winner = places.load_winner(
+                current_app.config.get("GOOGLE_MAPS_API_KEY"),
+                current_app.config.get("GOOGLE_MAPS_EMBED_KEY"),
+                winner_option,
+                card=cards[winner_option_id],
+            )
     return render_template(
         "result.html",
         room=room,
