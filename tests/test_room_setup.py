@@ -250,6 +250,15 @@ def pretend_room_is_collecting(monkeypatch):
     )
 
 
+def pretend_route_sees_below_limit(monkeypatch):
+    """The route's fast check (activities.limit_reached) says "below the limit".
+
+    Only the route uses limit_reached; the database functions count option_authors
+    themselves, so their check inside the transaction still sees the real number.
+    """
+    monkeypatch.setattr(activities, "limit_reached", lambda *args, **kwargs: False)
+
+
 @pytest.fixture
 def room_id(client):
     """A "manual" room created by "Anna" in the creator's browser (`client`)."""
@@ -600,7 +609,8 @@ def test_database_holds_limit_when_route_check_misses_it(app, client, guest, roo
     add_option(guest, room_id, "One")
     add_option(guest, room_id, "Two")
     # The route's fast check sees "below the limit", as if the other add came a moment later.
-    monkeypatch.setattr(database, "count_own_options", lambda *args, **kwargs: 0)
+    # Only the route's check is patched: the count inside the database transaction stays real.
+    pretend_route_sees_below_limit(monkeypatch)
     before = snapshot(app)
     response = add_option(guest, room_id, "Three")
     assert response.status_code == 400
@@ -733,11 +743,28 @@ def test_database_holds_limit_for_place_by_name(app, client, guest, room_id, mon
     save_setup(client, room_id, kind="food.brunch", options_per_person="1")
     find(guest, room_id)
     add_option(guest, room_id, "Own idea")
-    monkeypatch.setattr(database, "count_own_options", lambda *args, **kwargs: 0)
+    pretend_route_sees_below_limit(monkeypatch)
     before = snapshot(app)
     response = add_found(guest, room_id)
     assert response.status_code == 400
     assert limit_message(1) in response.data.decode()
+    assert snapshot(app) == before
+
+
+@pytest.mark.parametrize("starts_during_request", [False, True])
+def test_place_by_name_with_limit_rejected_after_voting_starts(
+    app, client, guest, room_id, monkeypatch, starts_during_request
+):
+    save_setup(client, room_id, kind="food.brunch", options_per_person="3")
+    find(guest, room_id)
+    set_room_status(app, room_id, "voting")
+    if starts_during_request:
+        # The route still sees "collecting"; add_place_option_within_limit must say "not_collecting".
+        pretend_room_is_collecting(monkeypatch)
+    before = snapshot(app)
+    response = add_found(guest, room_id)
+    assert response.status_code == 400
+    assert NOT_COLLECTING_MESSAGE in response.data.decode()
     assert snapshot(app) == before
 
 
