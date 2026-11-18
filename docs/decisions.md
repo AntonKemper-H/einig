@@ -2,7 +2,7 @@
 
 Decisions the team has made so far, with the reason for each. When a decision changes, update this file and `AGENTS.md` in the same pull request.
 
-Last updated: 2026-11-16
+Last updated: 2026-11-18
 
 ---
 
