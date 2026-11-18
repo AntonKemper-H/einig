@@ -110,6 +110,7 @@ The column `rooms.deadline` exists since A1, so there is **no schema change**.
 "Everyone done" changes what happens after the last rating, so a few reviewed tests that rate everything and then expect the room to still be open need a small change, in its own commit:
 
 - `tests/test_rating.py` (B2): the `room` fixture gets one more participant ("Idle") who never rates, so the room is never "everyone done" and the four tests that rely on a still-open room (`test_all_rated_page_lists_own_ratings_with_buttons`, `test_replaced_option_is_rejected_and_not_shown`, `test_no_page_shows_another_participants_rating`, `test_ratings_survive_a_restart`) keep testing exactly what they tested. No assertion changes.
+- `tests/test_swipe_rating.py` (A10, merged in #55 after this spec was approved): `test_overview_has_no_swipe` lets a single creator rate everything and then expects the overview, so it gets the same one-line change (a participant "Idle" who never rates joins first). No assertion changes.
 - `tests/test_joker.py` (B4, #44, not on `main` yet): `test_vetoed_option_is_not_chosen` and `test_every_option_vetoed_fewest_jokers_then_best_score` use the jokers **before** the last ratings instead of after. Whichever of B4 and B5 is merged second makes this change. No assertion changes.
 
 ## Out of scope
