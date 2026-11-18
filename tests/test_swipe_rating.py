@@ -251,6 +251,8 @@ def test_buttons_and_option_id_stay_inside_the_swipe_card(app, client):
 
 def test_overview_has_no_swipe(app, client):
     room_id, ids = voting_room(app, client, place_ids=["place-a"], labels=["Burger Bar"])
+    # A participant who never rates, so the room is not "everyone done" (B5) and stays open.
+    app.test_client().post(f"/rooms/{room_id}/join", data={"nickname": "Idle"})
     for option_id in ids.values():
         rate(client, room_id, option_id)
     html = page(client, f"/rooms/{room_id}/vote")
