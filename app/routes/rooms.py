@@ -1,7 +1,8 @@
 """Room pages: create a room (F1), show and join it (F2), add and delete options (F3, F24),
 lobby and start voting (F7), suggest places nearby (F8), surprise mode (F12),
 "Been there" (F13), find a place by name (F23), delete an option (F24),
-rating (F4), joker (F10), close the room and show the result (F6), "Join as ..." in a group room (F16)."""
+rating (F4), joker (F10), close the room and show the result (F6), "Join as ..." in a group room (F16),
+room setup (F27)."""
 
 import random
 
@@ -18,9 +19,9 @@ from flask import (
 
 from app import db
 from app.routes.main import render_home
+from app.services import activities, places, qr, surprise
 from app.services import lobby as lobby_rules
 from app.services import options as option_rules
-from app.services import places, qr, surprise
 from app.services import results as result_rules
 from app.services import rooms as room_rules
 from app.services import voting as voting_rules
@@ -43,6 +44,11 @@ VOTE_REFUSED_MESSAGE = "Something went wrong while saving your rating. Please tr
 NOT_IN_GROUP_MESSAGE = "You are not a member of this group."
 GROUP_NICKNAME_TAKEN_MESSAGE = (
     "Your group nickname is already taken in this room. Please choose another one."
+)
+ONLY_CREATOR_SETUP_MESSAGE = "Only the creator can set up the room."
+SETUP_NOT_COLLECTING_MESSAGE = "The setup can only be changed before voting starts."
+ALREADY_SEARCHED_MESSAGE = (
+    "The places were already suggested. Changing the activity does not search again."
 )
 
 
@@ -136,9 +142,42 @@ def render_room_page(
     find_errors: list[str] | None = None,
     find_matches: list[dict] | None = None,
     offer_group_join: bool = True,
+    setup_values: dict | None = None,
+    setup_errors: list[str] | None = None,
 ):
     """Render the room page: join form for visitors; options, add form and place search for participants."""
     invite_url = invite_url_for(room["id"])
+    # F27: the room setup, the line everyone sees and this participant's options-per-person count.
+    setup = db.get_room_setup(room["id"])
+    setup_line = None
+    searching_for = None
+    options_per_person = None
+    if setup is not None:
+        setup_line = activities.setup_text(
+            setup["activity"], setup["kind"], setup["options_per_person"]
+        )
+        searching_for = activities.kind_label(setup["activity"], setup["kind"])
+        options_per_person = setup["options_per_person"]
+    own_option_count = 0
+    at_limit = False
+    if participant is not None and options_per_person is not None:
+        own_option_count = db.count_own_options(room["id"], participant["id"])
+        at_limit = activities.limit_reached(own_option_count, options_per_person)
+    show_setup_form = (
+        participant is not None and bool(participant["is_creator"]) and room["status"] == "collecting"
+    )
+    if setup_values is None:
+        # Pre-filled with the saved setup; empty before the first save.
+        setup_values = {"kind": "", "options_per_person": ""}
+        if setup is not None:
+            setup_values = {
+                "kind": f"{setup['activity']}.{setup['kind']}",
+                "options_per_person": "" if options_per_person is None else str(options_per_person),
+            }
+    # Open before the first save and while there are errors; collapsed afterwards.
+    setup_open = setup is None or bool(setup_errors)
+    # C2a/C4 search only once per room: a later setup change does not search again.
+    setup_already_searched = show_setup_form and room["radius_m"] is not None
     # Only participants may see the options, so visitors get an empty list
     # (and their page view never calls Google).
     options = db.get_options(room["id"]) if participant else []
@@ -172,8 +211,9 @@ def render_room_page(
         if surprise.can_press_been_there(room["mode"], room["status"], option["source"])
         and option["category"] is not None
     }
-    # F23: every participant can find a place by name while the room is collecting.
-    show_find_form = participant is not None and room["status"] == "collecting"
+    # F23: every participant can find a place by name while the room is collecting,
+    # unless they reached the room's options-per-person limit (F27).
+    show_find_form = participant is not None and room["status"] == "collecting" and not at_limit
     room_has_centre = room["search_center_lat"] is not None
     # geolocation.js finds its fields by id, so "Use my location" may appear only once on
     # the page: not here while the creator's search form (C2a/C4) is shown.
@@ -227,7 +267,32 @@ def render_room_page(
         radius_choices=places.RADIUS_CHOICES,
         min_rating_choices=places.MIN_RATING_CHOICES,
         price_level_choices=places.PRICE_LEVEL_CHOICES,
+        setup_line=setup_line,
+        searching_for=searching_for,
+        options_per_person=options_per_person,
+        own_option_count=own_option_count,
+        at_limit=at_limit,
+        show_setup_form=show_setup_form,
+        setup_open=setup_open,
+        setup_values=setup_values,
+        setup_errors=setup_errors or [],
+        setup_already_searched=setup_already_searched,
+        already_searched_message=ALREADY_SEARCHED_MESSAGE,
+        kind_choices=activities.kind_choices(),
+        options_per_person_choices=activities.OPTIONS_PER_PERSON_CHOICES,
     )
+
+
+def options_per_person_for(room_id: str) -> int | None:
+    """The room's options-per-person limit (F27), or None if the room has no setup or no limit."""
+    setup = db.get_room_setup(room_id)
+    return None if setup is None else setup["options_per_person"]
+
+
+def kind_for(room_id: str) -> tuple[str, str] | None:
+    """The room's (activity, kind) from its setup (F27), or None if the room has no setup."""
+    setup = db.get_room_setup(room_id)
+    return None if setup is None else (setup["activity"], setup["kind"])
 
 
 def render_lobby(room, participant, errors: list[str] | None = None):
@@ -365,11 +430,31 @@ def add_option(room_id: str):
     if errors:
         return render_room_page(room, participant, option_label=label, option_errors=errors), 400
 
-    if not db.add_manual_option(room_id, label, participant["id"]):
+    options_per_person = options_per_person_for(room_id)
+    if options_per_person is None:
+        # No limit (no setup, or "Unlimited"): exactly as before F27.
+        if not db.add_manual_option(room_id, label, participant["id"]):
+            return render_room_page(
+                room, participant, option_label=label, option_errors=[OPTION_REFUSED_MESSAGE]
+            ), 400
+        return redirect(url_for("rooms.show_room", room_id=room_id), code=303)
+
+    def show_option_error(message: str):
         return render_room_page(
-            room, participant, option_label=label, option_errors=[OPTION_REFUSED_MESSAGE]
+            room, participant, option_label=label, option_errors=[message]
         ), 400
 
+    limit_text = activities.limit_message(options_per_person)
+    # Fast check for the message; the database decides below (another add may come at the same moment).
+    if activities.limit_reached(db.count_own_options(room_id, participant["id"]), options_per_person):
+        return show_option_error(limit_text)
+    result = db.add_manual_option_within_limit(room_id, label, participant["id"], options_per_person)
+    if result == "limit":
+        return show_option_error(limit_text)
+    if result == "duplicate":
+        return show_option_error(option_rules.DUPLICATE_MESSAGE)
+    if result == "not_collecting":
+        return show_option_error(option_rules.NOT_COLLECTING_MESSAGE)
     return redirect(url_for("rooms.show_room", room_id=room_id), code=303)
 
 
@@ -408,6 +493,41 @@ def delete_option(room_id: str, option_id: int):
             ), 400
 
     return room_page
+
+
+@bp.post("/rooms/<room_id>/setup")
+def save_setup(room_id: str):
+    """F27: the creator saves what the group is planning and the options per person (Post/Redirect/Get)."""
+    room = db.get_room(room_id)
+    if room is None:
+        abort(404)
+
+    # Creator-only action, checked on the server: hiding the form is not enough.
+    participant = db.get_participant(room_id, session_token_for(room_id))
+    if participant is None:
+        return render_room_page(room, None, errors=[ONLY_CREATOR_SETUP_MESSAGE]), 403
+    if not participant["is_creator"]:
+        return render_room_page(room, participant, setup_errors=[ONLY_CREATOR_SETUP_MESSAGE]), 403
+    if room["status"] != "collecting":
+        return render_room_page(room, participant, setup_errors=[SETUP_NOT_COLLECTING_MESSAGE]), 400
+
+    setup, errors = activities.validate_setup(request.form)
+    if errors:
+        sent_values = {
+            "kind": request.form.get("kind") or "",
+            "options_per_person": request.form.get("options_per_person") or "",
+        }
+        return render_room_page(
+            room, participant, setup_values=sent_values, setup_errors=errors
+        ), 400
+
+    if not db.save_room_setup(
+        room_id, setup["activity"], setup["kind"], setup["options_per_person"]
+    ):
+        # The voting started between the check above and the save.
+        return render_room_page(room, participant, setup_errors=[SETUP_NOT_COLLECTING_MESSAGE]), 400
+
+    return redirect(url_for("rooms.show_room", room_id=room_id), code=303)
 
 
 @bp.get("/rooms/<room_id>/lobby")
@@ -479,9 +599,21 @@ def suggest_places(room_id: str):
             search_errors=messages,
         ), status_code
 
-    search, errors = places.validate_search(request.form)
+    # F27: in a set-up room the kind decides what is searched; a posted category is ignored.
+    kind = kind_for(room_id)
+    search, errors = places.validate_search(request.form, category_required=kind is None)
     if errors:
         return show_search_again(errors, 400)
+    if kind is None:
+        included_types = None
+        option_category = search["category"]
+        kind_value = None
+    else:
+        included_types = activities.kind_types(*kind)
+        # Every saved place needs a category (that marks it as a search result, not a
+        # place picked by name), so the kind's first type is stored.
+        option_category = included_types[0]
+        kind_value = ".".join(kind)
 
     # Without a key the app still works with manual options (docs/decisions.md, D6).
     api_key = current_app.config.get("GOOGLE_MAPS_API_KEY")
@@ -493,9 +625,10 @@ def suggest_places(room_id: str):
             latitude=search["latitude"],
             longitude=search["longitude"],
             radius_m=search["radius_m"],
-            category=search["category"],
+            category=option_category,
             max_price_level=search["max_price_level"],
             min_rating=search["min_rating"],
+            included_types=included_types,
         )
     except places.PlacesError:
         return show_search_again([PLACES_UNAVAILABLE_MESSAGE], 503)
@@ -506,11 +639,11 @@ def suggest_places(room_id: str):
     saved = db.save_google_search(
         room_id,
         place_ids,
-        search["category"],
+        option_category,
         search["latitude"],
         search["longitude"],
         search["radius_m"],
-        places.filters_json(search),
+        places.filters_json(search, kind=kind_value),
     )
     if not saved:
         # Another search claimed the room a moment earlier.
@@ -550,7 +683,16 @@ def surprise_places(room_id: str):
             search_errors=messages,
         ), status_code
 
-    search, errors = surprise.validate_surprise(request.form)
+    # F27: in a set-up room the kind's types are mixed; a posted category is ignored.
+    kind = kind_for(room_id)
+    if kind is None:
+        search, errors = surprise.validate_surprise(request.form)
+        subcategory_pool = None
+        kind_value = None
+    else:
+        search, errors = places.validate_search(request.form, category_required=False)
+        subcategory_pool = activities.kind_types(*kind)
+        kind_value = ".".join(kind)
     if errors:
         return show_form_again(errors, 400)
 
@@ -563,10 +705,11 @@ def surprise_places(room_id: str):
             latitude=search["latitude"],
             longitude=search["longitude"],
             radius_m=search["radius_m"],
-            category=search["category"],
+            category=search.get("category"),
             max_price_level=search["max_price_level"],
             min_rating=search["min_rating"],
             rng=random.Random(),
+            subcategory_pool=subcategory_pool,
         )
     except places.PlacesError:
         return show_form_again([PLACES_UNAVAILABLE_MESSAGE], 503)
@@ -580,7 +723,7 @@ def surprise_places(room_id: str):
         search["latitude"],
         search["longitude"],
         result["radius_m"],
-        surprise.filters_json(search),
+        surprise.filters_json(search, kind=kind_value),
     )
     if not saved:
         # Another search claimed the room a moment earlier.
@@ -686,6 +829,12 @@ def find_place(room_id: str):
         return render_room_page(room, None, errors=[NOT_JOINED_MESSAGE]), 403
     if room["status"] != "collecting":
         return render_room_page(room, participant, find_errors=[places.NOT_COLLECTING_MESSAGE]), 400
+    # F27: at the limit the search could not lead to a saved place, so Google is not asked.
+    options_per_person = options_per_person_for(room_id)
+    if activities.limit_reached(db.count_own_options(room_id, participant["id"]), options_per_person):
+        return render_room_page(
+            room, participant, find_errors=[activities.limit_message(options_per_person)]
+        ), 400
 
     name, errors = places.validate_name(request.form.get("name"))
 
@@ -764,6 +913,25 @@ def add_found_place(room_id: str):
     if place_id in db.get_room_place_ids(room_id):
         return show_message(places.ALREADY_AN_OPTION_MESSAGE)
 
+    options_per_person = options_per_person_for(room_id)
+    if options_per_person is not None:
+        # F27: with a limit, check and insert happen in one transaction. The matches stay
+        # in the session when the place is refused, so another one can still be picked.
+        limit_text = activities.limit_message(options_per_person)
+        if activities.limit_reached(db.count_own_options(room_id, participant["id"]), options_per_person):
+            return show_message(limit_text)
+        result = db.add_place_option_within_limit(
+            room_id, place_id, participant["id"], options_per_person
+        )
+        if result == "limit":
+            return show_message(limit_text)
+        if result == "duplicate":
+            return show_message(places.ALREADY_AN_OPTION_MESSAGE)
+        if result == "not_collecting":
+            return show_message(places.NOT_COLLECTING_MESSAGE)
+        save_name_search_entry(room_id, [], entry["count"])
+        return redirect(url_for("rooms.show_room", room_id=room_id), code=303)
+
     try:
         added = db.add_place_option(room_id, place_id, participant["id"])
     except db.INTEGRITY_ERRORS:
@@ -800,6 +968,11 @@ def render_vote_page(room, participant, errors: list[str] | None = None):
         room["search_center_lng"],
     )
     cards = dict(zip(shown_ids, loaded))
+    # A10: the next card links to the place's Google Maps page (menu, reviews); no API call.
+    menu_url = None
+    # Only while voting: outside it no card is loaded (and none is shown).
+    if next_option in cards and cards[next_option]["source"] == "google":
+        menu_url = places.place_page_url(options[next_option]["place_id"], cards[next_option]["name"])
 
     # F10: only this participant's own joker (nobody sees who used a joker on what).
     # Its name comes from the cards already loaded; if that option is not shown on this
@@ -819,6 +992,7 @@ def render_vote_page(room, participant, errors: list[str] | None = None):
         own_veto_name = veto_card["name"] if veto_card["source"] == "google" else veto_card["label"]
     return render_template(
         "vote.html",
+        menu_url=menu_url,
         room=room,
         cards=cards,
         order=order,

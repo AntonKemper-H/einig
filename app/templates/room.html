@@ -12,6 +12,9 @@
       {# F16: only for browsers that are members of this room's group, never for guests. #}
       <p><a href="{{ url_for('groups.show_group', group_id=group.id) }}">Part of {{ group.name }}</a></p>
     {% endif %}
+    {% if setup_line %}
+      <p>{{ setup_line }}</p>
+    {% endif %}
 
     <p>Invite your friends with this link:</p>
     <p><input type="text" readonly value="{{ invite_url }}" aria-label="Invite link"></p>
@@ -60,6 +63,51 @@
       <p>Only a few places were found nearby, so the search area was widened to {{ widened_to }}.</p>
     {% endif %}
 
+    {% if setup_errors %}
+      <ul role="alert">
+        {% for error in setup_errors %}
+          <li>{{ error }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+
+    {% if show_setup_form %}
+      {# F27: only the creator, only while collecting. Open until the first save.
+         Placed below the options and above the searches it controls, so the kind names
+         in the select never come before the options in the page (A4's test). #}
+      <details{% if setup_open %} open{% endif %}>
+        <summary>Set up this room{% if setup_line and not setup_open %}: {{ searching_for }}{% endif %}</summary>
+        <form action="{{ url_for('rooms.save_setup', room_id=room.id) }}" method="post">
+          <label>
+            What are you planning?
+            <select name="kind" required>
+              <option value="">Choose an activity</option>
+              {% for activity_label, kinds in kind_choices %}
+                <optgroup label="{{ activity_label }}">
+                  {% for value, text in kinds %}
+                    <option value="{{ value }}" {% if setup_values.get("kind") == value %}selected{% endif %}>{{ text }}</option>
+                  {% endfor %}
+                </optgroup>
+              {% endfor %}
+            </select>
+          </label>
+          <label>
+            Options per person
+            <select name="options_per_person">
+              <option value="" {% if setup_values.get("options_per_person") == "" %}selected{% endif %}>Unlimited</option>
+              {% for number in options_per_person_choices %}
+                <option value="{{ number }}" {% if setup_values.get("options_per_person") == number|string %}selected{% endif %}>{{ number }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          {% if setup_already_searched %}
+            <p>{{ already_searched_message }}</p>
+          {% endif %}
+          <button type="submit">Save setup</button>
+        </form>
+      </details>
+    {% endif %}
+
     {% if search_errors %}
       <ul role="alert">
         {% for error in search_errors %}
@@ -85,14 +133,19 @@
       <form action="{{ form_action }}" method="post">
         <h3>{{ form_heading }}</h3>
 
-        <label>
-          Category
-          <select name="category" required>
-            {% for value, text in form_categories.items() %}
-              <option value="{{ value }}" {% if search_values.get("category") == value %}selected{% endif %}>{{ text }}</option>
-            {% endfor %}
-          </select>
-        </label>
+        {% if searching_for %}
+          {# F27: the room's setup decides what is searched. #}
+          <p>Searching for: {{ searching_for }}</p>
+        {% else %}
+          <label>
+            Category
+            <select name="category" required>
+              {% for value, text in form_categories.items() %}
+                <option value="{{ value }}" {% if search_values.get("category") == value %}selected{% endif %}>{{ text }}</option>
+              {% endfor %}
+            </select>
+          </label>
+        {% endif %}
 
         <label>
           Radius
@@ -193,13 +246,19 @@
       </ul>
     {% endif %}
 
-    {% if room.status == "collecting" %}
+    {% if room.status == "collecting" and at_limit %}
+      {# F27: this participant has added as many options as the room allows. #}
+      <p>You have added {{ own_option_count }} of {{ options_per_person }} {{ "option" if options_per_person == 1 else "options" }}.</p>
+    {% elif room.status == "collecting" %}
       <form action="{{ url_for('rooms.add_option', room_id=room.id) }}" method="post">
         <label>
           Add an option
           <input type="text" name="label" maxlength="80" required
                  placeholder="Pizza place" value="{{ option_label }}">
         </label>
+        {% if options_per_person is not none %}
+          <p>{{ own_option_count }} of {{ options_per_person }} {{ "option" if options_per_person == 1 else "options" }} added</p>
+        {% endif %}
         <button type="submit">Add option</button>
       </form>
     {% else %}

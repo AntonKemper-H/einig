@@ -2,6 +2,9 @@
 
 LABEL_MAX_LENGTH = 80
 
+NOT_COLLECTING_MESSAGE = "Options can only be added before voting starts."
+DUPLICATE_MESSAGE = "This option is already in the list."
+
 DELETE_NOT_COLLECTING_MESSAGE = "Options can only be deleted before voting starts."
 DELETE_NOT_ALLOWED_MESSAGE = "Only the person who added this option or the creator can delete it."
 
@@ -23,13 +26,13 @@ def option_errors(label: str, room_status: str, existing_labels: list[str]) -> l
     the room status and the existing labels, so this function needs no database.
     """
     if room_status != "collecting":
-        return ["Options can only be added before voting starts."]
+        return [NOT_COLLECTING_MESSAGE]
     if not label:
         return ["Please enter an option."]
     if len(label) > LABEL_MAX_LENGTH:
         return [f"An option can be at most {LABEL_MAX_LENGTH} characters."]
     if is_label_taken(label, existing_labels):
-        return ["This option is already in the list."]
+        return [DUPLICATE_MESSAGE]
     return []
 
 

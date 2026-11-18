@@ -10,3 +10,34 @@ button[type=submit].option-delete {  /* beats Pico's "button[type=submit] { widt
   color: inherit;
   border-color: currentColor;
 }
+
+
+/* A10: swiping the rating card. swipe.js only moves the card and sets data-swipe-choice;
+   the colours and the label live here. */
+[data-swipe-area] {
+  touch-action: none;   /* only the place part: the page still scrolls everywhere else */
+  cursor: grab;
+}
+[data-swipe-card] {
+  position: relative;
+  transition: transform 0.2s ease-out;
+}
+[data-swipe-card].is-dragging {
+  transition: none;      /* follow the finger without delay */
+}
+[data-swipe-card][data-swipe-choice]::before {
+  position: absolute;
+  top: 1rem;
+  left: 50%;
+  transform: translateX(-50%) rotate(-8deg);
+  z-index: 1;
+  padding: 0.25rem 0.75rem;
+  border: 3px solid currentColor;
+  border-radius: 0.5rem;
+  font-weight: bold;
+  font-size: 1.25rem;
+  background: rgba(0, 0, 0, 0.6);
+}
+[data-swipe-card][data-swipe-choice="yes"]::before { content: "Rather yes"; color: #3fb950; }
+[data-swipe-card][data-swipe-choice="ok"]::before  { content: "Fine with me"; color: #58a6ff; }
+[data-swipe-card][data-swipe-choice="no"]::before  { content: "Rather not"; color: #f85149; }
