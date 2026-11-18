@@ -107,7 +107,7 @@ def surprise_search(
     latitude: float,
     longitude: float,
     radius_m: int,
-    category: str,
+    category: str | None,
     max_price_level: int | None,
     min_rating: float | None,
     rng: random.Random,

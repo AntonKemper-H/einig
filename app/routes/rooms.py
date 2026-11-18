@@ -19,10 +19,9 @@ from flask import (
 
 from app import db
 from app.routes.main import render_home
-from app.services import activities
+from app.services import activities, places, qr, surprise
 from app.services import lobby as lobby_rules
 from app.services import options as option_rules
-from app.services import places, qr, surprise
 from app.services import results as result_rules
 from app.services import rooms as room_rules
 from app.services import voting as voting_rules
