@@ -325,11 +325,12 @@ def test_no_joker_form_outside_voting(app, client, room, status):
 
 def test_vetoed_option_is_not_chosen(app, client, room):
     pizza, sushi, tacos = (room["options"][label] for label in LABELS)
+    # The joker comes before the last ratings: with B5 the last rating closes the room.
+    use_joker(room["guest"], room["id"], pizza)
     for browser in (client, room["guest"]):
         vote(browser, room["id"], pizza, "yes")
         vote(browser, room["id"], sushi, "ok")
         vote(browser, room["id"], tacos, "no")
-    use_joker(room["guest"], room["id"], pizza)
     close(client, room["id"])
     assert winner_of(app, room["id"]) == sushi
 
@@ -339,13 +340,14 @@ def test_every_option_vetoed_fewest_jokers_then_best_score(app, client, room):
     cara = join(app, room["id"], "Cara")
     dan = join(app, room["id"], "Dan")
     browsers = (client, room["guest"], cara, dan)
+    # Pizza: 2 jokers, Sushi: 1, Tacos: 1. Sushi and Tacos tie on jokers; Tacos scores better.
+    # The jokers come before the ratings: with B5 the last rating closes the room.
+    for browser, option_id in zip(browsers, (pizza, pizza, sushi, tacos)):
+        assert use_joker(browser, room["id"], option_id).status_code == 303
     for browser in browsers:
         vote(browser, room["id"], pizza, "yes")
         vote(browser, room["id"], sushi, "no")
         vote(browser, room["id"], tacos, "ok")
-    # Pizza: 2 jokers, Sushi: 1, Tacos: 1. Sushi and Tacos tie on jokers; Tacos scores better.
-    for browser, option_id in zip(browsers, (pizza, pizza, sushi, tacos)):
-        assert use_joker(browser, room["id"], option_id).status_code == 303
     close(client, room["id"])
     assert winner_of(app, room["id"]) == tacos
 
