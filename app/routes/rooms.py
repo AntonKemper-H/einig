@@ -1,8 +1,8 @@
 """Room pages: create a room (F1), show and join it (F2), add and delete options (F3, F24),
 lobby and start voting (F7), suggest places nearby (F8), surprise mode (F12),
 "Been there" (F13), find a place by name (F23), delete an option (F24),
-rating (F4), close the room and show the result (F6), "Join as ..." in a group room (F16),
-room setup (F27)."""
+rating (F4), close the room and show the result (F6), deadline and "everyone done" (F11),
+"Join as ..." in a group room (F16), room setup (F27)."""
 
 import random
 
@@ -20,6 +20,7 @@ from flask import (
 from app import db
 from app.routes.main import render_home
 from app.services import activities, places, qr, surprise
+from app.services import deadline as deadline_rules
 from app.services import lobby as lobby_rules
 from app.services import options as option_rules
 from app.services import results as result_rules
@@ -50,6 +51,50 @@ SETUP_NOT_COLLECTING_MESSAGE = "The setup can only be changed before voting star
 ALREADY_SEARCHED_MESSAGE = (
     "The places were already suggested. Changing the activity does not search again."
 )
+
+
+def close_and_store_winner(room_id: str) -> None:
+    """Close a voting room and store its winner once (B3 steps, shared with B5).
+
+    One transaction, in this order: claim the room, then read the votes, then store.
+    Because the claim comes first, no vote can be added after the votes are read
+    (save_vote locks the same room row), and only one close can win. If the claim
+    fails, someone else closed the room a moment earlier: their result stays.
+    Used by the close button (B3), the deadline and "everyone done" (B5).
+    """
+    with db.transaction():
+        if db.claim_close(room_id):
+            option_ids = [option["id"] for option in db.get_rateable_options(room_id)]
+            winner = pick_winner(
+                option_ids,
+                db.get_votes(room_id),
+                db.get_vetoed_option_ids(room_id),
+                # Seeded with the room id: a full tie gives the same winner for this room.
+                rng=random.Random(room_id),
+            )
+            db.store_result(room_id, winner)
+
+
+def close_if_time_is_up(room):
+    """F11: close a voting room whose deadline has passed, and return it as it is now.
+
+    There is no background job (Render's free plan has no scheduler), so every page
+    of the room calls this first: whoever opens one after the deadline closes the room,
+    visitors too. The lobby reloads every 4 seconds, so an open lobby closes it at once.
+    """
+    if room is None or room["status"] != "voting":
+        return room
+    if not deadline_rules.is_past(room["deadline"], deadline_rules.now_utc()):
+        return room
+    close_and_store_winner(room["id"])
+    return db.get_room(room["id"])
+
+
+def time_left_for(room) -> str | None:
+    """'Time left: N min' for a voting room with a deadline, else None (F11)."""
+    if room["status"] != "voting":
+        return None
+    return deadline_rules.time_left_text(room["deadline"], deadline_rules.now_utc())
 
 
 def session_token_for(room_id: str) -> str | None:
@@ -316,6 +361,8 @@ def render_lobby(room, participant, errors: list[str] | None = None):
         qr_svg=qr.invite_qr_svg(invite_url_for(room["id"])),
         status_text=lobby_rules.status_text(room["status"]),
         errors=errors or [],
+        time_left=time_left_for(room),
+        time_limits=deadline_rules.TIME_LIMITS,
     )
 
 
@@ -348,7 +395,7 @@ def create_room():
 @bp.get("/rooms/<room_id>")
 def show_room(room_id: str):
     """Room page and invite link target: participants see who they are, visitors see the join form."""
-    room = db.get_room(room_id)
+    room = close_if_time_is_up(db.get_room(room_id))
     if room is None:
         abort(404)
     participant = db.get_participant(room_id, session_token_for(room_id))
@@ -533,7 +580,7 @@ def save_setup(room_id: str):
 @bp.get("/rooms/<room_id>/lobby")
 def show_lobby(room_id: str):
     """F7: the lobby page, which reloads itself every few seconds (meta refresh in the template)."""
-    room = db.get_room(room_id)
+    room = close_if_time_is_up(db.get_room(room_id))
     if room is None:
         abort(404)
     participant = db.get_participant(room_id, session_token_for(room_id))
@@ -558,10 +605,16 @@ def start_voting(room_id: str):
         return render_lobby(room, participant, [ONLY_CREATOR_MESSAGE]), 403
 
     errors = lobby_rules.start_errors(room["status"], len(db.get_options(room_id)))
+    # F11: the optional time limit; A5's messages come first.
+    minutes, time_limit_errors = deadline_rules.parse_time_limit(request.form.get("time_limit"))
+    errors = errors or time_limit_errors
     if errors:
         return render_lobby(room, participant, errors), 400
 
-    if not db.start_voting(room_id):
+    deadline = None
+    if minutes is not None:
+        deadline = deadline_rules.deadline_after(deadline_rules.now_utc(), minutes)
+    if not db.start_voting(room_id, deadline):
         # Someone else started it a moment earlier.
         return render_lobby(room, participant, [lobby_rules.ALREADY_STARTED_MESSAGE]), 400
 
@@ -988,13 +1041,14 @@ def render_vote_page(room, participant, errors: list[str] | None = None):
         errors=errors or [],
         # Only the creator gets the close button (B3); the close route checks it again.
         is_creator=bool(participant["is_creator"]),
+        time_left=time_left_for(room),
     )
 
 
 @bp.get("/rooms/<room_id>/vote")
 def show_vote(room_id: str):
     """F4: the rating page for the participant whose token is in this browser's session."""
-    room = db.get_room(room_id)
+    room = close_if_time_is_up(db.get_room(room_id))
     if room is None:
         abort(404)
     participant = db.get_participant(room_id, session_token_for(room_id))
@@ -1007,7 +1061,7 @@ def show_vote(room_id: str):
 @bp.post("/rooms/<room_id>/vote")
 def save_vote(room_id: str):
     """F4: save one rating, then redirect to the next card (Post/Redirect/Get)."""
-    room = db.get_room(room_id)
+    room = close_if_time_is_up(db.get_room(room_id))
     if room is None:
         abort(404)
 
@@ -1037,6 +1091,11 @@ def save_vote(room_id: str):
         # E.g. the option was deleted by another request a moment earlier.
         return render_vote_page(room, participant, [VOTE_REFUSED_MESSAGE]), 400
 
+    # F11 / concept §3 step 6: when this vote made the last participant done, there is
+    # nothing left to wait for, so the room closes now and the voter sees the result.
+    if db.everyone_finished(room_id):
+        close_and_store_winner(room_id)
+        return redirect(url_for("rooms.show_result", room_id=room_id), code=303)
     return redirect(url_for("rooms.show_vote", room_id=room_id), code=303)
 
 
@@ -1057,22 +1116,7 @@ def close_room(room_id: str):
         return render_vote_page(room, participant, [message]), status_code
 
     if room["status"] == "voting":
-        # One transaction, in this order: claim the room, then read the votes, then store.
-        # Because the claim comes first, no vote can be added after the votes are read
-        # (save_vote locks the same room row), and only one close can win.
-        with db.transaction():
-            if db.claim_close(room_id):
-                option_ids = [option["id"] for option in db.get_rateable_options(room_id)]
-                winner = pick_winner(
-                    option_ids,
-                    db.get_votes(room_id),
-                    db.get_vetoed_option_ids(room_id),
-                    # Seeded with the room id: a full tie gives the same winner for this room.
-                    rng=random.Random(room_id),
-                )
-                db.store_result(room_id, winner)
-            # If the claim failed, someone else closed the room a moment earlier: their
-            # stored result stays and we simply show it.
+        close_and_store_winner(room_id)
 
     # Closing again (or a lost claim) is idempotent: show the existing result.
     return redirect(url_for("rooms.show_result", room_id=room_id), code=303)
@@ -1081,7 +1125,7 @@ def close_room(room_id: str):
 @bp.get("/rooms/<room_id>/result")
 def show_result(room_id: str):
     """F6: the winner and anonymous counts per option. Who rated what is never shown."""
-    room = db.get_room(room_id)
+    room = close_if_time_is_up(db.get_room(room_id))
     if room is None:
         abort(404)
     participant = db.get_participant(room_id, session_token_for(room_id))
