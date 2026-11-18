@@ -15,6 +15,7 @@
   <h1>Lobby</h1>
   <p><strong>{{ room.title }}</strong></p>
   <p>{{ status_text }}</p>
+  {% if time_left %}<p>{{ time_left }}</p>{% endif %}
 
   {% if errors %}
     <ul role="alert">
@@ -46,6 +47,15 @@
         <p>{{ hint }}</p>
       {% endfor %}
       <form action="{{ url_for('rooms.start_voting', room_id=room.id) }}" method="post">
+        {# F11: optional time limit; the room closes by itself when it is over. #}
+        <label>Time limit
+          <select name="time_limit">
+            <option value="" selected>No time limit</option>
+            {% for minutes in time_limits %}
+              <option value="{{ minutes }}">{{ minutes }} minutes</option>
+            {% endfor %}
+          </select>
+        </label>
         <button type="submit">Start voting</button>
       </form>
     {% else %}
