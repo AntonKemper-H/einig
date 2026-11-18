@@ -12,7 +12,7 @@ from flask import Flask, render_template
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from app import db
-from app.routes import main, pwa, rooms
+from app.routes import groups, main, pwa, rooms
 
 
 def create_app(test_config: dict | None = None) -> Flask:
@@ -75,6 +75,7 @@ def create_app(test_config: dict | None = None) -> Flask:
     app.register_blueprint(main.bp)
     app.register_blueprint(rooms.bp)
     app.register_blueprint(pwa.bp)
+    app.register_blueprint(groups.bp)
 
     @app.errorhandler(404)
     def page_not_found(error):

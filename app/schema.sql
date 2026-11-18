@@ -119,6 +119,46 @@ CREATE TABLE IF NOT EXISTS option_authors (
     FOREIGN KEY (participant_id, room_id) REFERENCES participants (id, room_id) ON DELETE CASCADE
 );
 
+
+-- A9 (F16, D15): fixed groups. Only new tables, so `init-db` adds them to an
+-- existing database by itself and no existing table changes (like A7's option_authors).
+CREATE TABLE IF NOT EXISTS groups (
+    id               TEXT PRIMARY KEY,   -- random token from the app, also the invite
+    name             TEXT NOT NULL CHECK (trim(name) <> ''),
+    created_at       TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_activity_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+
+-- One person in one group. The member token in the session cookie identifies them.
+CREATE TABLE IF NOT EXISTS group_members (
+    id           INTEGER PRIMARY KEY,
+    group_id     TEXT NOT NULL REFERENCES groups (id) ON DELETE CASCADE,
+    nickname     TEXT NOT NULL CHECK (trim(nickname) <> ''),
+    member_token TEXT NOT NULL UNIQUE,
+    is_creator   INTEGER NOT NULL DEFAULT 0 CHECK (is_creator IN (0, 1)),
+    joined_at    TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (group_id, nickname)
+);
+
+
+-- Which room belongs to which group. Deleting the group removes only this link.
+CREATE TABLE IF NOT EXISTS group_rooms (
+    room_id  TEXT PRIMARY KEY REFERENCES rooms (id) ON DELETE CASCADE,
+    group_id TEXT NOT NULL REFERENCES groups (id) ON DELETE CASCADE
+);
+
+
+-- Which room participant is which group member ("Join as ..."). Guests have no row.
+-- The primary key has its own line: the Postgres translation turns the words
+-- for an integer primary key into a counter, which is wrong for a link to another table.
+CREATE TABLE IF NOT EXISTS group_participants (
+    participant_id  INTEGER NOT NULL REFERENCES participants (id) ON DELETE CASCADE,
+    group_member_id INTEGER NOT NULL REFERENCES group_members (id) ON DELETE CASCADE,
+    PRIMARY KEY (participant_id)
+);
+
+
 -- The room setup (F27, specs/c9-room-setup.md, D17): what the group is planning and
 -- how many options each person may add. A table of its own, so init-db adds it to an
 -- existing database. A room without a row works as before (no kind, no limit).

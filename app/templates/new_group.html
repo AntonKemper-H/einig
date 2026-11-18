@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block title %}Create a group – Einig{% endblock %}
+
+{% block content %}
+  <h1>Create a group</h1>
+  <p>A fixed group keeps its members, so you can plan one activity after another.</p>
+
+  {% if errors %}
+    <ul role="alert">
+      {% for error in errors %}
+        <li>{{ error }}</li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+
+  <form action="{{ url_for('groups.create_group') }}" method="post">
+    <label>
+      Group name
+      <input type="text" name="name" maxlength="60" required
+             placeholder="Friday friends" value="{{ form.name or '' }}">
+    </label>
+    <label>
+      Your nickname
+      <input type="text" name="nickname" maxlength="30" required
+             placeholder="Anna" value="{{ form.nickname or '' }}">
+    </label>
+    <button type="submit">Create group</button>
+  </form>
+{% endblock %}
