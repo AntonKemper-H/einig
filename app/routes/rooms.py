@@ -1121,7 +1121,7 @@ def save_vote(room_id: str):
 @bp.post("/rooms/<room_id>/veto")
 def save_veto(room_id: str):
     """F10: use this participant's one joker on an option, then back to the rating page (Post/Redirect/Get)."""
-    room = db.get_room(room_id)
+    room = close_if_time_is_up(db.get_room(room_id))
     if room is None:
         abort(404)
 
