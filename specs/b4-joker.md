@@ -96,6 +96,21 @@ No schema change: the `vetoes` table exists since A1.
 #### Code rules
 - [ ] `app/services/voting.py` and `app/services/results.py` still import no Flask, `requests` or `app.db`.
 
+## Follow-up with B5 (deadline, `specs/b5-deadline.md`)
+
+B5 was merged first, so B4 adds what B5's spec asks of "whichever is merged second". Tests: `tests/test_joker_deadline.py`.
+
+- `save_veto(room_id, participant_id, option_id, now: str | None = None) -> bool`: the room-row lock gets the same deadline condition as `save_vote` (`AND (deadline IS NULL OR deadline > ?)`, `now` as UTC text, `None` → server time). After the deadline it saves nothing and returns `False`.
+- The joker route calls `close_if_time_is_up` right after loading the room, like the other routes of B5.
+
+Must be true (one line = one test):
+- [ ] A joker before the deadline is saved (303).
+- [ ] A joker sent after the deadline (room still `voting` in the database): "This room is closed. You can no longer vote." (400), no joker saved, and the room is `closed` afterwards.
+- [ ] A joker that passes the route's check (simulated: the route still sees a deadline in the future) but reaches the database after the deadline: not saved, 400 with the closed message.
+- [ ] `save_veto` with `now` before the deadline saves and returns `True`; with `now` equal to or after the deadline it saves nothing and returns `False`.
+
+The two B4 tests that used the jokers after the last ratings (`test_vetoed_option_is_not_chosen`, `test_every_option_vetoed_fewest_jokers_then_best_score`) now use them before, because B5 closes the room after the last rating. No assertion changes; this needs the reviewer's OK (`AGENTS.md`).
+
 ## Out of scope
 
 - Taking a joker back or moving it (decided above: final).
