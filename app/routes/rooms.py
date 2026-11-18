@@ -800,8 +800,14 @@ def render_vote_page(room, participant, errors: list[str] | None = None):
         room["search_center_lng"],
     )
     cards = dict(zip(shown_ids, loaded))
+    # A10: the next card links to the place's Google Maps page (menu, reviews); no API call.
+    menu_url = None
+    # Only while voting: outside it no card is loaded (and none is shown).
+    if next_option in cards and cards[next_option]["source"] == "google":
+        menu_url = places.place_page_url(options[next_option]["place_id"], cards[next_option]["name"])
     return render_template(
         "vote.html",
+        menu_url=menu_url,
         room=room,
         cards=cards,
         order=order,

@@ -514,6 +514,20 @@ def route_url(place_id: str, name: str) -> str | None:
     return ROUTE_URL + "?" + urlencode(query)
 
 
+PLACE_PAGE_URL = "https://www.google.com/maps/search/"
+
+
+def place_page_url(place_id: str, name: str) -> str | None:
+    """A Google Maps link to the place's own page (menu tab, reviews), or None for a bad place id.
+
+    No key, no API call (A10). Like route_url, the place id decides which place opens.
+    """
+    if not PLACE_ID_PATTERN.fullmatch(place_id):
+        return None
+    query = {"api": "1", "query": name, "query_place_id": place_id}
+    return PLACE_PAGE_URL + "?" + urlencode(query)
+
+
 def load_winner(api_key: str | None, embed_key: str | None, option, card: dict | None = None) -> dict:
     """The card, map URL and route URL the result page shows for the winning option.
 
