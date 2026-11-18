@@ -409,6 +409,126 @@ def add_place_option(room_id: str, place_id: str, participant_id: int) -> bool:
     return True
 
 
+# --- Room setup and options per person (F27, specs/c9-room-setup.md) ---------------
+
+COUNT_OWN_OPTIONS_SQL = (
+    "SELECT COUNT(*) AS own_count FROM option_authors WHERE room_id = ? AND participant_id = ?"
+)
+
+
+def get_room_setup(room_id: str) -> sqlite3.Row | dict | None:
+    """Return the room's setup (activity, kind, options per person, …), or None if it has none."""
+    return get_db().execute(
+        "SELECT * FROM room_setups WHERE room_id = ?", (room_id,)
+    ).fetchone()
+
+
+def save_room_setup(
+    room_id: str, activity: str, kind: str, options_per_person: int | None
+) -> bool:
+    """Save or replace the room's setup. Returns False (and saves nothing) if the room is not collecting.
+
+    hide_ideas and reveal_places (A11) are left as they are when a setup is replaced.
+    """
+    with transaction() as connection:
+        # Lock the room row first, as save_vote does, so the setup and "Start voting"
+        # never overlap: a setup saved after the voting started finds the room locked
+        # or no longer collecting (review of #56).
+        lock = connection.execute(
+            "UPDATE rooms SET status = status WHERE id = ? AND status = 'collecting'",
+            (room_id,),
+        )
+        if lock.rowcount != 1:
+            return False
+        # One statement for "new" and "replace", so two saves at the same moment end in one row.
+        connection.execute(
+            "INSERT INTO room_setups (room_id, activity, kind, options_per_person)"
+            " VALUES (?, ?, ?, ?)"
+            " ON CONFLICT (room_id) DO UPDATE SET activity = excluded.activity,"
+            " kind = excluded.kind, options_per_person = excluded.options_per_person",
+            (room_id, activity, kind, options_per_person),
+        )
+    return True
+
+
+def count_own_options(room_id: str, participant_id: int) -> int:
+    """How many options this participant added to the room (typed or found by name; search results never count)."""
+    row = get_db().execute(COUNT_OWN_OPTIONS_SQL, (room_id, participant_id)).fetchone()
+    return row["own_count"]
+
+
+def add_manual_option_within_limit(
+    room_id: str, label: str, participant_id: int, options_per_person: int
+) -> str:
+    """Save a typed option only if the participant is below the room's limit, in one transaction.
+
+    Returns "added", "limit", "duplicate" or "not_collecting"; in the last three cases nothing is saved.
+    """
+    try:
+        with transaction() as connection:
+            # Lock the room row first, so two adds at the same moment are counted one after
+            # the other and can never both pass the limit (AGENTS.md, simultaneous actions).
+            lock = connection.execute(
+                "UPDATE rooms SET status = status WHERE id = ? AND status = 'collecting'",
+                (room_id,),
+            )
+            if lock.rowcount != 1:
+                return "not_collecting"
+            own_count = connection.execute(
+                COUNT_OWN_OPTIONS_SQL, (room_id, participant_id)
+            ).fetchone()["own_count"]
+            if own_count >= options_per_person:
+                return "limit"
+            option = connection.execute(
+                "INSERT INTO options (room_id, source, label) VALUES (?, 'manual', ?) RETURNING id",
+                (room_id, label),
+            ).fetchone()
+            connection.execute(
+                "INSERT INTO option_authors (option_id, room_id, participant_id) VALUES (?, ?, ?)",
+                (option["id"], room_id, participant_id),
+            )
+    except INTEGRITY_ERRORS:
+        # The same label saved a moment earlier (UNIQUE room_id, label); the transaction was rolled back.
+        return "duplicate"
+    return "added"
+
+
+def add_place_option_within_limit(
+    room_id: str, place_id: str, participant_id: int, options_per_person: int
+) -> str:
+    """Save a place found by name (C6) only if the participant is below the room's limit, in one transaction.
+
+    Returns "added", "limit", "duplicate" or "not_collecting"; in the last three cases nothing is saved.
+    """
+    try:
+        with transaction() as connection:
+            # Same three steps as add_manual_option_within_limit: lock, count, insert.
+            lock = connection.execute(
+                "UPDATE rooms SET status = status WHERE id = ? AND status = 'collecting'",
+                (room_id,),
+            )
+            if lock.rowcount != 1:
+                return "not_collecting"
+            own_count = connection.execute(
+                COUNT_OWN_OPTIONS_SQL, (room_id, participant_id)
+            ).fetchone()["own_count"]
+            if own_count >= options_per_person:
+                return "limit"
+            # No category, as in add_place_option: that marks a place picked by name.
+            option = connection.execute(
+                "INSERT INTO options (room_id, source, place_id) VALUES (?, 'google', ?) RETURNING id",
+                (room_id, place_id),
+            ).fetchone()
+            connection.execute(
+                "INSERT INTO option_authors (option_id, room_id, participant_id) VALUES (?, ?, ?)",
+                (option["id"], room_id, participant_id),
+            )
+    except INTEGRITY_ERRORS:
+        # Already an option of the room (UNIQUE room_id, place_id); the transaction was rolled back.
+        return "duplicate"
+    return "added"
+
+
 def delete_option(room_id: str, option_id: int) -> bool:
     """F24: delete an active option of a collecting room. Return False if nothing was deleted.
 

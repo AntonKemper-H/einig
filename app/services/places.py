@@ -81,13 +81,16 @@ def search_nearby(
     category: str,
     max_price_level: int | None,
     min_rating: float | None,
+    included_types: list[str] | None = None,
 ) -> list[str]:
     """Ask Google for places of one category around a point and return their ids, in Google's order.
 
+    With included_types (F27: all types of the room's kind), those types are searched
+    in the same one call instead of the category.
     Raises PlacesError if Google cannot be reached or answers with an error.
     """
     body = {
-        "includedTypes": [category],
+        "includedTypes": list(included_types) if included_types else [category],
         "maxResultCount": MAX_RESULT_COUNT,
         "locationRestriction": {
             "circle": {
@@ -168,16 +171,21 @@ def parse_location(latitude_text: str | None, longitude_text: str | None) -> tup
     return round_coordinate(latitude), round_coordinate(longitude)
 
 
-def validate_search(form) -> tuple[dict, list[str]]:
-    """Clean and check the search form. Returns the typed values and every error message."""
+def validate_search(form, category_required: bool = True) -> tuple[dict, list[str]]:
+    """Clean and check the search form. Returns the typed values and every error message.
+
+    With category_required=False (a room with a setup, F27) the category is neither
+    checked nor returned: the room's kind decides what is searched.
+    """
     cleaned: dict = {}
     errors = []
 
-    category = form.get("category") or ""
-    if category in CATEGORIES:
-        cleaned["category"] = category
-    else:
-        errors.append("Please choose a category.")
+    if category_required:
+        category = form.get("category") or ""
+        if category in CATEGORIES:
+            cleaned["category"] = category
+        else:
+            errors.append("Please choose a category.")
 
     radius_text = form.get("radius_m") or ""
     if radius_text in RADIUS_CHOICES:
@@ -249,15 +257,19 @@ def search_refusal(
     return None
 
 
-def filters_json(search: dict) -> str:
-    """The filters as JSON text for the room's `filters` column (C4 reuses them)."""
-    return json.dumps(
-        {
-            "category": search["category"],
-            "min_rating": search["min_rating"],
-            "max_price_level": search["max_price_level"],
-        }
-    )
+def filters_json(search: dict, kind: str | None = None) -> str:
+    """The filters as JSON text for the room's `filters` column (C4 reuses them).
+
+    In a room with a setup (F27) the category is null and the kind ("food.brunch") is stored.
+    """
+    filters = {
+        "category": search.get("category"),
+        "min_rating": search["min_rating"],
+        "max_price_level": search["max_price_level"],
+    }
+    if kind is not None:
+        filters["kind"] = kind
+    return json.dumps(filters)
 
 
 # --- C2b: Place Details and photos ---------------------------------------------------

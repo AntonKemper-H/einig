@@ -157,3 +157,18 @@ CREATE TABLE IF NOT EXISTS group_participants (
     group_member_id INTEGER NOT NULL REFERENCES group_members (id) ON DELETE CASCADE,
     PRIMARY KEY (participant_id)
 );
+
+
+-- The room setup (F27, specs/c9-room-setup.md, D17): what the group is planning and
+-- how many options each person may add. A table of its own, so init-db adds it to an
+-- existing database. A room without a row works as before (no kind, no limit).
+CREATE TABLE IF NOT EXISTS room_setups (
+    room_id            TEXT PRIMARY KEY REFERENCES rooms (id) ON DELETE CASCADE,
+    activity           TEXT NOT NULL CHECK (trim(activity) <> ''),
+    kind               TEXT NOT NULL CHECK (trim(kind) <> ''),
+    -- NULL means unlimited.
+    options_per_person INTEGER CHECK (options_per_person BETWEEN 1 AND 5),
+    -- Used by A11 (F28, hidden collecting); C9 only creates them with today's behaviour.
+    hide_ideas         INTEGER NOT NULL DEFAULT 0 CHECK (hide_ideas IN (0, 1)),
+    reveal_places      INTEGER NOT NULL DEFAULT 1 CHECK (reveal_places IN (0, 1))
+);
