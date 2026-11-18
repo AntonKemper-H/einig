@@ -54,10 +54,19 @@
 
   {% elif next_option is not none %}
     <p>Option {{ position }} of {{ order|length }}</p>
-    <article>
-      {{ option_heading(next_option) }}
+    {# A10: swipe.js removes "hidden", so the hint only shows where swiping works. #}
+    <p hidden data-swipe-hint>Swipe right: Rather yes · up: Fine with me · left: Rather not</p>
+    <article data-swipe-card>
+      {# Only the place part can be dragged; the buttons below keep normal taps and scrolling. #}
+      <div data-swipe-area>
+        {{ option_heading(next_option) }}
+      </div>
+      {% if menu_url %}
+        <p><a href="{{ menu_url }}" target="_blank" rel="noopener noreferrer">Menu &amp; reviews on Google Maps</a></p>
+      {% endif %}
       {{ rating_form(next_option) }}
     </article>
+    <script src="{{ url_for('static', filename='js/swipe.js') }}" defer></script>
 
   {% else %}
     <p>You have rated all options.</p>
