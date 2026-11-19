@@ -426,11 +426,17 @@ def get_room_setup(room_id: str) -> sqlite3.Row | dict | None:
 
 
 def save_room_setup(
-    room_id: str, activity: str, kind: str, options_per_person: int | None
+    room_id: str,
+    activity: str,
+    kind: str,
+    options_per_person: int | None,
+    hide_ideas: int | None = None,
+    reveal_places: int | None = None,
 ) -> bool:
     """Save or replace the room's setup. Returns False (and saves nothing) if the room is not collecting.
 
-    hide_ideas and reveal_places (A11) are left as they are when a setup is replaced.
+    hide_ideas and reveal_places (A11, F28): None leaves them as they are (a new setup
+    gets the table defaults 0 and 1); 0 or 1 stores the creator's choice.
     """
     with transaction() as connection:
         # Lock the room row first, as save_vote does, so the setup and "Start voting"
@@ -443,13 +449,24 @@ def save_room_setup(
         if lock.rowcount != 1:
             return False
         # One statement for "new" and "replace", so two saves at the same moment end in one row.
-        connection.execute(
-            "INSERT INTO room_setups (room_id, activity, kind, options_per_person)"
-            " VALUES (?, ?, ?, ?)"
-            " ON CONFLICT (room_id) DO UPDATE SET activity = excluded.activity,"
-            " kind = excluded.kind, options_per_person = excluded.options_per_person",
-            (room_id, activity, kind, options_per_person),
-        )
+        if hide_ideas is None or reveal_places is None:
+            connection.execute(
+                "INSERT INTO room_setups (room_id, activity, kind, options_per_person)"
+                " VALUES (?, ?, ?, ?)"
+                " ON CONFLICT (room_id) DO UPDATE SET activity = excluded.activity,"
+                " kind = excluded.kind, options_per_person = excluded.options_per_person",
+                (room_id, activity, kind, options_per_person),
+            )
+        else:
+            connection.execute(
+                "INSERT INTO room_setups"
+                " (room_id, activity, kind, options_per_person, hide_ideas, reveal_places)"
+                " VALUES (?, ?, ?, ?, ?, ?)"
+                " ON CONFLICT (room_id) DO UPDATE SET activity = excluded.activity,"
+                " kind = excluded.kind, options_per_person = excluded.options_per_person,"
+                " hide_ideas = excluded.hide_ideas, reveal_places = excluded.reveal_places",
+                (room_id, activity, kind, options_per_person, hide_ideas, reveal_places),
+            )
     return True
 
 

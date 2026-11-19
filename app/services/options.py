@@ -56,3 +56,51 @@ def delete_error(
     if not may_delete(is_creator, participant_id, added_by):
         return DELETE_NOT_ALLOWED_MESSAGE, 403
     return None
+
+
+# --- Hidden collecting (F28, specs/a11-hidden-collecting.md, D17) -------------------
+
+SAME_IDEA_MESSAGE = "Someone already had the same idea – it is already in the room."
+BEEN_THERE_SECRET_MESSAGE = '"Been there" is not available while the suggested places are secret.'
+
+
+def is_suggested_place(option) -> bool:
+    """A place from "Places nearby" or "Surprise me": from Google and added by nobody."""
+    return option["source"] == "google" and option["added_by"] is None
+
+
+def visible_options(
+    options: list, participant_id: int, hide_ideas: bool, reveal_places: bool
+) -> tuple[list, int, int]:
+    """Which options this participant may see while the room is collecting.
+
+    Returns the visible options (in the original order), the number of hidden ideas
+    of others and the number of hidden suggested places. Own ideas are always shown.
+    """
+    shown = []
+    hidden_ideas = 0
+    hidden_places = 0
+    for option in options:
+        if is_suggested_place(option):
+            if reveal_places:
+                shown.append(option)
+            else:
+                hidden_places += 1
+        elif option["added_by"] == participant_id or not hide_ideas:
+            shown.append(option)
+        else:
+            hidden_ideas += 1
+    return shown, hidden_ideas, hidden_places
+
+
+def hidden_ideas_text(count: int) -> str:
+    """"Others have added 1 idea." / "Others have added 4 ideas."."""
+    word = "idea" if count == 1 else "ideas"
+    return f"Others have added {count} {word}."
+
+
+def hidden_places_text(count: int) -> str:
+    """The line instead of the secret suggested places."""
+    if count == 1:
+        return "1 suggested place is waiting – you will see it when the voting starts."
+    return f"{count} suggested places are waiting – you will see them when the voting starts."
