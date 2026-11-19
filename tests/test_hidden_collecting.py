@@ -24,6 +24,7 @@ from app.services import places, surprise
 
 FAKE_KEY = "fake-key-for-tests-0123456789"
 NEARBY_URL = "https://places.googleapis.com/v1/places:searchNearby"
+TEXT_SEARCH_URL = "https://places.googleapis.com/v1/places:searchText"
 DETAILS_URL = "https://places.googleapis.com/v1/places/"
 LATITUDE = "38.737"
 LONGITUDE = "-9.153"
@@ -31,6 +32,7 @@ LONGITUDE = "-9.153"
 HIDE_IDEAS_TEXT = "Keep everyone's ideas secret until voting"
 REVEAL_PLACES_TEXT = "Show suggested places to everyone before voting"
 SAME_IDEA_MESSAGE = "Someone already had the same idea – it is already in the room."
+ALREADY_AN_OPTION_MESSAGE = "This place is already an option."
 SECRET_PLACES_BEEN_THERE_MESSAGE = '"Been there" is not available while the suggested places are secret.'
 PLACES_WAITING_TEXT = "5 suggested places are waiting – you will see them when the voting starts."
 
@@ -62,16 +64,21 @@ class FakeGoogle:
     """Replaces requests.post and requests.get.
 
     Nearby Search answers with 15 places named after the first requested type, so
-    every surprise search finds enough places. Place Details answers every place id
-    with the name "Spot <place id>".
+    every surprise search finds enough places. Text Search ("Find on Google Maps")
+    answers with one match, the place id in `text_match`. Place Details answers every
+    place id with the name "Spot <place id>".
     """
 
     def __init__(self):
         self.posts = []
         self.gets = []
+        self.text_match = "place-luigi"
 
     def post(self, url, **kwargs):
         self.posts.append({"url": url, **kwargs})
+        if url == TEXT_SEARCH_URL:
+            match = {"id": self.text_match, "displayName": {"text": "Trattoria Luigi"}, "formattedAddress": "Rua Augusta 10"}
+            return FakeResponse(body={"places": [match]})
         place_type = kwargs["json"]["includedTypes"][0]
         return FakeResponse(body={"places": [{"id": f"{place_type}-{number}"} for number in range(15)]})
 
@@ -131,6 +138,13 @@ def surprise_me(client, room_id):
     response = client.post(f"/rooms/{room_id}/surprise", data=form)
     assert response.status_code in (302, 303)
     return response
+
+
+def find_and_add(client, room_id, place_id):
+    """"Find on Google Maps" (C6): search by name, then pick the match with this place id."""
+    response = client.post(f"/rooms/{room_id}/find", data={"name": "Trattoria Luigi"})
+    assert response.status_code == 200
+    return client.post(f"/rooms/{room_id}/find/add", data={"place_id": place_id})
 
 
 def page(client, room_id):
@@ -413,6 +427,41 @@ def test_same_label_as_a_hidden_idea_is_rejected(app, hidden_room):
     assert CREATOR_IDEA not in without_typed_label(html, CREATOR_IDEA)
     assert snapshot(app) == before
     assert CREATOR_IDEA not in page(hidden_room["guest"], room_id)
+
+    # The same rule ignores upper/lower case, like the normal duplicate check.
+    response = add_option(hidden_room["guest"], room_id, CREATOR_IDEA.lower())
+    assert response.status_code == 400
+    assert SAME_IDEA_MESSAGE in response.data.decode()
+    assert snapshot(app) == before
+
+
+def test_finding_a_hidden_place_by_name_is_rejected(app, client, google):
+    room_id = create_room(client, mode="surprise")
+    save_setup(client, room_id, hide=True, reveal=False)
+    guest = join(app, room_id)
+    google.text_match = "place-luigi"
+    assert find_and_add(client, room_id, "place-luigi").status_code in (302, 303)
+    surprise_me(client, room_id)
+    secret_place = next(row["place_id"] for row in active_options(app, room_id) if row["place_id"] != "place-luigi")
+
+    # The creator's hidden idea, and a secret suggested place.
+    for place_id in ("place-luigi", secret_place):
+        google.text_match = place_id
+        before = snapshot(app)
+        response = find_and_add(guest, room_id, place_id)
+        html = response.data.decode()
+        assert response.status_code == 400
+        assert SAME_IDEA_MESSAGE in html
+        assert snapshot(app) == before
+        assert not any(shows_place(html, other) for other in place_ids(app, room_id))
+
+    # A place the guest can see keeps the normal message.
+    google.text_match = "place-own"
+    assert find_and_add(guest, room_id, "place-own").status_code in (302, 303)
+    response = find_and_add(guest, room_id, "place-own")
+    assert response.status_code == 400
+    assert ALREADY_AN_OPTION_MESSAGE in response.data.decode()
+    assert SAME_IDEA_MESSAGE not in response.data.decode()
 
 
 def test_same_label_as_own_idea_keeps_the_normal_message(app, hidden_room):
