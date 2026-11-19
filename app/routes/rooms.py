@@ -1,13 +1,14 @@
 """Room pages: create a room (F1), show and join it (F2), add and delete options (F3, F24),
 lobby and start voting (F7), suggest places nearby (F8), surprise mode (F12),
 "Been there" (F13), find a place by name (F23), delete an option (F24),
-rating (F4), joker (F10), close the room and show the result (F6), deadline and "everyone done" (F11),
+rating (F4), joker (F10), close the room and show the result (F6), share it (F29), deadline and "everyone done" (F11),
 "Join as ..." in a group room (F16), room setup (F27)."""
 
 import random
 
 from flask import (
     Blueprint,
+    Response,
     abort,
     current_app,
     redirect,
@@ -19,7 +20,7 @@ from flask import (
 
 from app import db
 from app.routes.main import render_home
-from app.services import activities, places, qr, surprise
+from app.services import activities, places, qr, share, surprise
 from app.services import deadline as deadline_rules
 from app.services import lobby as lobby_rules
 from app.services import options as option_rules
@@ -1172,25 +1173,16 @@ def close_room(room_id: str):
     return redirect(url_for("rooms.show_result", room_id=room_id), code=303)
 
 
-@bp.get("/rooms/<room_id>/result")
-def show_result(room_id: str):
-    """F6: the winner and anonymous counts per option. Who rated what is never shown."""
-    room = close_if_time_is_up(db.get_room(room_id))
-    if room is None:
-        abort(404)
-    participant = db.get_participant(room_id, session_token_for(room_id))
-    if participant is None:
-        # Visitors join first; the join form is on the room page.
-        return redirect(url_for("rooms.show_room", room_id=room_id), code=303)
-
-    options = db.get_rateable_options(room_id)
+def render_result_page(room, errors: list[str] | None = None):
+    """Render the result page (F6): the winner, anonymous counts and the share buttons (F29)."""
+    options = db.get_rateable_options(room["id"])
     option_ids = [option["id"] for option in options]
-    counts = result_rules.rating_counts(option_ids, db.get_votes(room_id))
+    counts = result_rules.rating_counts(option_ids, db.get_votes(room["id"]))
     # F10: anonymous joker counts only, never who used a joker.
-    vetoed_option_ids = db.get_vetoed_option_ids(room_id)
+    vetoed_option_ids = db.get_vetoed_option_ids(room["id"])
     joker_counts = result_rules.veto_counts(option_ids, vetoed_option_ids)
     every_option_vetoed = result_rules.every_option_vetoed(option_ids, vetoed_option_ids)
-    winner_option_id = db.get_winner_option_id(room_id)
+    winner_option_id = db.get_winner_option_id(room["id"])
 
     # C2c: names for the count list. Google is only called once the room is closed (before
     # that the page shows no list), with one Place Details call per Google option.
@@ -1217,6 +1209,12 @@ def show_result(room_id: str):
                 winner_option,
                 card=cards[winner_option_id],
             )
+    # F29: share buttons only for a closed room with a winner (D18).
+    share_url = None
+    if winner is not None:
+        share_url = share.whatsapp_url(
+            share.share_text(room["title"], labels[winner_option_id], winner["route_url"])
+        )
     return render_template(
         "result.html",
         room=room,
@@ -1227,4 +1225,59 @@ def show_result(room_id: str):
         rating_labels=voting_rules.RATING_LABELS,
         joker_counts=joker_counts,
         every_option_vetoed=every_option_vetoed,
+        share_url=share_url,
+        errors=errors or [],
+    )
+
+
+@bp.get("/rooms/<room_id>/result")
+def show_result(room_id: str):
+    """F6: the winner and anonymous counts per option. Who rated what is never shown."""
+    room = close_if_time_is_up(db.get_room(room_id))
+    if room is None:
+        abort(404)
+    participant = db.get_participant(room_id, session_token_for(room_id))
+    if participant is None:
+        # Visitors join first; the join form is on the room page.
+        return redirect(url_for("rooms.show_room", room_id=room_id), code=303)
+
+    return render_result_page(room)
+
+
+@bp.get("/rooms/<room_id>/calendar.ics")
+def calendar_file(room_id: str):
+    """F29: the group's choice as a calendar file, at the date and time the participant entered.
+
+    A GET, because nothing is stored: the file is built from the form and the stored
+    winner, and reloading it is harmless (D18, review of #45).
+    """
+    room = close_if_time_is_up(db.get_room(room_id))
+    if room is None:
+        abort(404)
+    participant = db.get_participant(room_id, session_token_for(room_id))
+    if participant is None:
+        # Like the result page: visitors join first.
+        return redirect(url_for("rooms.show_room", room_id=room_id), code=303)
+
+    winner_option_id = db.get_winner_option_id(room_id)
+    if room["status"] != "closed" or winner_option_id is None:
+        return render_result_page(room, [share.NO_RESULT_MESSAGE]), 400
+    start, errors = share.parse_meeting_time(request.args.get("date"), request.args.get("time"))
+    if errors:
+        return render_result_page(room, errors), 400
+
+    # The winner's name comes fresh from Google (one Place Details call), never stored.
+    winner_option = next(
+        option for option in db.get_rateable_options(room_id) if option["id"] == winner_option_id
+    )
+    winner = places.load_winner(current_app.config.get("GOOGLE_MAPS_API_KEY"), None, winner_option)
+    card = winner["card"]
+    winner_name = card["name"] if card["source"] == "google" else card["label"]
+    body = share.build_ics(
+        room_id, room["title"], winner_name, start, winner["route_url"], deadline_rules.now_utc()
+    )
+    return Response(
+        body,
+        mimetype="text/calendar",
+        headers={"Content-Disposition": 'attachment; filename="einig.ics"'},
     )
