@@ -760,6 +760,44 @@ def get_vetoed_option_ids(room_id: str) -> list[int]:
     return [row["option_id"] for row in rows]
 
 
+def get_own_veto(room_id: str, participant_id: int) -> int | None:
+    """Return the option this participant used their joker on (F10), or None. Only ever shown to themselves."""
+    row = get_db().execute(
+        "SELECT option_id FROM vetoes WHERE room_id = ? AND participant_id = ?",
+        (room_id, participant_id),
+    ).fetchone()
+    return None if row is None else row["option_id"]
+
+
+def save_veto(room_id: str, participant_id: int, option_id: int, now: str | None = None) -> bool:
+    """Save this participant's joker. Returns False (and saves nothing) if the room is no longer voting.
+
+    Also False once the deadline has passed (B5: `now` is the UTC text to compare
+    with, default the server time), the same rule as save_vote.
+    Call it inside db.transaction(), which commits. A second joker by the same
+    participant breaks UNIQUE (participant_id, room_id) and raises one of
+    INTEGRITY_ERRORS, so two presses at the same moment end with one joker.
+    """
+    connection = get_db()
+    # The same room-row lock as save_vote: a joker and closing the room (B3) never
+    # overlap, so a joker that arrives after the close is not counted afterwards.
+    # rowcount works on sqlite3 and psycopg alike.
+    if now is None:
+        now = deadline_rules.format_utc(deadline_rules.now_utc())
+    lock = connection.execute(
+        "UPDATE rooms SET status = status"
+        " WHERE id = ? AND status = 'voting' AND (deadline IS NULL OR deadline > ?)",
+        (room_id, now),
+    )
+    if lock.rowcount != 1:
+        return False
+    connection.execute(
+        "INSERT INTO vetoes (room_id, participant_id, option_id) VALUES (?, ?, ?)",
+        (room_id, participant_id, option_id),
+    )
+    return True
+
+
 def claim_close(room_id: str) -> bool:
     """Switch the room from voting to closed. Return False if it was not voting (any more).
 

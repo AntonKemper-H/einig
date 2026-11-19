@@ -1,7 +1,7 @@
 """Room pages: create a room (F1), show and join it (F2), add and delete options (F3, F24),
 lobby and start voting (F7), suggest places nearby (F8), surprise mode (F12),
 "Been there" (F13), find a place by name (F23), delete an option (F24),
-rating (F4), close the room and show the result (F6), deadline and "everyone done" (F11),
+rating (F4), joker (F10), close the room and show the result (F6), deadline and "everyone done" (F11),
 "Join as ..." in a group room (F16), room setup (F27)."""
 
 import random
@@ -1026,6 +1026,23 @@ def render_vote_page(room, participant, errors: list[str] | None = None):
     # Only while voting: outside it no card is loaded (and none is shown).
     if next_option in cards and cards[next_option]["source"] == "google":
         menu_url = places.place_page_url(options[next_option]["place_id"], cards[next_option]["name"])
+
+    # F10: only this participant's own joker (nobody sees who used a joker on what).
+    # Its name comes from the cards already loaded; if that option is not shown on this
+    # page, only that one option is loaded (at most one extra call, and only after a joker).
+    own_veto = db.get_own_veto(room["id"], participant["id"])
+    own_veto_name = None
+    if room["status"] == "voting" and own_veto in options:
+        if own_veto in cards:
+            veto_card = cards[own_veto]
+        else:
+            veto_card = places.load_cards(
+                current_app.config.get("GOOGLE_MAPS_API_KEY"),
+                [options[own_veto]],
+                room["search_center_lat"],
+                room["search_center_lng"],
+            )[0]
+        own_veto_name = veto_card["name"] if veto_card["source"] == "google" else veto_card["label"]
     return render_template(
         "vote.html",
         menu_url=menu_url,
@@ -1041,6 +1058,8 @@ def render_vote_page(room, participant, errors: list[str] | None = None):
         errors=errors or [],
         # Only the creator gets the close button (B3); the close route checks it again.
         is_creator=bool(participant["is_creator"]),
+        own_veto=own_veto,
+        own_veto_name=own_veto_name,
         time_left=time_left_for(room),
     )
 
@@ -1099,6 +1118,37 @@ def save_vote(room_id: str):
     return redirect(url_for("rooms.show_vote", room_id=room_id), code=303)
 
 
+@bp.post("/rooms/<room_id>/veto")
+def save_veto(room_id: str):
+    """F10: use this participant's one joker on an option, then back to the rating page (Post/Redirect/Get)."""
+    room = close_if_time_is_up(db.get_room(room_id))
+    if room is None:
+        abort(404)
+
+    # Every write route checks the token on the server (AGENTS.md, Identity and access).
+    participant = db.get_participant(room_id, session_token_for(room_id))
+    if participant is None:
+        return render_room_page(room, None, errors=[NOT_JOINED_VOTE_MESSAGE]), 403
+
+    rateable_ids = [option["id"] for option in db.get_rateable_options(room_id)]
+    option_id = voting_rules.parse_option_id(request.form.get("option_id"))
+    own_veto = db.get_own_veto(room_id, participant["id"])
+    errors = voting_rules.veto_errors(room["status"], option_id, rateable_ids, own_veto)
+    if errors:
+        return render_vote_page(room, participant, errors), 400
+
+    try:
+        with db.transaction():
+            if not db.save_veto(room_id, participant["id"], option_id):
+                # The room was closed between the status check above and this write (B3).
+                return render_vote_page(room, participant, [voting_rules.CLOSED_MESSAGE]), 400
+    except db.INTEGRITY_ERRORS:
+        # Two presses at the same moment: the UNIQUE constraint kept the first joker.
+        return render_vote_page(room, participant, [voting_rules.JOKER_USED_MESSAGE]), 400
+
+    return redirect(url_for("rooms.show_vote", room_id=room_id), code=303)
+
+
 @bp.post("/rooms/<room_id>/close")
 def close_room(room_id: str):
     """F6: the creator closes the room; the winner is chosen once and stored (Post/Redirect/Get)."""
@@ -1136,6 +1186,10 @@ def show_result(room_id: str):
     options = db.get_rateable_options(room_id)
     option_ids = [option["id"] for option in options]
     counts = result_rules.rating_counts(option_ids, db.get_votes(room_id))
+    # F10: anonymous joker counts only, never who used a joker.
+    vetoed_option_ids = db.get_vetoed_option_ids(room_id)
+    joker_counts = result_rules.veto_counts(option_ids, vetoed_option_ids)
+    every_option_vetoed = result_rules.every_option_vetoed(option_ids, vetoed_option_ids)
     winner_option_id = db.get_winner_option_id(room_id)
 
     # C2c: names for the count list. Google is only called once the room is closed (before
@@ -1171,4 +1225,6 @@ def show_result(room_id: str):
         winner_option_id=winner_option_id,
         winner=winner,
         rating_labels=voting_rules.RATING_LABELS,
+        joker_counts=joker_counts,
+        every_option_vetoed=every_option_vetoed,
     )

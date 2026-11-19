@@ -20,6 +20,17 @@
   </form>
 {% endmacro %}
 
+{% macro joker_form(option_id) %}
+  {# F10: a separate form below the rating buttons, without name="rating", so the
+     A10 swipe (which presses button[name="rating"]) can never use the joker. #}
+  {% if own_veto is none %}
+    <form action="{{ url_for('rooms.save_veto', room_id=room.id) }}" method="post">
+      <input type="hidden" name="option_id" value="{{ option_id }}">
+      <button type="submit" class="secondary">Use my joker on this option (cannot be undone)</button>
+    </form>
+  {% endif %}
+{% endmacro %}
+
 {% macro option_heading(option_id) %}
   {# C2c: a Google option as its card (name, photo, facts), a manual option by its label. #}
   {% set card = cards[option_id] %}
@@ -65,6 +76,7 @@
         <p><a href="{{ menu_url }}" target="_blank" rel="noopener noreferrer">Menu &amp; reviews on Google Maps</a></p>
       {% endif %}
       {{ rating_form(next_option) }}
+      {{ joker_form(next_option) }}
     </article>
     <script src="{{ url_for('static', filename='js/swipe.js') }}" defer></script>
 
@@ -76,8 +88,13 @@
         {{ option_heading(option_id) }}
         <p>Your rating: {{ rating_labels[own_ratings[option_id]] }}</p>
         {{ rating_form(option_id) }}
+        {{ joker_form(option_id) }}
       </article>
     {% endfor %}
+  {% endif %}
+
+  {% if own_veto_name %}
+    <p>You used your joker on: {{ own_veto_name }}</p>
   {% endif %}
 
   {% if room.status == "voting" and is_creator %}

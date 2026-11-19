@@ -31,6 +31,11 @@
       <p>No winner: nobody rated any option.</p>
     {% endif %}
 
+    {% if winner_option_id is not none and every_option_vetoed %}
+      {# F10: without this, a winner with a joker would look like a mistake. #}
+      <p>Every option got a joker, so the option with the fewest jokers won.</p>
+    {% endif %}
+
     {# Anonymous counts only (AGENTS.md: individual votes are private, no names here). #}
     <h3>How the options were rated</h3>
     <ul>
@@ -38,6 +43,7 @@
         <li>
           <strong>{{ labels[option_id] }}</strong><br>
           {{ count.yes }}× {{ rating_labels.yes }} · {{ count.ok }}× {{ rating_labels.ok }} · {{ count.no }}× {{ rating_labels.no }}
+          {% if joker_counts.get(option_id) %} · excluded by {{ joker_counts[option_id] }}× joker{% endif %}
         </li>
       {% endfor %}
     </ul>

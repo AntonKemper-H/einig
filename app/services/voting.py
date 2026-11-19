@@ -1,4 +1,4 @@
-"""Rules for the three-level rating (spec: specs/b2-rating.md).
+"""Rules for the three-level rating (spec: specs/b2-rating.md) and the joker (specs/b4-joker.md).
 
 Pure functions only: plain Python data in, plain Python data out. The route
 looks up the room, the options and the ratings, so nothing here needs Flask
@@ -15,6 +15,7 @@ NOT_STARTED_MESSAGE = "Voting has not started yet."
 CLOSED_MESSAGE = "This room is closed. You can no longer vote."
 INVALID_RATING_MESSAGE = "Please choose one of the three ratings."
 UNKNOWN_OPTION_MESSAGE = "This option does not exist in this room."
+JOKER_USED_MESSAGE = "You have already used your joker in this room."
 
 
 def rating_order(option_ids: list[int], seed: str) -> list[int]:
@@ -58,6 +59,26 @@ def vote_errors(
         return [CLOSED_MESSAGE]
     if rating not in RATING_LABELS:
         return [INVALID_RATING_MESSAGE]
+    if option_id not in rateable_option_ids:
+        return [UNKNOWN_OPTION_MESSAGE]
+    return []
+
+
+def veto_errors(
+    room_status: str, option_id: int | None, rateable_option_ids: list[int], own_veto: int | None
+) -> list[str]:
+    """Check a joker (F10, specs/b4-joker.md). Returns at most one message: the first rule that fails.
+
+    Same order idea as vote_errors: the room status first, so a joker in a closed
+    room is always answered with "closed". "Already used" comes before the option
+    check, because a used joker is final whatever option is posted.
+    """
+    if room_status == "collecting":
+        return [NOT_STARTED_MESSAGE]
+    if room_status != "voting":
+        return [CLOSED_MESSAGE]
+    if own_veto is not None:
+        return [JOKER_USED_MESSAGE]
     if option_id not in rateable_option_ids:
         return [UNKNOWN_OPTION_MESSAGE]
     return []
