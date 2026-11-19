@@ -12,6 +12,7 @@ The checks look for texts, form actions and status codes, not for the page layou
 so they stay true when B6 reorders the room page.
 """
 
+import html as html_lib
 import re
 
 import pytest
@@ -396,7 +397,8 @@ def test_been_there_on_a_secret_place_is_rejected(app, google, secret_surprise_r
 
     response = secret_surprise_room["guest"].post(f"/rooms/{room_id}/options/{option['id']}/been-there")
     assert response.status_code == 400
-    assert SECRET_PLACES_BEEN_THERE_MESSAGE in response.data.decode()
+    # Jinja escapes the quotes (&#34;), so compare the unescaped text.
+    assert SECRET_PLACES_BEEN_THERE_MESSAGE in html_lib.unescape(response.data.decode())
     assert snapshot(app) == before
     assert len(google.posts) == posts_before
 
