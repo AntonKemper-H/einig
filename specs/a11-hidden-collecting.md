@@ -3,7 +3,7 @@
 Branch: `feature-a11-hidden-collecting`
 Tests: `tests/test_hidden_collecting.py`
 
-Decision: `docs/decisions.md`, D17. Built after **C9** (the `room_setups` table with `hide_ideas` and `reveal_places`, and the setup form) and **B6** (room page layout) are merged. Uses A7's `option_authors` to know whose option is whose. No schema change.
+Decision: `docs/decisions.md`, D17. Built after **C9** (the `room_setups` table with `hide_ideas` and `reveal_places`, and the setup form), which is merged. **B6** (room page layout) was planned first; because of the submission date, A11 is built in parallel with B6 (2026-11-19). The tests check texts, form actions and status codes, not the layout, so they stay true when B6 reorders the room page; whichever of the two is merged second takes over the other's `room.html` changes. Uses A7's `option_authors` to know whose option is whose. No schema change.
 
 ## Why
 When everyone sees everyone's ideas while collecting, people copy or simply wait for the loudest person's suggestion. Keeping ideas secret until voting makes each person bring their own, and keeping the app's suggestions secret turns "Surprise me" into a real surprise. Rooms that do not choose this must behave exactly as today.
