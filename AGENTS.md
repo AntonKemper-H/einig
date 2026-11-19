@@ -43,7 +43,7 @@ Read before working:
   - `app/static/js/geolocation.js` – asks for the browser location and puts rounded coordinates into a hidden form field
   - `app/static/sw.js` – minimal service worker for PWA installability (no offline caching of dynamic pages)
   - `app/static/js/register-sw.js` – registers the service worker
-  - `app/static/js/swipe.js` – lets a participant swipe the rating card; it only presses the rating button that is already on the page (D16), and turns the card over on a short tap by clicking the card's flip checkbox (D19)
+  - `app/static/js/swipe.js` – lets a participant swipe the rating card; it only presses the rating button that is already on the page (D16), and turns the card over on a short tap by clicking the card's flip checkbox (D19); a touch that starts on a link is left alone
   Keep each file short and commented. All other behaviour uses HTML forms and server-side Python.
 - **Live updates use meta refresh**, not JavaScript: waiting and lobby pages include `<meta http-equiv="refresh" content="4">`.
 - **Forms follow Post/Redirect/Get:** every POST handler redirects to a GET page so reloading never resubmits a vote.
@@ -173,7 +173,7 @@ With hidden collecting (F28, D17), no page shows another participant's options b
   Finding a place by name (F23, D14) uses `POST https://places.googleapis.com/v1/places:searchText` with the same headers and a field mask.
 - **Always send a field mask** with only the fields the UI displays. Never use `*`.
 - **One search per room**, not per participant. Surprise mode may run a few small searches with different place types and mix the results. Exception: finding a place by name (F23, D14) is one Text Search per search a participant sends, with at most 5 results. Exception: the "My places" cards and the place maps (F26, D15) load details per person and per group, with at most 25 pins per map.
-- **Reviews, summaries and "serves" fields** (F30, D19) are loaded only for the one card on the rating page, in its single details call, and shown with the author's name and link and Google's disclosure text.
+- **Reviews and "serves" fields** (F30, D19) are loaded only for the one card on the rating page, in its single details call. Each review is shown unchanged with its author's name, photo and profile link and a link to the review on Google Maps.
 - **Store only `place_id`** permanently. Name, photo, rating etc. are fetched when needed and not written to the database.
 - **Photos go through a backend proxy route** (`/photo/<photo_name>`) so the API key never appears in HTML. **Maps of collected places** go through `/map/...` the same way.
 - **Map of the winner:** Maps Embed API in an `<iframe>`, using the separate, browser-restricted key `GOOGLE_MAPS_EMBED_KEY`. Route link: a normal Google Maps URL, no API call.
