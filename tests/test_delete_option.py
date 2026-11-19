@@ -256,7 +256,7 @@ def test_author_is_not_shown_to_others(app, other_guest, room_id):
     # B6: names may appear in the room page's participants list (who has joined),
     # but nowhere else, so nobody can see who added which option.
     outside_participants = re.sub(
-        r"<details>\s*<summary>\s*Participants \(.*?</details>", "", html, flags=re.DOTALL
+        r"<details\b[^>]*>\s*<summary>\s*Participants \(.*?</details>", "", html, flags=re.DOTALL
     )
     assert "Bartholomew" not in outside_participants
 

@@ -381,7 +381,7 @@ def test_picker_is_stored_as_author_and_not_shown(app, client, guest, room_id):
     # Who added an option is never shown to others. B6: names may appear in the room
     # page's participants list (who has joined), but nowhere else.
     outside_participants = re.sub(
-        r"<details>\s*<summary>\s*Participants \(.*?</details>", "", page(client, room_id), flags=re.DOTALL
+        r"<details\b[^>]*>\s*<summary>\s*Participants \(.*?</details>", "", page(client, room_id), flags=re.DOTALL
     )
     assert "Ben" not in outside_participants
 
