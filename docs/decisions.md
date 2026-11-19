@@ -245,7 +245,7 @@ Rules:
 - **Privacy:** the message and the file contain only the room title, the winner's name and the route link. No nicknames, no counts, no jokers, and never the invite link. Who shares it with whom is up to the person.
 - **Google terms:** the winner's name comes fresh from Place Details, as on the result page (C3, C2c); it is not written to the database. A manual winner has no place id, so its message and file have no route link.
 - **Who and when:** only joined participants of the room, only when the room is `closed` and has a winner. Otherwise there is no button, and the `.ics` route answers like the result page (visitors to the join form, no winner → a message).
-- **Time zone:** the file uses "floating" local time (no time zone in the file), so 19:00 stays 19:00 on everyone's phone. Fine for groups that meet in one city.
+- **Time zone:** the entered time is read as Europe/Lisbon time and written to the file in UTC (`DTSTART:…Z`), so every calendar app shows the right time, also across summer time (`zoneinfo` from the standard library). Only if the server has no time-zone data does the file fall back to "floating" local time. *(Changed in B7 after the review of #45: a file without a time zone often ends up an hour off.)*
 - **Code:** two pure helpers in `app/services/` (build the WhatsApp text and link; build the `.ics` text with correct escaping, CRLF line endings and line folding), both unit-tested; the route stays thin. Only the Python standard library (`urllib.parse`, `datetime`).
 
 **Task:** B7 F29 (Track B, Timonhio), own spec `specs/b7-share-result.md`, tests reviewed before the implementation (D9). It comes after B4 and B5. If time runs short it is dropped without loss: the result page is complete without it.

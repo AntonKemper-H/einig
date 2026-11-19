@@ -39,10 +39,10 @@ Each line is one task: own spec in `specs/`, own branch, own pull request, fresh
 - [x] B1 F5 Winner algorithm in `services/scoring.py` – pure functions (PR #6)
 - [x] B2 F4 Three-level rating (PR #11)
 - [x] B3 F6 Result page (PR #19)
-- [ ] B4 F10 Joker / veto
-- [ ] B5 F11 Deadline
+- [x] B4 F10 Joker / veto (PR #44)
+- [x] B5 F11 Deadline, and closing when everyone is done (PR #53)
 - [ ] B6 Room page layout: participants and options collapsible, invite at the end (`specs/b6-room-page-layout.md`, D17) – after B4, B5 and C9
-- [ ] B7 F29 Share and save the result: WhatsApp link and calendar file (`docs/decisions.md` D18)
+- [x] B7 F29 Share and save the result: WhatsApp link and calendar file (PR #66) – still to check once by hand on the deployed app
 
 ### Track C – Online & places – mkim-nova
 

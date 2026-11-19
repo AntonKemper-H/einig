@@ -126,6 +126,8 @@ def room(app, client):
     """A room in voting status with three options; the client is its creator."""
     room_id = create_room(client)
     option_ids = [add_option(app, room_id, label) for label in LABELS]
+    # A participant who never rates, so the room is never "everyone done" (B5) and stays open.
+    join(app.test_client(), room_id, "Idle")
     set_room_status(app, room_id, "voting")
     return {"id": room_id, "options": option_ids, "token": token_of(client, room_id)}
 
