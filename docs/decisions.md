@@ -2,7 +2,7 @@
 
 Decisions the team has made so far, with the reason for each. When a decision changes, update this file and `AGENTS.md` in the same pull request.
 
-Last updated: 2026-11-16
+Last updated: 2026-11-18
 
 ---
 
@@ -190,7 +190,7 @@ F4 in `docs/concept.md` says "buttons, optionally swipe gestures". With the plac
 - **Three directions for three ratings:** right = "Rather yes", up = "Fine with me", left = "Rather not". While dragging, the card shows which rating it would give. Below a minimum distance the card springs back and nothing is sent, because "Rather not" weighs −4 and a slip must not count. Ratings can still be changed on the overview page (B2).
 - **Only one card at a time** (the next unrated option). The overview page, where every option is listed, keeps buttons only.
 - **Menu link:** the rating card gets a link "Menu & reviews on Google Maps" to the place's Google Maps page, where the menu tab is. It is a normal Maps URL built from the place id (like the route link in C3): no key, no API call. Google offers no reliable menu photo through the Places API, so a link is what is possible.
-- **Tests:** pytest cannot test a finger gesture. The tests check that the page includes the script and the hints, and that the buttons still work; the gesture itself is tested by hand on an iPhone and an Android phone and written down in the pull request.
+- **Tests:** pytest cannot test a finger gesture. The tests check that the page includes the script and the hints, and that the buttons still work; the gesture itself is tested by hand on an iPhone and an Android phone and written down in the pull request. Update 2026-11-18: A10 counts as done after the check on one iPhone in Safari (#58), because the gesture uses only standard Pointer Events and the buttons stay as the fallback. The Android Chrome check is done later by whoever on the team has an Android phone, and `docs/plan.md` says it is still open until then.
 - **Walkthrough:** the script is kept short and commented, because every team member must be able to explain it.
 
 **Task:** A10 (Track A, AntonKemper-H), own spec `specs/a10-swipe-rating.md`, built after C2c is merged. If time runs short, it is dropped without loss: the buttons are the complete feature.
@@ -245,7 +245,7 @@ Rules:
 - **Privacy:** the message and the file contain only the room title, the winner's name and the route link. No nicknames, no counts, no jokers, and never the invite link. Who shares it with whom is up to the person.
 - **Google terms:** the winner's name comes fresh from Place Details, as on the result page (C3, C2c); it is not written to the database. A manual winner has no place id, so its message and file have no route link.
 - **Who and when:** only joined participants of the room, only when the room is `closed` and has a winner. Otherwise there is no button, and the `.ics` route answers like the result page (visitors to the join form, no winner → a message).
-- **Time zone:** the file uses "floating" local time (no time zone in the file), so 19:00 stays 19:00 on everyone's phone. Fine for groups that meet in one city.
+- **Time zone:** the entered time is read as Europe/Lisbon time and written to the file in UTC (`DTSTART:…Z`), so every calendar app shows the right time, also across summer time (`zoneinfo` from the standard library). Only if the server has no time-zone data does the file fall back to "floating" local time. *(Changed in B7 after the review of #45: a file without a time zone often ends up an hour off.)*
 - **Code:** two pure helpers in `app/services/` (build the WhatsApp text and link; build the `.ics` text with correct escaping, CRLF line endings and line folding), both unit-tested; the route stays thin. Only the Python standard library (`urllib.parse`, `datetime`).
 
 **Task:** B7 F29 (Track B, Timonhio), own spec `specs/b7-share-result.md`, tests reviewed before the implementation (D9). It comes after B4 and B5. If time runs short it is dropped without loss: the result page is complete without it.
