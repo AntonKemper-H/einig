@@ -7,6 +7,7 @@ cards fall back to "Place from Google Maps".
 """
 
 import json
+import re
 
 import pytest
 import requests
@@ -377,8 +378,12 @@ def test_picker_is_stored_as_author_and_not_shown(app, client, guest, room_id):
     add(guest, room_id)
     option_id = all_options(app, room_id)[0]["id"]
     assert author_rows(app, room_id) == [(option_id, room_id, participant_id(app, room_id, "Ben"))]
-    # Who added an option is never shown to others.
-    assert "Ben" not in page(client, room_id)
+    # Who added an option is never shown to others. B6: names may appear in the room
+    # page's participants list (who has joined), but nowhere else.
+    outside_participants = re.sub(
+        r"<details>\s*<summary>\s*Participants \(.*?</details>", "", page(client, room_id), flags=re.DOTALL
+    )
+    assert "Ben" not in outside_participants
 
 
 def test_picker_can_delete_the_place_and_other_guests_cannot(app, guest, room_id):

@@ -1,5 +1,7 @@
 """Tests for A7 – F24 Delete an option (specs/a7-delete-option.md)."""
 
+import re
+
 import pytest
 
 from app import create_app
@@ -251,7 +253,12 @@ def test_author_is_not_shown_to_others(app, other_guest, room_id):
     add_option(author, room_id, "Thai Garden")
     html = page(other_guest, room_id)
     assert "Thai Garden" in html
-    assert "Bartholomew" not in html
+    # B6: names may appear in the room page's participants list (who has joined),
+    # but nowhere else, so nobody can see who added which option.
+    outside_participants = re.sub(
+        r"<details>\s*<summary>\s*Participants \(.*?</details>", "", html, flags=re.DOTALL
+    )
+    assert "Bartholomew" not in outside_participants
 
 
 # --- Rejected --------------------------------------------------------------
