@@ -252,6 +252,22 @@ Rules:
 
 **Why:** it is small, it works without new risk, everyone understands it in the live demo at once, and it turns "we decided" into "we are actually going".
 
+## D19 – Know what a place is: kind, reviews and more on the back of the rating card (F30) (2026-11-18)
+
+Feedback from testing: a Google suggestion shows a name, one photo and "4.5 ★ · €€ · 330 m". Often nobody can tell what kind of place it is, and the first photo Google sends may show a door or a menu board instead of the food. To make a real decision, people need the kind of place, how many people rated it, a few reviews and more photos. F30 is not in `docs/concept.md`; this decision describes it.
+
+**F30 – Place details on the rating card (S).** Two parts:
+- **Front of every place card:** the kind of place from Google (`primaryTypeDisplayName`, e.g. "Italian Restaurant") above the facts, and the number of ratings next to the stars ("4.5 ★ (812)"). Cards ask for these two extra fields with a new field mask; the existing details call and its reviewed tests stay exactly as they are.
+- **Back of the rating card (on the one-card rating page only):** tapping the card turns it over. The back shows Google's short description of the place (when Google has one), up to 3 reviews with stars, age, author and a link to the review on Google Maps, what the place offers ("Vegetarian · Cocktails · Good for groups") and up to 3 more photos. The "Menu & reviews on Google Maps" link (A10) stays visible below the card on both sides.
+- **No AI review summary:** Google's review summaries are not offered for Portugal, and showing one needs a heading, a disclosure text and three extra links. The short description (`editorialSummary`) is used instead.
+- **No JavaScript needed to turn the card:** a visually hidden but focusable checkbox and two labels switch front and back with CSS, also with the keyboard. `swipe.js` (A10) also turns the card on a short tap without movement, so tapping the card itself works; a drag of 110 px or more still rates, and a touch that starts on a link does neither.
+- **The 3D flip animation and the look of both sides are design work** and are done in the general design phase at the end; F30 only switches between the two sides.
+- **Cost:** reviews and the "serves" fields are in Google's most expensive tier of Place Details. They are loaded **only for the one card on the rating page**, in the same single call as its front (so still one call per rating step, as C2c), never on the room page, the overview, the result page or in lists. The two front fields may move the card calls to a higher tier too. The implementation PR names the tiers and the free amounts from Google's current price list (budget alert D6 stays).
+- **Google terms:** each review is shown unchanged with its author's name, photo and profile link and a link to the review on Google Maps; the "Google Maps" attribution stays. Nothing of it is stored (as every Google field except the place id).
+- **No menu photo:** Google does not mark which photos show food or the menu, so the app cannot pick one. More photos and the Google Maps link are what is possible.
+
+**Task:** C10 F30 (Track C, mkim-nova), own spec `specs/c10-place-details.md`, after A10 and C2c (both merged). Before C8 in the plan, because it helps the decision itself, which is the point of the app. If time runs short, the front part alone is already useful.
+
 ## Open questions
 
 - Final app name.
