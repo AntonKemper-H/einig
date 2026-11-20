@@ -2,7 +2,7 @@
 
 Decisions the team has made so far, with the reason for each. When a decision changes, update this file and `AGENTS.md` in the same pull request.
 
-Last updated: 2026-11-16
+Last updated: 2026-11-18
 
 ---
 
@@ -190,7 +190,7 @@ F4 in `docs/concept.md` says "buttons, optionally swipe gestures". With the plac
 - **Three directions for three ratings:** right = "Rather yes", up = "Fine with me", left = "Rather not". While dragging, the card shows which rating it would give. Below a minimum distance the card springs back and nothing is sent, because "Rather not" weighs −4 and a slip must not count. Ratings can still be changed on the overview page (B2).
 - **Only one card at a time** (the next unrated option). The overview page, where every option is listed, keeps buttons only.
 - **Menu link:** the rating card gets a link "Menu & reviews on Google Maps" to the place's Google Maps page, where the menu tab is. It is a normal Maps URL built from the place id (like the route link in C3): no key, no API call. Google offers no reliable menu photo through the Places API, so a link is what is possible.
-- **Tests:** pytest cannot test a finger gesture. The tests check that the page includes the script and the hints, and that the buttons still work; the gesture itself is tested by hand on an iPhone and an Android phone and written down in the pull request.
+- **Tests:** pytest cannot test a finger gesture. The tests check that the page includes the script and the hints, and that the buttons still work; the gesture itself is tested by hand on an iPhone and an Android phone and written down in the pull request. Update 2026-11-18: A10 counts as done after the check on one iPhone in Safari (#58), because the gesture uses only standard Pointer Events and the buttons stay as the fallback. The Android Chrome check is done later by whoever on the team has an Android phone, and `docs/plan.md` says it is still open until then.
 - **Walkthrough:** the script is kept short and commented, because every team member must be able to explain it.
 
 **Task:** A10 (Track A, AntonKemper-H), own spec `specs/a10-swipe-rating.md`, built after C2c is merged. If time runs short, it is dropped without loss: the buttons are the complete feature.

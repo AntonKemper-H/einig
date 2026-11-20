@@ -31,7 +31,7 @@ Each line is one task: own spec in `specs/`, own branch, own pull request, fresh
 - [x] A7 F24 Delete an option (author or creator; new table `option_authors`, `docs/decisions.md` D14) (PR #38, checked on the deployed app)
 - [x] A8 F25 My rooms on the home page, cookie kept 180 days (`specs/a8-my-rooms.md`, D15) (PR #46, checked on the deployed app and on a phone)
 - [x] A9 F16 Fixed groups: plan one activity after another, one-tap join (`specs/a9-groups.md`, D15) (PR #51, checked on the deployed app with a phone and an iPad)
-- [ ] A10 F4 Swipe to rate + menu link on the rating card (`specs/a10-swipe-rating.md`, D16) – after C2c
+- [x] A10 F4 Swipe to rate + menu link on the rating card (`specs/a10-swipe-rating.md`, D16) (PR #55, checked on the deployed app on an iPhone in Safari; Android Chrome still open)
 - [ ] A11 F28 Hidden collecting (`specs/a11-hidden-collecting.md`, D17) – after C9 and B6
 
 ### Track B – Voting & result – Timonhio
@@ -42,7 +42,7 @@ Each line is one task: own spec in `specs/`, own branch, own pull request, fresh
 - [x] B4 F10 Joker / veto (PR #44)
 - [x] B5 F11 Deadline, and closing when everyone is done (PR #53)
 - [ ] B6 Room page layout: participants and options collapsible, invite at the end (`specs/b6-room-page-layout.md`, D17) – after B4, B5 and C9
-- [ ] B7 F29 Share and save the result: WhatsApp link and calendar file (`docs/decisions.md` D18)
+- [x] B7 F29 Share and save the result: WhatsApp link and calendar file (PR #66) – still to check once by hand on the deployed app
 
 ### Track C – Online & places – mkim-nova
 
