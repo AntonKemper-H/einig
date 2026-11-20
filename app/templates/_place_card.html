@@ -16,6 +16,7 @@
           </small>
         {% endif %}
       {% endif %}
+      {% if card.kind %}<p class="place-kind">{{ card.kind }}</p>{% endif %}
       {# Only the facts Google sent, so there are never empty " · " separators. #}
       {% set facts = [card.rating_text, card.price_text, card.distance_text] | select | list %}
       {% if facts %}
@@ -24,4 +25,45 @@
       <small>Google Maps</small>
     {% endif %}
   </article>
+{% endmacro %}
+
+
+{# C10 (F30): the back of the rating card. Everything from Google is escaped by Jinja.
+   Each part only if Google sent it; the author links and the review links follow Google's terms. #}
+{% macro place_card_back(card, option_id) %}
+  {% set back = card.back %}
+  <div data-card-back>
+    {% if not back %}
+      <p>Google has no more details for this place.</p>
+    {% endif %}
+    {% if back and back.description %}<p>{{ back.description }}</p>{% endif %}
+    {% if back and back.offers %}<p><small>{{ back.offers }}</small></p>{% endif %}
+    {% if back and back.reviews %}
+      <p><small>Reviews selected by Google</small></p>
+      {% for review in back.reviews %}
+        <blockquote>
+          <p>
+            {% if review.author_photo_uri %}<img src="{{ review.author_photo_uri }}" width="32" height="32" alt="" loading="lazy" referrerpolicy="no-referrer">{% endif %}
+            {% if review.author_uri %}<a href="{{ review.author_uri }}" target="_blank" rel="noopener noreferrer">{{ review.author_name }}</a>{% else %}{{ review.author_name }}{% endif %}
+            <small>{{ [review.stars_text, review.age] | select | join(" · ") }}</small>
+          </p>
+          <p>{{ review.text }}</p>
+          {% if review.google_maps_uri %}<p><small><a href="{{ review.google_maps_uri }}" target="_blank" rel="noopener noreferrer">Read on Google Maps</a></small></p>{% endif %}
+        </blockquote>
+      {% endfor %}
+    {% endif %}
+    {% if back and back.photos %}
+      {% for extra in back.photos %}
+        <p>
+          <img src="{{ url_for('pwa.photo', photo_name=extra.photo_name) }}" alt="Another photo of {{ card.name }}" loading="lazy">
+          {% if extra.photo_author %}
+            <small>Photo:
+              {% if extra.photo_author_uri %}<a href="{{ extra.photo_author_uri }}" target="_blank" rel="noopener noreferrer">{{ extra.photo_author }}</a>{% else %}{{ extra.photo_author }}{% endif %}
+            </small>
+          {% endif %}
+        </p>
+      {% endfor %}
+    {% endif %}
+    <label for="card-side-{{ option_id }}" data-flip-close>Back to the card</label>
+  </div>
 {% endmacro %}

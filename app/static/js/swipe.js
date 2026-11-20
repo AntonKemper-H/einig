@@ -5,6 +5,7 @@
   "use strict";
 
   var SWIPE_DISTANCE = 110;  // pixels the card must be moved before a swipe counts
+  var TAP_DISTANCE = 10;     // a touch that moves less than this is a tap: it turns the card (D19)
   var FLY_OUT_MS = 200;      // length of the fly-out animation before the button is pressed
 
   var card = document.querySelector("[data-swipe-card]");
@@ -12,6 +13,7 @@
     return;  // not the one-card rating view: nothing to do
   }
   var area = card.querySelector("[data-swipe-area]");
+  var flipToggle = card.querySelector("[data-flip-toggle]");  // only on Google cards with details
   var buttons = {
     yes: card.querySelector('button[name="rating"][value="yes"]'),
     ok: card.querySelector('button[name="rating"][value="ok"]'),
@@ -62,6 +64,8 @@
 
   area.addEventListener("pointerdown", function (event) {
     if (done) { return; }
+    // A touch that starts on a link (e.g. the photo author) is left alone: the link works normally.
+    if (event.target.closest("a")) { return; }
     start = { x: event.clientX, y: event.clientY };
     card.classList.add("is-dragging");
     area.setPointerCapture(event.pointerId);
@@ -74,8 +78,15 @@
 
   area.addEventListener("pointerup", function (event) {
     if (start === null) { return; }
-    var choice = choiceFor(event.clientX - start.x, event.clientY - start.y);
+    var dx = event.clientX - start.x;
+    var dy = event.clientY - start.y;
+    var choice = choiceFor(dx, dy);
     start = null;
+    if (!choice && flipToggle && Math.abs(dx) < TAP_DISTANCE && Math.abs(dy) < TAP_DISTANCE) {
+      springBack();
+      flipToggle.click();  // a short tap turns the card; nothing is rated
+      return;
+    }
     if (!choice) {
       springBack();
       return;
