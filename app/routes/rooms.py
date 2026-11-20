@@ -174,6 +174,50 @@ def invite_url_for(room_id: str) -> str:
     return url_for("rooms.show_room", room_id=room_id, _external=True)
 
 
+def privacy_for(room) -> tuple[bool, bool] | None:
+    """A11 (F28): (hide_ideas, reveal_places) while the room is collecting and has a setup, else None.
+
+    None means: show every option, as before A11.
+    """
+    if room["status"] != "collecting":
+        return None
+    setup = db.get_room_setup(room["id"])
+    if setup is None:
+        return None
+    return bool(setup["hide_ideas"]), bool(setup["reveal_places"])
+
+
+def is_hidden_from(room, participant, option) -> bool:
+    """True if this option is secret for this participant right now (F28)."""
+    privacy = privacy_for(room)
+    if privacy is None:
+        return False
+    shown, _, _ = option_rules.visible_options([option], participant["id"], *privacy)
+    return not shown
+
+
+def is_someone_elses_hidden_idea(room, participant, label: str) -> bool:
+    """True if the label is taken only by an option this participant cannot see (F28)."""
+    privacy = privacy_for(room)
+    if privacy is None:
+        return False
+    shown, _, _ = option_rules.visible_options(db.get_options(room["id"]), participant["id"], *privacy)
+    shown_labels = [option["label"] for option in shown if option["label"] is not None]
+    return not option_rules.is_label_taken(label, shown_labels)
+
+
+def place_taken_message(room, participant, place_id: str) -> str:
+    """The message when a place found by name is already in the room (C6, F28).
+
+    If the option holding it is secret for this participant, the same words as for a
+    typed idea, so the answer never says whose it is.
+    """
+    for option in db.get_options(room["id"]):
+        if option["place_id"] == place_id and is_hidden_from(room, participant, option):
+            return option_rules.SAME_IDEA_MESSAGE
+    return places.ALREADY_AN_OPTION_MESSAGE
+
+
 def render_room_page(
     room,
     participant,
@@ -214,11 +258,14 @@ def render_room_page(
     )
     if setup_values is None:
         # Pre-filled with the saved setup; empty before the first save.
-        setup_values = {"kind": "", "options_per_person": ""}
+        # A11: both privacy choices are ticked until the creator saves a setup.
+        setup_values = {"kind": "", "options_per_person": "", "hide_ideas": True, "reveal_places": True}
         if setup is not None:
             setup_values = {
                 "kind": f"{setup['activity']}.{setup['kind']}",
                 "options_per_person": "" if options_per_person is None else str(options_per_person),
+                "hide_ideas": bool(setup["hide_ideas"]),
+                "reveal_places": bool(setup["reveal_places"]),
             }
     # Open before the first save and while there are errors; collapsed afterwards.
     setup_open = setup is None or bool(setup_errors)
@@ -227,6 +274,20 @@ def render_room_page(
     # Only participants may see the options, so visitors get an empty list
     # (and their page view never calls Google).
     options = db.get_options(room["id"]) if participant else []
+    # A11 (F28): while collecting, a room with a setup may keep ideas and places secret.
+    # Filtered here, so every page that shows the room (also the 400 error pages) and the
+    # Place Details calls below only see the options this participant may see.
+    hidden_ideas_text = None
+    hidden_places_text = None
+    privacy = privacy_for(room) if participant is not None else None
+    if privacy is not None:
+        options, hidden_ideas, hidden_places = option_rules.visible_options(
+            options, participant["id"], *privacy
+        )
+        if hidden_ideas:
+            hidden_ideas_text = option_rules.hidden_ideas_text(hidden_ideas)
+        if hidden_places:
+            hidden_places_text = option_rules.hidden_places_text(hidden_places)
     # Google details are loaded fresh for every view: Google only allows storing the place id.
     cards = places.load_cards(
         current_app.config.get("GOOGLE_MAPS_API_KEY"),
@@ -279,8 +340,19 @@ def render_room_page(
     # A9: a group room links to its group for members, and offers members "Join as ...".
     group = db.get_room_group(room["id"])
     group_member = group_member_for(group["id"]) if group is not None else None
+    # B6: who has joined, on the room page too (the lobby uses the same data, A5).
+    # Only names and the "done" flag, never who added which option or who voted what.
+    participants = db.get_participants(room["id"]) if participant is not None else []
+    finished_count = sum(1 for person in participants if person["has_finished"])
+    start_hints = []
+    if participant is not None and participant["is_creator"] and room["status"] == "collecting":
+        start_hints = lobby_rules.start_errors(room["status"], len(options))
     return render_template(
         "room.html",
+        participants=participants,
+        finished_count=finished_count,
+        start_hints=start_hints,
+        time_limits=deadline_rules.TIME_LIMITS,
         room=room,
         participant=participant,
         group=group,
@@ -301,6 +373,8 @@ def render_room_page(
         been_there_ids=been_there_ids,
         deletable_ids=deletable_ids,
         been_there_errors=been_there_errors or [],
+        hidden_ideas_text=hidden_ideas_text,
+        hidden_places_text=hidden_places_text,
         show_find_form=show_find_form,
         find_uses_room_centre=room_has_centre,
         find_offers_location=find_offers_location,
@@ -475,6 +549,9 @@ def add_option(room_id: str):
 
     label = room_rules.clean_text(request.form.get("label"))
     errors = option_rules.option_errors(label, room["status"], db.get_option_labels(room_id))
+    if errors == [option_rules.DUPLICATE_MESSAGE] and is_someone_elses_hidden_idea(room, participant, label):
+        # F28: say that the idea exists without showing whose it is.
+        errors = [option_rules.SAME_IDEA_MESSAGE]
     if errors:
         return render_room_page(room, participant, option_label=label, option_errors=errors), 400
 
@@ -500,6 +577,8 @@ def add_option(room_id: str):
     if result == "limit":
         return show_option_error(limit_text)
     if result == "duplicate":
+        if is_someone_elses_hidden_idea(room, participant, label):
+            return show_option_error(option_rules.SAME_IDEA_MESSAGE)
         return show_option_error(option_rules.DUPLICATE_MESSAGE)
     if result == "not_collecting":
         return show_option_error(option_rules.NOT_COLLECTING_MESSAGE)
@@ -523,6 +602,10 @@ def delete_option(room_id: str, option_id: int):
     option = db.get_option(room_id, option_id)
     if option is None or option["is_replaced"]:
         # Already gone, replaced, or not an option of this room: AGENTS.md says it changes nothing.
+        return room_page
+    if is_hidden_from(room, participant, option):
+        # F28: a secret option is answered exactly like an unknown one, so trying ids
+        # one by one never shows where hidden ideas are.
         return room_page
 
     error = option_rules.delete_error(
@@ -564,13 +647,24 @@ def save_setup(room_id: str):
         sent_values = {
             "kind": request.form.get("kind") or "",
             "options_per_person": request.form.get("options_per_person") or "",
+            "hide_ideas": bool(request.form.get("hide_ideas")),
+            "reveal_places": bool(request.form.get("reveal_places")),
         }
         return render_room_page(
             room, participant, setup_values=sent_values, setup_errors=errors
         ), 400
 
+    # A11 (F28): a manual room has no suggested places, so it always stores "shown".
+    reveal_places = setup.get("reveal_places")
+    if reveal_places is not None and room["mode"] == "manual":
+        reveal_places = 1
     if not db.save_room_setup(
-        room_id, setup["activity"], setup["kind"], setup["options_per_person"]
+        room_id,
+        setup["activity"],
+        setup["kind"],
+        setup["options_per_person"],
+        setup.get("hide_ideas"),
+        reveal_places,
     ):
         # The voting started between the check above and the save.
         return render_room_page(room, participant, setup_errors=[SETUP_NOT_COLLECTING_MESSAGE]), 400
@@ -807,6 +901,11 @@ def been_there(room_id: str, option_id: int):
     option = db.get_option(room_id, option_id)
     if option is None:
         return show_message(voting_rules.UNKNOWN_OPTION_MESSAGE, 400)
+    if is_hidden_from(room, participant, option):
+        # F28: nothing can be done with an option this participant cannot see.
+        if option_rules.is_suggested_place(option):
+            return show_message(option_rules.BEEN_THERE_SECRET_MESSAGE, 400)
+        return show_message(voting_rules.UNKNOWN_OPTION_MESSAGE, 400)
     if room["mode"] != "surprise":
         return show_message(surprise.BEEN_THERE_WRONG_MODE_MESSAGE, 400)
     if room["status"] != "collecting":
@@ -965,7 +1064,7 @@ def add_found_place(room_id: str):
         return show_message(places.EXPIRED_MATCHES_MESSAGE)
     # Also replaced places (C5): the group has been there, so it must not come back.
     if place_id in db.get_room_place_ids(room_id):
-        return show_message(places.ALREADY_AN_OPTION_MESSAGE)
+        return show_message(place_taken_message(room, participant, place_id))
 
     options_per_person = options_per_person_for(room_id)
     if options_per_person is not None:
@@ -980,7 +1079,7 @@ def add_found_place(room_id: str):
         if result == "limit":
             return show_message(limit_text)
         if result == "duplicate":
-            return show_message(places.ALREADY_AN_OPTION_MESSAGE)
+            return show_message(place_taken_message(room, participant, place_id))
         if result == "not_collecting":
             return show_message(places.NOT_COLLECTING_MESSAGE)
         save_name_search_entry(room_id, [], entry["count"])
@@ -990,7 +1089,7 @@ def add_found_place(room_id: str):
         added = db.add_place_option(room_id, place_id, participant["id"])
     except db.INTEGRITY_ERRORS:
         # The same place added by another request a moment earlier.
-        return show_message(places.ALREADY_AN_OPTION_MESSAGE)
+        return show_message(place_taken_message(room, participant, place_id))
     if not added:
         # The voting started between the check above and the insert.
         return show_message(places.NOT_COLLECTING_MESSAGE)

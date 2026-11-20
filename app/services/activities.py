@@ -124,8 +124,16 @@ def parse_options_per_person(value: str | None) -> tuple[int | None, bool]:
 
 
 def validate_setup(form) -> tuple[dict, list[str]]:
-    """Check the setup form. Returns {"activity", "kind", "options_per_person"} and every error message."""
+    """Check the setup form. Returns {"activity", "kind", "options_per_person"} and every error message.
+
+    A11 (F28): only when the form sends the hidden marker field "privacy_choices", the
+    two checkboxes are read too and added as "hide_ideas" and "reveal_places" (present
+    means 1, missing means 0). Without the marker the stored values stay as they are.
+    """
     cleaned: dict = {"activity": None, "kind": None, "options_per_person": None}
+    if form.get("privacy_choices"):
+        cleaned["hide_ideas"] = 1 if form.get("hide_ideas") else 0
+        cleaned["reveal_places"] = 1 if form.get("reveal_places") else 0
     errors = []
 
     parsed_kind = parse_kind(form.get("kind"))

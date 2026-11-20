@@ -16,13 +16,37 @@
       <p>{{ setup_line }}</p>
     {% endif %}
 
-    <p>Invite your friends with this link:</p>
-    <p><input type="text" readonly value="{{ invite_url }}" aria-label="Invite link"></p>
-    <p><a href="{{ invite_url }}">{{ invite_url }}</a></p>
-    {% include "_qr_code.html" %}
+    {# B6: participants in a side column on wide screens (CSS grid in app.css), at the top on a phone. #}
+    <div class="room-columns">
+    <details class="participants">
+      <summary>Participants ({{ participants|length }} · {{ finished_count }} done)</summary>
+      <ul>
+        {% for person in participants %}
+          <li>{{ person.nickname }}{% if person.is_creator %} (creator){% endif %}{% if person.has_finished %} – done{% endif %}</li>
+        {% endfor %}
+      </ul>
+      {# Not live: a reload would wipe what someone is typing, so the page only reloads on request. #}
+      <p><a href="{{ url_for('rooms.show_room', room_id=room.id) }}">Refresh</a></p>
+      {% if participant.is_creator and room.status == "collecting" %}
+        {% for hint in start_hints %}
+          <p>{{ hint }}</p>
+        {% endfor %}
+        {# The same form and route as in the lobby (A5), with B5's time limit. #}
+        <form action="{{ url_for('rooms.start_voting', room_id=room.id) }}" method="post">
+          <label>Time limit
+            <select name="time_limit">
+              <option value="" selected>No time limit</option>
+              {% for minutes in time_limits %}
+                <option value="{{ minutes }}">{{ minutes }} minutes</option>
+              {% endfor %}
+            </select>
+          </label>
+          <button type="submit">Start voting</button>
+        </form>
+      {% endif %}
+    </details>
 
-    <p><a href="{{ url_for('rooms.show_lobby', room_id=room.id) }}">Go to the lobby</a> to see who has joined.</p>
-
+    <div class="room-main">
     <h2>Options</h2>
 
     {% if been_there_errors %}
@@ -38,7 +62,18 @@
         {% for card in cards %}
           {% set option_id = option_ids[loop.index0] %}
           <li>
-            {% if card.source == "google" %}{{ place_card(card) }}{% else %}{{ card.label }}{% endif %}
+            {% if card.source == "google" and not card.details_missing %}
+              {# B6: compact list; the card (photo, facts) opens on tap. The photo stays lazy. #}
+              <details>
+                <summary>{{ card.name }}</summary>
+                {{ place_card(card) }}
+              </details>
+            {% elif card.source == "google" %}
+              {# Nothing to open without details: the fallback card as before (C2b). #}
+              {{ place_card(card) }}
+            {% else %}
+              {{ card.label }}
+            {% endif %}
             {% if option_id in deletable_ids %}
               {# F24: the author or the creator; the route checks the permission again. #}
               <form action="{{ url_for('rooms.delete_option', room_id=room.id, option_id=option_id) }}" method="post">
@@ -54,8 +89,15 @@
           </li>
         {% endfor %}
       </ol>
-    {% else %}
+    {% elif not hidden_ideas_text and not hidden_places_text %}
       <p>No options yet.</p>
+    {% endif %}
+    {# F28: instead of secret options only their number, never their content. #}
+    {% if hidden_ideas_text %}
+      <p>{{ hidden_ideas_text }}</p>
+    {% endif %}
+    {% if hidden_places_text %}
+      <p>{{ hidden_places_text }}</p>
     {% endif %}
 
     {% if widened_to %}
@@ -100,6 +142,19 @@
               {% endfor %}
             </select>
           </label>
+          {# F28: the marker tells the server that this form has the two checkboxes
+             (an unticked checkbox sends nothing). #}
+          <input type="hidden" name="privacy_choices" value="1">
+          <label>
+            <input type="checkbox" name="hide_ideas" value="1" {% if setup_values.get("hide_ideas") %}checked{% endif %}>
+            Keep everyone's ideas secret until voting
+          </label>
+          {% if room.mode != "manual" %}
+            <label>
+              <input type="checkbox" name="reveal_places" value="1" {% if setup_values.get("reveal_places") %}checked{% endif %}>
+              Show suggested places to everyone before voting
+            </label>
+          {% endif %}
           {% if setup_already_searched %}
             <p>{{ already_searched_message }}</p>
           {% endif %}
@@ -264,6 +319,20 @@
     {% else %}
       <p>Options can no longer be added.</p>
     {% endif %}
+    </div>
+    </div>
+
+    <p><a href="{{ url_for('rooms.show_lobby', room_id=room.id) }}">I'm done – wait for the others</a></p>
+
+    {# B6: invite link and QR code at the end, in one compact block. Both the field and the
+       link stay (reviewed test invite_urls_in in tests/test_proxy_headers.py). #}
+    <section class="invite">
+      <label>Invite link
+        <input type="text" readonly value="{{ invite_url }}" aria-label="Invite link">
+      </label>
+      <small><a href="{{ invite_url }}">{{ invite_url }}</a></small>
+    </section>
+    {% include "_qr_code.html" %}
   {% elif room.status == "closed" %}
     <p>This room is closed. You can no longer join.</p>
   {% else %}

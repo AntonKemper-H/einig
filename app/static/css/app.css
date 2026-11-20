@@ -74,3 +74,27 @@ button[type=submit].option-delete {  /* beats Pico's "button[type=submit] { widt
   outline-offset: 2px;
 }
 .place-kind { margin-bottom: 0.25rem; font-weight: bold; }
+/* B6: the room page. On a phone everything is one column, participants at the top.
+   From 900 px the participants sit in a column on the right, next to the options. */
+@media (min-width: 900px) {
+  .room-columns {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 18rem;
+    gap: 2rem;
+    align-items: start;
+  }
+  .room-columns > .participants {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .room-columns > .room-main {
+    grid-column: 1;
+    grid-row: 1;
+  }
+}
+
+/* A compact invite block: the field, the link in small text below it. */
+.invite small {
+  display: block;
+  word-break: break-all;
+}
