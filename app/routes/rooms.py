@@ -279,8 +279,19 @@ def render_room_page(
     # A9: a group room links to its group for members, and offers members "Join as ...".
     group = db.get_room_group(room["id"])
     group_member = group_member_for(group["id"]) if group is not None else None
+    # B6: who has joined, on the room page too (the lobby uses the same data, A5).
+    # Only names and the "done" flag, never who added which option or who voted what.
+    participants = db.get_participants(room["id"]) if participant is not None else []
+    finished_count = sum(1 for person in participants if person["has_finished"])
+    start_hints = []
+    if participant is not None and participant["is_creator"] and room["status"] == "collecting":
+        start_hints = lobby_rules.start_errors(room["status"], len(options))
     return render_template(
         "room.html",
+        participants=participants,
+        finished_count=finished_count,
+        start_hints=start_hints,
+        time_limits=deadline_rules.TIME_LIMITS,
         room=room,
         participant=participant,
         group=group,

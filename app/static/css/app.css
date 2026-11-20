@@ -41,3 +41,29 @@ button[type=submit].option-delete {  /* beats Pico's "button[type=submit] { widt
 [data-swipe-card][data-swipe-choice="yes"]::before { content: "Rather yes"; color: #3fb950; }
 [data-swipe-card][data-swipe-choice="ok"]::before  { content: "Fine with me"; color: #58a6ff; }
 [data-swipe-card][data-swipe-choice="no"]::before  { content: "Rather not"; color: #f85149; }
+
+
+/* B6: the room page. On a phone everything is one column, participants at the top.
+   From 900 px the participants sit in a column on the right, next to the options. */
+@media (min-width: 900px) {
+  .room-columns {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 18rem;
+    gap: 2rem;
+    align-items: start;
+  }
+  .room-columns > .participants {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .room-columns > .room-main {
+    grid-column: 1;
+    grid-row: 1;
+  }
+}
+
+/* A compact invite block: the field, the link in small text below it. */
+.invite small {
+  display: block;
+  word-break: break-all;
+}
