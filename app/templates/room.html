@@ -89,8 +89,15 @@
           </li>
         {% endfor %}
       </ol>
-    {% else %}
+    {% elif not hidden_ideas_text and not hidden_places_text %}
       <p>No options yet.</p>
+    {% endif %}
+    {# F28: instead of secret options only their number, never their content. #}
+    {% if hidden_ideas_text %}
+      <p>{{ hidden_ideas_text }}</p>
+    {% endif %}
+    {% if hidden_places_text %}
+      <p>{{ hidden_places_text }}</p>
     {% endif %}
 
     {% if widened_to %}
@@ -135,6 +142,19 @@
               {% endfor %}
             </select>
           </label>
+          {# F28: the marker tells the server that this form has the two checkboxes
+             (an unticked checkbox sends nothing). #}
+          <input type="hidden" name="privacy_choices" value="1">
+          <label>
+            <input type="checkbox" name="hide_ideas" value="1" {% if setup_values.get("hide_ideas") %}checked{% endif %}>
+            Keep everyone's ideas secret until voting
+          </label>
+          {% if room.mode != "manual" %}
+            <label>
+              <input type="checkbox" name="reveal_places" value="1" {% if setup_values.get("reveal_places") %}checked{% endif %}>
+              Show suggested places to everyone before voting
+            </label>
+          {% endif %}
           {% if setup_already_searched %}
             <p>{{ already_searched_message }}</p>
           {% endif %}
