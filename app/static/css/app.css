@@ -179,9 +179,10 @@ body.rating-screen {
 
 /* The rating buttons and the joker button stay in the page but out of sight: visually hidden,
    still focusable (never display: none), shown while one of them has the keyboard focus.
+   Only under .swipe-ready, which swipe.js sets: without JavaScript the buttons stay visible.
    The selectors beat Pico's "button[type=submit] { width: 100% }". */
-[data-swipe-card] .rating-buttons,
-[data-swipe-card] form[action$="/veto"] {
+[data-swipe-card].swipe-ready .rating-buttons,
+[data-swipe-card].swipe-ready form[action$="/veto"] {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -190,8 +191,8 @@ body.rating-screen {
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
 }
-[data-swipe-card] .rating-buttons:focus-within,
-[data-swipe-card] form[action$="/veto"]:focus-within {
+[data-swipe-card].swipe-ready .rating-buttons:focus-within,
+[data-swipe-card].swipe-ready form[action$="/veto"]:focus-within {
   position: static;
   width: auto;
   height: auto;

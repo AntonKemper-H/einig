@@ -30,6 +30,9 @@
     return;
   }
 
+  // Swiping works now, so the rating buttons may be hidden (app.css). Without this script they stay visible.
+  card.classList.add("swipe-ready");
+
   // Show the hint only now that swiping works.
   var hint = document.querySelector("[data-swipe-hint]");
   if (hint) {

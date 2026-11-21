@@ -13,7 +13,7 @@ import pytest
 
 from app.db import get_db
 from app.services import places
-from app.services.places import BACK_FIELD_MASK, CARD_FIELD_MASK
+from app.services.places import BACK_FIELD_MASK
 
 PROJECT_ROOT = Path(__file__).parent.parent
 SWIPE_JS = PROJECT_ROOT / "app" / "static" / "js" / "swipe.js"
@@ -482,6 +482,15 @@ def test_the_css_hides_the_buttons_visually_and_shows_them_on_focus_within():
         if "rating-buttons" in selector or 'name="rating"' in selector or "joker-form" in selector:
             assert "display: none" not in rule and "display:none" not in rule
     assert any(":focus-within" in selector for selector, _ in rules)
+
+
+def test_the_buttons_are_hidden_only_once_swipe_js_has_started():
+    # Without JavaScript a phone user must still see the buttons (D16): hide them only under .swipe-ready.
+    hiding = [selector for selector, rule in css_rules() if "clip:" in rule and "veto" in selector]
+    assert hiding and all("swipe-ready" in selector for selector in hiding)
+    hiding = [selector for selector, rule in css_rules() if "clip:" in rule and "rating-buttons" in selector]
+    assert hiding and all("swipe-ready" in selector for selector in hiding)
+    assert 'classList.add("swipe-ready")' in SWIPE_JS.read_text()
 
 
 def test_the_form_routes_and_fields_are_unchanged(app, client):
