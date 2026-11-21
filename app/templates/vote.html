@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_place_card.html" import place_card %}
+{% from "_place_card.html" import place_card, place_card_back %}
 
 {% block title %}Rate: {{ room.title }} – Einig{% endblock %}
 
@@ -67,11 +67,20 @@
     <p>Option {{ position }} of {{ order|length }}</p>
     {# A10: swipe.js removes "hidden", so the hint only shows where swiping works. #}
     <p hidden data-swipe-hint>Swipe right: Rather yes · up: Fine with me · left: Rather not</p>
+    {% set next_card = cards[next_option] %}
+    {# C10: a Google card with details can be turned over (checkbox + labels, no JavaScript needed). #}
+    {% set has_back = next_card.source == "google" and not next_card.details_missing %}
     <article data-swipe-card>
+      {% if has_back %}<input type="checkbox" id="card-side-{{ next_option }}" data-flip-toggle class="visually-hidden">{% endif %}
       {# Only the place part can be dragged; the buttons below keep normal taps and scrolling. #}
       <div data-swipe-area>
         {{ option_heading(next_option) }}
       </div>
+      {% if has_back %}
+        {# Outside the swipe area: swipe.js captures the pointer inside it, so a label there would not get the tap. #}
+        <label for="card-side-{{ next_option }}" data-flip-open>More about this place</label>
+        {{ place_card_back(next_card, next_option) }}
+      {% endif %}
       {% if menu_url %}
         <p><a href="{{ menu_url }}" target="_blank" rel="noopener noreferrer">Menu &amp; reviews on Google Maps</a></p>
       {% endif %}
