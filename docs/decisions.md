@@ -61,7 +61,7 @@ Concept priorities M/S/C apply, with this cut for the submission:
 | F8–F11 places, map, joker, deadline | F15 Fate mode |
 | F12–F13 surprise mode, "been there" | F18 fairness memory |
 | F23 find a place by name, F24 delete an option (D14) | F17 group history (only the group map of F26 is built, D15) |
-| F25 my rooms, F16 fixed groups, F26 place collection and map (D15) | |
+| F25 my rooms, F16 fixed groups (D15) | F26 place collection and map (D15, not built for the submission) |
 | F27 room setup, F28 hidden collecting, room page layout (D17) | |
 | F22 QR code | F19 meeting point, F20 travel times, F21 WebSockets |
 | F29 share and save the result (D18) | |
@@ -181,6 +181,8 @@ Three features that turn single decisions into something a group comes back to: 
 | C8 | F26 Map of my places and of a group | C | C7 merged |
 
 **Why now and not parked:** the result page is the end of the current app; these features give a reason to open it again, and the demo can show a group planning its second evening. If time runs short, cut from the end of the table: A8 alone is already useful, C8 is the first to go.
+
+**Update 2026-11-21:** C7 and C8 (F26) are not built for the submission. A8 and A9 are done; the remaining days go to C10, bug fixes, the README and the demo. The specs stay in `specs/` for later.
 
 ## D16 – Swipe to rate (F4) and a menu link on the rating card (2026-11-16)
 
