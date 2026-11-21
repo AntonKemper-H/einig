@@ -1,6 +1,8 @@
-// A10 (D16): swipe the rating card. Right = "Rather yes", up = "Fine with me", left = "Rather not".
-// This script only presses the rating button that is already on the page; the normal form
-// does the rest. Without this script the page works the same, with the buttons.
+// A10 (D16, D20): swipe the front of the rating card. Right = "Rather yes", up = "Fine with me",
+// left = "Rather not", down = asks whether to use the joker. A tap turns the card; on the back,
+// a tap turns it back and the dots follow the page you scrolled to.
+// This script only presses buttons that are already on the page; the normal forms do the rest.
+// Without this script the page works the same, with the (visually hidden) buttons.
 (function () {
   "use strict";
 
@@ -14,6 +16,11 @@
   }
   var area = card.querySelector("[data-swipe-area]");
   var flipToggle = card.querySelector("[data-flip-toggle]");  // only on Google cards with details
+  var back = card.querySelector("[data-card-back]");         // only on Google cards with details
+  var pages = card.querySelector(".card-pages");
+  var dots = card.querySelectorAll("[data-card-dot]");
+  var question = card.querySelector("[data-joker-question]");  // only while the joker is still free
+  var jokerButton = card.querySelector('form[action$="/veto"] button');
   var buttons = {
     yes: card.querySelector('button[name="rating"][value="yes"]'),
     ok: card.querySelector('button[name="rating"][value="ok"]'),
@@ -22,6 +29,9 @@
   if (!area || !buttons.yes || !buttons.ok || !buttons.no) {
     return;
   }
+
+  // Swiping works now, so the rating buttons may be hidden (app.css). Without this script they stay visible.
+  card.classList.add("swipe-ready");
 
   // Show the hint only now that swiping works.
   var hint = document.querySelector("[data-swipe-hint]");
@@ -33,7 +43,7 @@
   var start = null;   // where the finger went down, or null when not dragging
   var done = false;   // true after one swipe counted: ignore everything until the next page
 
-  // Which rating a movement would give, or null. Down gives nothing.
+  // Which rating a movement would give, or null. Down gives nothing here: it asks about the joker.
   function choiceFor(dx, dy) {
     if (Math.abs(dx) > Math.abs(dy)) {
       if (dx >= SWIPE_DISTANCE) { return "yes"; }
@@ -82,6 +92,12 @@
     var dy = event.clientY - start.y;
     var choice = choiceFor(dx, dy);
     start = null;
+    // Down: do not use the joker at once, it cannot be undone. Ask first; nothing is sent yet.
+    if (!choice && question && dy >= SWIPE_DISTANCE && Math.abs(dy) > Math.abs(dx)) {
+      springBack();
+      question.hidden = false;
+      return;
+    }
     if (!choice && flipToggle && Math.abs(dx) < TAP_DISTANCE && Math.abs(dy) < TAP_DISTANCE) {
       springBack();
       flipToggle.click();  // a short tap turns the card; nothing is rated
@@ -107,6 +123,49 @@
     start = null;
     springBack();
   });
+
+  // The joker question: "Use joker" presses the joker button that is already in the page.
+  if (question && jokerButton) {
+    question.querySelector("[data-joker-confirm]").addEventListener("click", function () {
+      done = true;
+      jokerButton.click();
+    });
+    question.querySelector("[data-joker-cancel]").addEventListener("click", function () {
+      question.hidden = true;
+    });
+  }
+
+  // The back has no rating gestures. A short tap on a free spot turns the card back to the front;
+  // links, dots and buttons keep their own behaviour, and a drag (page change, scrolling) is no tap.
+  if (back && flipToggle) {
+    var backStart = null;
+    back.addEventListener("pointerdown", function (event) {
+      backStart = { x: event.clientX, y: event.clientY };
+    });
+    back.addEventListener("pointerup", function (event) {
+      if (backStart === null) { return; }
+      var moved = Math.abs(event.clientX - backStart.x) >= TAP_DISTANCE ||
+                  Math.abs(event.clientY - backStart.y) >= TAP_DISTANCE;
+      backStart = null;
+      if (moved || event.target.closest("a, button, label, [data-card-dot]")) { return; }
+      flipToggle.click();
+    });
+    back.addEventListener("pointercancel", function () { backStart = null; });
+  }
+
+  // Mark the dot of the page that is in view (without this script the first dot stays marked).
+  if (pages && dots.length) {
+    pages.addEventListener("scroll", function () {
+      var current = Math.round(pages.scrollLeft / pages.clientWidth);
+      for (var i = 0; i < dots.length; i++) {
+        if (i === current) {
+          dots[i].setAttribute("aria-current", "true");
+        } else {
+          dots[i].removeAttribute("aria-current");
+        }
+      }
+    });
+  }
 
   // After one swipe, ignore further taps on the card's buttons (no double rating).
   card.addEventListener("click", function (event) {

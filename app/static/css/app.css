@@ -59,7 +59,12 @@ button[type=submit].option-delete {  /* beats Pico's "button[type=submit] { widt
 [data-card-back] { display: none; }
 [data-flip-toggle]:checked ~ [data-swipe-area],
 [data-flip-toggle]:checked ~ [data-flip-open] { display: none; }
-[data-flip-toggle]:checked ~ [data-card-back] { display: block; }
+[data-flip-toggle]:checked ~ [data-card-back] {
+  display: flex;         /* C11: pages fill the card, the dots stay at the bottom */
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
 [data-flip-open],
 [data-flip-close] {
   display: block;
@@ -67,6 +72,7 @@ button[type=submit].option-delete {  /* beats Pico's "button[type=submit] { widt
   padding: 0.6rem 0;
   cursor: pointer;
   text-decoration: underline;
+  font-size: 0.875rem;   /* a small hint line, not part of the swipe zone */
 }
 [data-flip-toggle]:focus-visible ~ [data-flip-open],
 [data-flip-toggle]:focus-visible ~ [data-card-back] [data-flip-close] {
@@ -97,4 +103,114 @@ button[type=submit].option-delete {  /* beats Pico's "button[type=submit] { widt
 .invite small {
   display: block;
   word-break: break-all;
+}
+
+
+/* C11 (D20): the one-card rating page. The card fills the screen and the page does not scroll.
+   Only this page gets the class, set on <body> by vote.html. Looks (colours, fonts) are design work. */
+body.rating-screen {
+  height: 100dvh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.rating-screen main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+.rating-screen h1 { font-size: 1.1rem; margin: 0; }
+.rating-screen header { padding: 0.25rem 0; }
+.rating-screen [data-swipe-card] {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 0.5rem;
+  overflow: hidden;
+}
+.rating-screen [data-swipe-area] {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.rating-screen [data-swipe-area] img {
+  max-height: 45dvh;
+  width: 100%;
+  object-fit: cover;
+}
+
+/* The slim line: position on the left, the menu on the right. */
+.card-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+.card-line details { margin: 0; }
+[data-card-menu] > summary { cursor: pointer; }
+
+/* The back: three pages side by side, CSS scroll snapping; a page scrolls inside itself. */
+.card-pages {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+}
+.card-pages > [data-card-page] {
+  flex: 0 0 100%;
+  scroll-snap-align: start;
+  overflow-y: auto;
+}
+.card-dots { display: flex; justify-content: center; gap: 0.75rem; padding: 0.5rem 0; }
+[data-card-dot] {
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.3;
+  border-bottom: 0;
+}
+[data-card-dot][aria-current="true"] { opacity: 1; }
+
+/* The rating buttons and the joker button stay in the page but out of sight: visually hidden,
+   still focusable (never display: none), shown while one of them has the keyboard focus.
+   Only under .swipe-ready, which swipe.js sets: without JavaScript the buttons stay visible.
+   The selectors beat Pico's "button[type=submit] { width: 100% }". */
+[data-swipe-card].swipe-ready .rating-buttons,
+[data-swipe-card].swipe-ready form[action$="/veto"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+[data-swipe-card].swipe-ready .rating-buttons:focus-within,
+[data-swipe-card].swipe-ready form[action$="/veto"]:focus-within {
+  position: static;
+  width: auto;
+  height: auto;
+  margin: 0;
+  overflow: visible;
+  clip: auto;
+  white-space: normal;
+}
+[data-swipe-card] .rating-buttons button { margin-bottom: 0.5rem; }
+
+/* The joker question covers the card until the participant answers. */
+[data-joker-question]:not([hidden]) {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 1rem;
+  background: var(--pico-background-color, #fff);
 }

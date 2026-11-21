@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/pico.classless.min.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
 </head>
-<body>
+<body class="{% block body_class %}{% endblock %}">
   <header>
     <strong>Einig</strong>
     <a href="{{ url_for('main.home') }}">My rooms</a>

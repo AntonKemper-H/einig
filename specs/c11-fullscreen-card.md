@@ -12,7 +12,7 @@ Testing C10 on a phone showed that the page gets long and confusing and that the
 
 ### Layout
 - On the one-card rating page the card fills the screen (`100dvh`) and the page does not scroll (`overflow: hidden` on this page only, set by a class on the page, not on every page). The overview, room page, lobby and result page are unchanged.
-- A slim line shows `Option 2 of 5`. **Decision to check in the review:** the creator's `Close the room` button and the `Back to the lobby` link move into one small menu link in this line that opens a page where both are (the lobby, if it already has the close button; if not, the implementer says so in the PR before building).
+- A slim line shows `Option 2 of 5`. **Decision to check in the review:** the creator's `Close the room` button and the `Back to the lobby` link move into one small menu in this line. The lobby has no close button, so it is a `<details>` menu on the rating page itself (no new page, no new route): the lobby link, the creator's close button and the note about a used joker.
 - Colours, fonts and animations are the design phase's business; C11 fixes only structure and behaviour.
 
 ### Front and back (the turning of C10 stays)
@@ -37,7 +37,7 @@ Testing C10 on a phone showed that the page gets long and confusing and that the
 - The question is in the card's markup and `hidden` until opened: no new route, no new server code.
 
 ### The buttons stay, out of sight
-- The rating form (three buttons) and the joker form stay in the page, **visually hidden but focusable** (not `display: none`, not the `hidden` attribute), and visible while one of them has the keyboard focus (`:focus-within`). The routes, the forms and their fields are exactly as before. Without JavaScript, turning works with the labels and rating with these buttons.
+- The rating form (three buttons) and the joker form stay in the page, **visually hidden but focusable** (not `display: none`, not the `hidden` attribute), and visible while one of them has the keyboard focus (`:focus-within`). The routes, the forms and their fields are exactly as before. **They are hidden only once `swipe.js` has started**: it adds the class `swipe-ready` to the card, and the CSS hides the buttons only under `[data-swipe-card].swipe-ready`. Without JavaScript (or when the script fails to load) the buttons stay visible, so a phone user can still rate (D16). Turning works with the labels.
 - Tab order: the front labels, the menu link, the dots (when the back is open), then the rating buttons, then the joker button.
 
 ### Script (`swipe.js`, still short and commented)
