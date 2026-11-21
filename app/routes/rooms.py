@@ -274,6 +274,8 @@ def render_room_page(
     # Only participants may see the options, so visitors get an empty list
     # (and their page view never calls Google).
     options = db.get_options(room["id"]) if participant else []
+    # Counted before the A11 filter: the start rule (A5) counts every option in the room.
+    option_count = len(options)
     # A11 (F28): while collecting, a room with a setup may keep ideas and places secret.
     # Filtered here, so every page that shows the room (also the 400 error pages) and the
     # Place Details calls below only see the options this participant may see.
@@ -346,7 +348,7 @@ def render_room_page(
     finished_count = sum(1 for person in participants if person["has_finished"])
     start_hints = []
     if participant is not None and participant["is_creator"] and room["status"] == "collecting":
-        start_hints = lobby_rules.start_errors(room["status"], len(options))
+        start_hints = lobby_rules.start_errors(room["status"], option_count)
     return render_template(
         "room.html",
         participants=participants,
