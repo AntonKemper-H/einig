@@ -268,22 +268,21 @@ Feedback from testing: a Google suggestion shows a name, one photo and "4.5 ★ 
 
 **Task:** C10 F30 (Track C, mkim-nova), own spec `specs/c10-place-details.md`, after A10 and C2c (both merged). Before C8 in the plan, because it helps the decision itself, which is the point of the app. If time runs short, the front part alone is already useful.
 
-## D20 – The rating card fills the screen: pages inside the card, no buttons in sight (F4, F30) (2026-11-21)
+## D20 – The rating card fills the screen: swipe on the front, pages on the back, no buttons in sight (F4, F30) (2026-11-21)
 
-Feedback from testing C10 on a phone: turning the card over makes the page long and confusing, and the three buttons below the card use space the card needs. The rating page should show **only the card**, filling the screen, with nothing to scroll.
+Feedback from testing C10 on a phone: the page with the turned card gets long and confusing, and the three buttons below the card use space the card needs. The rating page should show **only the card**, filling the screen, with nothing to scroll.
 
-**What changes (supersedes parts of D16 and D19):**
+**What changes (supersedes parts of D16; D19's turning stays):**
 - **The card fills the screen** on the one-card rating page. The page itself does not scroll. The overview after the last card keeps its normal page.
-- **The card has three pages** you move through sideways, shown by three dots at the bottom of the card: **1. Front** (name, first photo, kind, facts, the "Menu & reviews on Google Maps" link), **2. Photos** (the more photos), **3. Reviews** (description, offers, reviews). Inside a page, content that is too long scrolls inside the card. The card itself stays where it is.
-- **The turning of the card (D19) is dropped.** The back of C10 becomes pages 2 and 3. Still one Place Details call per rating step, still nothing stored.
-- **Two zones, so the gestures do not collide.** The page area (photo, texts) moves between pages with a sideways swipe and scrolls up and down. The bottom bar of the card (name, dots) is the **grip for rating**: right = "Rather yes", up = "Fine with me", left = "Rather not" (as D16), and **down = joker**. A mouse works the same way by dragging (pointer events). The dots are links, so a click on a dot also changes the page.
+- **Front: swipe to rate.** Right = "Rather yes", up = "Fine with me", left = "Rather not" (as D16), and **down = joker**. A mouse works the same way by dragging. A tap on the card turns it over (D19).
+- **Back: no rating, only information.** You cannot rate on the back; to rate, turn the card back with a tap on it. Sideways swiping on the back changes between **three pages**, shown by three dots at the bottom: **1. About** (description, offers and the "Menu & reviews on Google Maps" link), **2. Photos**, **3. Reviews**. Inside a page, content that is too long scrolls inside the card; the card stays where it is. So left and right never mean two things at once: rating gestures exist only on the front, page changes only on the back.
 - **Joker by swiping down:** because the joker cannot be undone, a swipe down does not use it at once. It opens a short question "Use my joker on <name>? This cannot be undone." with "Use joker" and "Cancel". "Use joker" presses the existing joker button.
 - **The rating buttons and the joker button stay in the page, but out of sight** (visually hidden, still focusable, shown while they have the keyboard focus). So rating also works with the keyboard, with a screen reader and without JavaScript, and the server side does not change at all. This keeps the rule of D16 that the buttons stay, only invisible while swiping works.
-- **Without JavaScript** the dots still switch pages (CSS scroll snapping and anchor links); rating works with the hidden buttons.
+- **Without JavaScript** the labels turn the card (as C10) and the dots on the back are links that change the page (CSS scroll snapping); rating works with the hidden buttons.
 - **The creator's "Close the room" button and the link back to the lobby** must stay reachable without scrolling the card page. How is decided in the spec review of C11.
-- **Allowed JavaScript:** `swipe.js` may grow to cover the grip, the page dots and the joker question. No new file, no library.
+- **Allowed JavaScript:** `swipe.js` may grow to cover the joker question, the page dots and the tap on the back. No new file, no library.
 
-**Task:** C11 (Track C, mkim-nova), own spec `specs/c11-fullscreen-card.md`, after C10 is merged. The tests of C10 that pin the turning of the card (`tests/test_rating_card_back.py`, the parts about the checkbox and the labels) are replaced by tests of C11; the spec names every test it replaces so the team can approve that in the spec review.
+**Task:** C11 (Track C, mkim-nova), own spec `specs/c11-fullscreen-card.md`, after C10 is merged. The turning from C10 stays, so most C10 tests stay true; the spec names the few that change.
 
 ## Open questions
 
