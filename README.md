@@ -10,9 +10,9 @@ Team project for *Introduction to Programming*, Nova SBE 2026/27.
 
 | Name | Student number |
 |---|---|
-| _Name 1_ | _number_ |
-| _Name 2_ | _number_ |
-| _Name 3_ | _number_ |
+| Christopher Harren | 73313 |
+| Mika Samuel Kimmel | 73431 |
+| Timo Nolte | 74581 |
 
 ## Run locally
 
