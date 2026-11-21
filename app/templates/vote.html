@@ -3,6 +3,9 @@
 
 {% block title %}Rate: {{ room.title }} – Einig{% endblock %}
 
+{# C11: only the one-card rating page fills the screen and does not scroll (class on <body>). #}
+{% block body_class %}{% if room.status == "voting" and order and next_option is not none %}rating-screen{% endif %}{% endblock %}
+
 {% block head %}
   {# Three large buttons, one per line, easy to tap on a phone (AGENTS.md, Mobile). #}
   <style>
@@ -64,7 +67,21 @@
     <p>There are no options to rate yet.</p>
 
   {% elif next_option is not none %}
-    <p>Option {{ position }} of {{ order|length }}</p>
+    {# C11: a slim line with the position and one small menu (lobby link, creator's close button). #}
+    <div class="card-line">
+      <span>Option {{ position }} of {{ order|length }}</span>
+      <details data-card-menu>
+        <summary>Menu</summary>
+        <p><a href="{{ url_for('rooms.show_lobby', room_id=room.id) }}">Back to the lobby</a></p>
+        {% if own_veto_name %}<p>You used your joker on: {{ own_veto_name }}</p>{% endif %}
+        {% if is_creator %}
+          {# Only the creator sees this; the close route checks the creator flag again (B3). #}
+          <form action="{{ url_for('rooms.close_room', room_id=room.id) }}" method="post">
+            <button type="submit" class="secondary">Close the room and show the result</button>
+          </form>
+        {% endif %}
+      </details>
+    </div>
     {# A10: swipe.js removes "hidden", so the hint only shows where swiping works. #}
     <p hidden data-swipe-hint>Swipe right: Rather yes · up: Fine with me · left: Rather not</p>
     {% set next_card = cards[next_option] %}
@@ -72,20 +89,29 @@
     {% set has_back = next_card.source == "google" and not next_card.details_missing %}
     <article data-swipe-card>
       {% if has_back %}<input type="checkbox" id="card-side-{{ next_option }}" data-flip-toggle class="visually-hidden">{% endif %}
-      {# Only the place part can be dragged; the buttons below keep normal taps and scrolling. #}
+      {# Only the front can be dragged to rate; the back has pages instead (D20). #}
       <div data-swipe-area>
         {{ option_heading(next_option) }}
       </div>
       {% if has_back %}
         {# Outside the swipe area: swipe.js captures the pointer inside it, so a label there would not get the tap. #}
         <label for="card-side-{{ next_option }}" data-flip-open>More about this place</label>
-        {{ place_card_back(next_card, next_option) }}
-      {% endif %}
-      {% if menu_url %}
+        {{ place_card_back(next_card, next_option, menu_url) }}
+      {% elif menu_url %}
         <p><a href="{{ menu_url }}" target="_blank" rel="noopener noreferrer">Menu &amp; reviews on Google Maps</a></p>
       {% endif %}
+      {# The buttons stay in the page, visually hidden but focusable (app.css). #}
       {{ rating_form(next_option) }}
       {{ joker_form(next_option) }}
+      {% if own_veto is none %}
+        {# D20: a swipe down only asks; "Use joker" presses the joker button above. #}
+        <div data-joker-question hidden>
+          {# Without details Google gave no name; the page already shows the fallback name once (C2c), so say "this place". #}
+          <p>Use my joker on {{ next_card.label if next_card.source != "google" else ("this place" if next_card.details_missing else next_card.name) }}? This cannot be undone.</p>
+          <button type="button" data-joker-confirm>Use joker</button>
+          <button type="button" data-joker-cancel class="secondary">Cancel</button>
+        </div>
+      {% endif %}
     </article>
     <script src="{{ url_for('static', filename='js/swipe.js') }}" defer></script>
 
@@ -102,11 +128,14 @@
     {% endfor %}
   {% endif %}
 
-  {% if own_veto_name %}
+  {% set one_card = room.status == "voting" and order and next_option is not none %}
+  {% if own_veto_name and not one_card %}
     <p>You used your joker on: {{ own_veto_name }}</p>
   {% endif %}
 
-  {% if room.status == "voting" and is_creator %}
+  {% if one_card %}
+    {# Close button and lobby link are in the card menu above. #}
+  {% elif room.status == "voting" and is_creator %}
     {# Only the creator sees this; the close route checks the creator flag again (B3). #}
     <form action="{{ url_for('rooms.close_room', room_id=room.id) }}" method="post">
       <button type="submit" class="secondary">Close the room and show the result</button>
@@ -115,5 +144,7 @@
     <p><a href="{{ url_for('rooms.show_result', room_id=room.id) }}">See the result</a></p>
   {% endif %}
 
-  <p><a href="{{ url_for('rooms.show_lobby', room_id=room.id) }}">Back to the lobby</a></p>
+  {% if not one_card %}
+    <p><a href="{{ url_for('rooms.show_lobby', room_id=room.id) }}">Back to the lobby</a></p>
+  {% endif %}
 {% endblock %}
