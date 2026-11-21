@@ -58,7 +58,7 @@ Each line is one task: own spec in `specs/`, own branch, own pull request, fresh
 - [x] C5 F13 "Been there" (PR #29) – checked on the deployed app with a real key
 - [x] C6 F23 Find a place by name and pick the right match (`docs/decisions.md` D14) (PR #39) – checked on the deployed app with a real key
 - [ ] ~~C7 F26 "I was there", "My places" and badges (`specs/c7-collect-places.md`, D15)~~ – **not built for the submission** (D15 update 2026-11-21)
-- [ ] C10 F30 Place details: kind and rating count on every card, reviews and more on the back of the rating card (`specs/c10-place-details.md`, D19) – implementation in review (#70)
+- [x] C10 F30 Place details: kind and rating count on every card, reviews and more on the back of the rating card (`specs/c10-place-details.md`, D19) (PR #70) – manual phone check with a real key still open
 - [ ] ~~C8 F26 Map of my places and of a group, Maps Static API (`specs/c8-place-map.md`, D15)~~ – **not built for the submission** (D15 update 2026-11-21)
 - [x] C9 F27 Room setup: activity, kind, options per person (`specs/c9-room-setup.md`, D17) (PR #56) – checked on the deployed app with a real key ("Surprise me", Sport – Bowling). Kind `sport.climbing` dropped (no climbing type in Google's Table A). B6 keeps the setup form below the options list and shows the one-line setup at the top.
 

@@ -60,7 +60,7 @@ Concept priorities M/S/C apply, with this cut for the submission:
 | F1–F7 minimum version | F14 Blind Date |
 | F8–F11 places, map, joker, deadline | F15 Fate mode |
 | F12–F13 surprise mode, "been there" | F18 fairness memory |
-| F23 find a place by name, F24 delete an option (D14) | F17 group history (only the group map of F26 is built, D15) |
+| F23 find a place by name, F24 delete an option (D14) | F17 group history (D15) |
 | F25 my rooms, F16 fixed groups (D15) | F26 place collection and map (D15, not built for the submission) |
 | F27 room setup, F28 hidden collecting, room page layout (D17) | |
 | F22 QR code | F19 meeting point, F20 travel times, F21 WebSockets |
