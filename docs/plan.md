@@ -13,7 +13,7 @@ Last updated: 2026-11-16. Tick boxes as work is merged into `main`.
 - [x] Email the teaching staff: is Flask instead of Streamlit OK? → approved
 - [x] mkim-nova sets up Google Cloud: Places API (New) + Maps Embed API, two restricted keys, **budget alert (~€1)**, keys entered in Render (16 Nov). The daily quota cannot be set during the free trial; see `docs/decisions.md`, D6
 - [x] **Decide together:** how are unrated options counted? → as "Fine with me" (`docs/decisions.md`, D11)
-- [ ] Names and student numbers in `README.md`
+- [x] Names and student numbers in `README.md` (PR #75)
 - [x] Assign the three tracks below to people (`docs/decisions.md`, D10)
 
 ## 2. Three parallel tracks
