@@ -32,7 +32,7 @@ Each line is one task: own spec in `specs/`, own branch, own pull request, fresh
 - [x] A8 F25 My rooms on the home page, cookie kept 180 days (`specs/a8-my-rooms.md`, D15) (PR #46, checked on the deployed app and on a phone)
 - [x] A9 F16 Fixed groups: plan one activity after another, one-tap join (`specs/a9-groups.md`, D15) (PR #51, checked on the deployed app with a phone and an iPad)
 - [x] A10 F4 Swipe to rate + menu link on the rating card (`specs/a10-swipe-rating.md`, D16) (PR #55, checked on the deployed app on an iPhone in Safari; Android Chrome still open)
-- [x] A11 F28 Hidden collecting (`specs/a11-hidden-collecting.md`, D17) (PR #64) – fix for the creator's start hint in a secret room still open (#69)
+- [x] A11 F28 Hidden collecting (`specs/a11-hidden-collecting.md`, D17) (PR #64, fix for the creator's start hint in a secret room: PR #69) – checked on two phones on the deployed app (each phone sees only its own idea and the counts; after "Start voting" all options are on the rating cards)
 
 ### Track B – Voting & result – Timonhio
 
