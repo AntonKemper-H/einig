@@ -43,6 +43,37 @@ button[type=submit].option-delete {  /* beats Pico's "button[type=submit] { widt
 [data-swipe-card][data-swipe-choice="no"]::before  { content: "Rather not"; color: #f85149; }
 
 
+/* C10 (F30): turning the rating card with a checkbox and labels, no JavaScript needed.
+   The checkbox is hidden visually but stays focusable, so Tab and Space work. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+[data-card-back] { display: none; }
+[data-flip-toggle]:checked ~ [data-swipe-area],
+[data-flip-toggle]:checked ~ [data-flip-open] { display: none; }
+[data-flip-toggle]:checked ~ [data-card-back] { display: block; }
+[data-flip-open],
+[data-flip-close] {
+  display: block;
+  min-height: 44px;      /* large tap target */
+  padding: 0.6rem 0;
+  cursor: pointer;
+  text-decoration: underline;
+}
+[data-flip-toggle]:focus-visible ~ [data-flip-open],
+[data-flip-toggle]:focus-visible ~ [data-card-back] [data-flip-close] {
+  outline: 3px solid currentColor;
+  outline-offset: 2px;
+}
+.place-kind { margin-bottom: 0.25rem; font-weight: bold; }
 /* B6: the room page. On a phone everything is one column, participants at the top.
    From 900 px the participants sit in a column on the right, next to the options. */
 @media (min-width: 900px) {
