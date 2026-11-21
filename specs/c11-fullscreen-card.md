@@ -43,6 +43,21 @@ Testing C10 on a phone showed that the page gets long and confusing and that the
 ### Script (`swipe.js`, still short and commented)
 - Adds: the tap on the back, the joker question, the current-dot marker. Still none of `fetch(`, `XMLHttpRequest`, `import `, `http` (also not in comments); it only clicks buttons that are already on the page.
 
+### Code (where things are after C10, `main`)
+- `app/templates/vote.html`, one-card view: `article[data-swipe-card]` holds, in this order, the checkbox `[data-flip-toggle]` (only for a Google card with details, `has_back`), `div[data-swipe-area]` (the front, built by the `place_card` macro), the label `[data-flip-open]`, the back (macro `place_card_back` in `_place_card.html`, `div[data-card-back]` with the label `[data-flip-close]`), the menu link, `rating_form`, `joker_form`. The page also has `<p data-swipe-hint>` and `Option N of M` above the card, and the creator's close button and the lobby link below.
+- `app/templates/_place_card.html`: `place_card` (front) and `place_card_back` (back: description, offers, reviews, extra photos). C11 splits the back into the three `data-card-page` sections here and moves the menu link into `about`.
+- `app/static/css/app.css`: `.visually-hidden`, the `[data-flip-toggle]:checked ~ …` rules, the focus outlines, `.place-kind`, and the A10 swipe rules (`[data-swipe-choice]`). The Pico classless CSS makes every `button[type=submit]` full width: the hidden-button rules must beat it.
+- `app/static/js/swipe.js`: `SWIPE_DISTANCE = 110`, `TAP_DISTANCE = 10`, `choiceFor(dx, dy)`, `moveCard`, `springBack`, pointer events on the swipe area; a touch that starts on a link is ignored; `done` stops a second rating. C11 adds the downward joker question, the tap on the back and the current-dot marker here.
+- `app/routes/rooms.py` `render_vote_page`: loads the one next card with `back_for`; already passes `own_veto`, `menu_url`, `cards`, `next_option`. C11 needs no new route and no new database access.
+- The joker form is `joker_form(option_id)` in `vote.html` (no `name="rating"`, so the A10 script can never press it by mistake); it exists only while `own_veto is none`.
+- Tests to reuse as models: `tests/test_rating_card_back.py` (HTML helpers `ElementFinder`, `tags`, fake Google with `back_answer()`), `tests/test_swipe_rating.py`, `tests/test_joker.py`.
+
+### How to start and check (for the agent building C11, also in a new chat)
+1. Read `AGENTS.md`, `docs/decisions.md` D16, D19, D20 and this spec. Check that PR #72 (this spec) is merged; start from `main` on `feature-c11-fullscreen-card`.
+2. Tests first (`tests/test_fullscreen_card.py` plus the listed C10 test changes, each change named), stop for the team's review, then build. Never edit other reviewed tests.
+3. There is no `.env` on the checkout and agents never create one: to look at the page, run a small throwaway server with a faked `requests.get` (copy the fake from `tests/test_rating_card_back.py`), outside the repository; to check with real Google data, the team deploys the branch on Render (Settings → Branch, then Manual Deploy) and tests on a phone. After the test the branch is set back to `main`.
+4. CSS scroll snapping, `100dvh` and pointer events behave differently on phones and laptops: the manual checks on a phone are part of "done".
+
 ### C10 tests this spec changes (team approval needed in the spec review)
 - `test_a_manual_option_...` and the tests about the back stay true. Changed: the order test (`test_parts_of_the_card_come_in_the_specified_order`: the menu link moves into the back, so the menu-link tests `test_the_rating_page_still_has_exactly_one_menu_link_outside_the_back` and the back-content tests move to the `about` page) and `test_swipe_js_turns_the_card_on_a_short_tap_and_leaves_links_alone` (a tap on the back also turns it back). The spec's author lists the exact lines in the PR. Everything about data, escaping, one call and the other pages stays.
 
