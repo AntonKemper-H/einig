@@ -1114,11 +1114,16 @@ def render_vote_page(room, participant, errors: list[str] | None = None):
     shown_ids = []
     if room["status"] == "voting":
         shown_ids = [next_option] if next_option is not None else order
+    # C10: only the one card of the one-card view also loads its back (same single call).
+    back_for = set()
+    if room["status"] == "voting" and next_option is not None and options[next_option]["source"] == "google":
+        back_for = {options[next_option]["place_id"]}
     loaded = places.load_cards(
         current_app.config.get("GOOGLE_MAPS_API_KEY"),
         [options[option_id] for option_id in shown_ids],
         room["search_center_lat"],
         room["search_center_lng"],
+        back_for=back_for,
     )
     cards = dict(zip(shown_ids, loaded))
     # A10: the next card links to the place's Google Maps page (menu, reviews); no API call.

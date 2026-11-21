@@ -277,6 +277,33 @@ def filters_json(search: dict, kind: str | None = None) -> str:
 PLACE_DETAILS_URL = "https://places.googleapis.com/v1/places/"
 # Only what the card shows. Never "*" (billing depends on the most expensive field).
 DETAILS_FIELD_MASK = "displayName,rating,priceLevel,location,photos"
+# C10 (F30): every card also asks for the kind of place and the number of ratings.
+CARD_FIELD_MASK = DETAILS_FIELD_MASK + ",userRatingCount,primaryTypeDisplayName"
+# Only the one card on the rating page asks for the back: description, offers and reviews.
+BACK_FIELD_MASK = (
+    CARD_FIELD_MASK
+    + ",editorialSummary,reviews,servesBreakfast,servesBrunch,servesLunch,servesDinner"
+    + ",servesVegetarianFood,servesCoffee,servesDessert,servesBeer,servesWine,servesCocktails"
+    + ",goodForGroups,outdoorSeating,reservable"
+)
+MAX_REVIEWS_SHOWN = 3
+MAX_EXTRA_PHOTOS = 3
+# Google field -> short label, in the fixed order the back shows them.
+OFFER_LABELS = {
+    "servesBreakfast": "Breakfast",
+    "servesBrunch": "Brunch",
+    "servesLunch": "Lunch",
+    "servesDinner": "Dinner",
+    "servesVegetarianFood": "Vegetarian",
+    "servesCoffee": "Coffee",
+    "servesDessert": "Dessert",
+    "servesBeer": "Beer",
+    "servesWine": "Wine",
+    "servesCocktails": "Cocktails",
+    "goodForGroups": "Good for groups",
+    "outdoorSeating": "Outdoor seating",
+    "reservable": "Reservations",
+}
 PHOTO_MEDIA_URL = "https://places.googleapis.com/v1/{photo_name}/media"
 PHOTO_MAX_WIDTH_PX = 400
 FALLBACK_PLACE_NAME = "Place from Google Maps"
@@ -299,18 +326,23 @@ def is_number(value) -> bool:
     return isinstance(value, (int, float)) and not isinstance(value, bool)
 
 
-def get_place_details(api_key: str, place_id: str) -> dict:
+def get_place_details(api_key: str, place_id: str, field_mask: str = DETAILS_FIELD_MASK) -> dict:
     """Load name, rating, price level, location and first photo of one place from Google.
+
+    With CARD_FIELD_MASK or BACK_FIELD_MASK the answer also has the kind and rating count
+    (and, for the back mask only, a "back" part). The default call is exactly as in C2b.
 
     Raises PlacesUnavailable if Google cannot be reached, PlacesError for any other problem.
     """
     if not isinstance(place_id, str) or not PLACE_ID_PATTERN.fullmatch(place_id):
         raise PlacesError("This is not a valid place id.")
-    headers = {"X-Goog-Api-Key": api_key, "X-Goog-FieldMask": DETAILS_FIELD_MASK}
+    headers = {"X-Goog-Api-Key": api_key, "X-Goog-FieldMask": field_mask}
+    request_options = {"headers": headers, "timeout": TIMEOUT_SECONDS}
+    if field_mask != DETAILS_FIELD_MASK:
+        # So the kind reads "Italian Restaurant"; the URL itself never changes.
+        request_options["params"] = {"languageCode": "en"}
     try:
-        response = requests.get(
-            PLACE_DETAILS_URL + place_id, headers=headers, timeout=TIMEOUT_SECONDS
-        )
+        response = requests.get(PLACE_DETAILS_URL + place_id, **request_options)
     except requests.RequestException:
         raise PlacesUnavailable("Google Places could not be reached.") from None
 
@@ -322,11 +354,14 @@ def get_place_details(api_key: str, place_id: str) -> dict:
         raise PlacesError("Google Places sent an answer that is not valid JSON.") from None
     if not isinstance(data, dict):
         raise PlacesError("Google Places sent an answer in an unexpected format.")
-    return read_details(place_id, data)
+    return read_details(place_id, data, with_back=(field_mask == BACK_FIELD_MASK))
 
 
-def read_details(place_id: str, data: dict) -> dict:
-    """Pick the card fields out of Google's answer. Anything missing or unusable becomes None."""
+def read_details(place_id: str, data: dict, with_back: bool = False) -> dict:
+    """Pick the card fields out of Google's answer. Anything missing or unusable becomes None.
+
+    The keys kind, rating_count and back (C10) are added only when Google sent a valid value.
+    """
     details = {
         "name": None,
         "rating": None,
@@ -372,7 +407,110 @@ def read_details(place_id: str, data: dict) -> dict:
             # Only https links: a "javascript:" link would run code when tapped.
             if isinstance(uri, str) and uri.startswith("https://"):
                 details["photo_author_uri"] = uri
+
+    primary_type = data.get("primaryTypeDisplayName")
+    if isinstance(primary_type, dict) and isinstance(primary_type.get("text"), str) and primary_type["text"]:
+        details["kind"] = primary_type["text"]
+    count = data.get("userRatingCount")
+    if isinstance(count, int) and not isinstance(count, bool) and count >= 0:
+        details["rating_count"] = count
+
+    if with_back:
+        back = read_back(place_id, data)
+        if any(back.values()):
+            details["back"] = back
     return details
+
+
+def https_or_none(value) -> str | None:
+    """The link if it is an https link, else None. A "javascript:" link would run code when tapped."""
+    if isinstance(value, str) and value.startswith("https://"):
+        return value
+    return None
+
+
+def text_or_none(container, key: str) -> str | None:
+    """container[key]["text"] if it is a non-empty string, else None (Google's {"text": ...} objects)."""
+    if not isinstance(container, dict):
+        return None
+    value = container.get(key)
+    if isinstance(value, dict) and isinstance(value.get("text"), str) and value["text"]:
+        return value["text"]
+    return None
+
+
+def read_review(review) -> dict | None:
+    """One review as the back shows it, or None if it has no text or no author name."""
+    if not isinstance(review, dict):
+        return None
+    text = text_or_none(review, "text")
+    author = review.get("authorAttribution")
+    if text is None or not isinstance(author, dict):
+        return None
+    author_name = author.get("displayName")
+    if not isinstance(author_name, str) or not author_name:
+        return None
+    stars = review.get("rating")
+    age = review.get("relativePublishTimeDescription")
+    return {
+        "stars_text": f"{stars:g} ★" if is_number(stars) else "",
+        "age": age if isinstance(age, str) else "",
+        "text": text,  # unchanged and not cut (Google terms)
+        "author_name": author_name,
+        "author_uri": https_or_none(author.get("uri")),
+        "author_photo_uri": https_or_none(author.get("photoUri")),
+        "google_maps_uri": https_or_none(review.get("googleMapsUri")),
+    }
+
+
+def read_extra_photo(place_id: str, photo) -> dict | None:
+    """One extra photo with its author, or None if it is not a photo of this place."""
+    if not isinstance(photo, dict):
+        return None
+    name = photo.get("name")
+    if not isinstance(name, str) or photo_place_id(name) != place_id:
+        return None
+    author_name = None
+    author_uri = None
+    authors = photo.get("authorAttributions")
+    if isinstance(authors, list) and authors and isinstance(authors[0], dict):
+        if isinstance(authors[0].get("displayName"), str):
+            author_name = authors[0]["displayName"] or None
+        author_uri = https_or_none(authors[0].get("uri"))
+    return {"photo_name": name, "photo_author": author_name, "photo_author_uri": author_uri}
+
+
+def read_back(place_id: str, data: dict) -> dict:
+    """The parts of the back of the card. Every part that is missing or unusable is empty."""
+    offers = [label for field, label in OFFER_LABELS.items() if data.get(field) is True]
+
+    reviews = []
+    raw_reviews = data.get("reviews")
+    if isinstance(raw_reviews, list):
+        for raw_review in raw_reviews:
+            review = read_review(raw_review)
+            if review is not None:
+                reviews.append(review)
+            if len(reviews) == MAX_REVIEWS_SHOWN:
+                break
+
+    photos = []
+    raw_photos = data.get("photos")
+    if isinstance(raw_photos, list):
+        # The first photo is on the front; the back shows the next ones.
+        for raw_photo in raw_photos[1:]:
+            photo = read_extra_photo(place_id, raw_photo)
+            if photo is not None:
+                photos.append(photo)
+            if len(photos) == MAX_EXTRA_PHOTOS:
+                break
+
+    return {
+        "description": text_or_none(data, "editorialSummary"),
+        "offers": " · ".join(offers) or None,
+        "reviews": reviews,
+        "photos": photos,
+    }
 
 
 def fetch_photo(api_key: str, photo_name: str) -> tuple[bytes, str]:
@@ -439,6 +577,14 @@ def format_rating(rating: float | None) -> str:
     return f"{rating:.1f} ★"
 
 
+def format_rating_with_count(rating: float | None, rating_count: int | None) -> str:
+    """'4.5 ★ (812)' with a count, '4.5 ★' without one, '' without a rating."""
+    text = format_rating(rating)
+    if text and rating_count is not None:
+        return f"{text} ({rating_count})"
+    return text
+
+
 def build_card(option, details: dict | None, centre_latitude: float | None, centre_longitude: float | None) -> dict:
     """Turn one option and its Google details (or None) into the texts the card template shows."""
     if option["source"] != "google":
@@ -462,23 +608,35 @@ def build_card(option, details: dict | None, centre_latitude: float | None, cent
     if all(value is not None for value in coordinates):
         distance_text = format_distance(distance_m(*coordinates))
 
-    return {
+    card = {
         "source": "google",
         "name": details["name"] or FALLBACK_PLACE_NAME,
         "photo_name": details["photo_name"],
         "photo_author": details["photo_author"],
         "photo_author_uri": details["photo_author_uri"],
-        "rating_text": format_rating(details["rating"]),
+        "rating_text": format_rating_with_count(details["rating"], details.get("rating_count")),
         "price_text": format_price_level(details["price_level"]),
         "distance_text": distance_text,
         "details_missing": False,
     }
+    # C10: only when Google sent them, so a card without them is exactly the old card.
+    for key in ("kind", "back"):
+        if key in details:
+            card[key] = details[key]
+    return card
 
 
 def load_cards(
-    api_key: str | None, options, centre_latitude: float | None, centre_longitude: float | None
+    api_key: str | None,
+    options,
+    centre_latitude: float | None,
+    centre_longitude: float | None,
+    back_for: set[str] | None = None,
 ) -> list[dict]:
     """One card per option, in order. Loads Google details once per Google option.
+
+    Every card is loaded with CARD_FIELD_MASK; the place ids in back_for (the one card
+    on the rating page) with BACK_FIELD_MASK, in the same single call (C10).
 
     Without a key, or once Google turned out to be unreachable, Google options get
     the fallback card without further calls: the calls run one after another with a
@@ -490,7 +648,8 @@ def load_cards(
         details = None
         if option["source"] == "google" and google_reachable:
             try:
-                details = get_place_details(api_key, option["place_id"])
+                field_mask = BACK_FIELD_MASK if option["place_id"] in (back_for or ()) else CARD_FIELD_MASK
+                details = get_place_details(api_key, option["place_id"], field_mask)
             except PlacesUnavailable:
                 google_reachable = False
             except PlacesError:
