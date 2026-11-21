@@ -119,8 +119,8 @@ Keep this structure. Routes stay thin: they read the request, call `db.py` and `
 
 ## Scope
 
-Build now: **F1–F13, F16, F22, F23, F24, F25, F26, F27, F28, F29 and F30** (see `docs/decisions.md`, D7, D14, D15, D17, D18 and D19). F23–F30 are not in `docs/concept.md`; D14, D15, D17, D18 and D19 describe them. F16 is built in the reduced form of D15.
-Parked: **F14, F15 and F17–F21.** Do not build parked features, and do not prepare code "for later", unless a spec explicitly asks for it.
+Build now: **F1–F13, F16, F22, F23, F24, F25, F27, F28, F29 and F30** (see `docs/decisions.md`, D7, D14, D15, D17, D18 and D19). F23–F30 are not in `docs/concept.md`; D14, D15, D17, D18 and D19 describe them. F16 is built in the reduced form of D15.
+Parked: **F14, F15, F17–F21 and F26** (F26: not built for the submission, D15). Do not build parked features, and do not prepare code "for later", unless a spec explicitly asks for it.
 
 ## Domain rules
 
@@ -169,10 +169,10 @@ With hidden collecting (F28, D17), no page shows another participant's options b
 ## Google Maps integration (`services/places.py`)
 
 - Use the **Places API (New)**: `POST https://places.googleapis.com/v1/places:searchNearby` with headers `X-Goog-Api-Key` and `X-Goog-FieldMask`.
-  The map of collected places (F26, D15) uses the **Maps Static API** (`GET https://maps.googleapis.com/maps/api/staticmap`) on the server, with locations loaded by Place Details (field mask `location`).
+  The map of collected places (F26, D15) uses the **Maps Static API** (`GET https://maps.googleapis.com/maps/api/staticmap`) on the server, with locations loaded by Place Details (field mask `location`). F26 is parked (D15), so this and the `/map/...` route below are not built.
   Finding a place by name (F23, D14) uses `POST https://places.googleapis.com/v1/places:searchText` with the same headers and a field mask.
 - **Always send a field mask** with only the fields the UI displays. Never use `*`.
-- **One search per room**, not per participant. Surprise mode may run a few small searches with different place types and mix the results. Exception: finding a place by name (F23, D14) is one Text Search per search a participant sends, with at most 5 results. Exception: the "My places" cards and the place maps (F26, D15) load details per person and per group, with at most 25 pins per map.
+- **One search per room**, not per participant. Surprise mode may run a few small searches with different place types and mix the results. Exception: finding a place by name (F23, D14) is one Text Search per search a participant sends, with at most 5 results. Exception (F26, D15, not built): the "My places" cards and the place maps would load details per person and per group, with at most 25 pins per map.
 - **Reviews and "serves" fields** (F30, D19) are loaded only for the one card on the rating page, in its single details call. Each review is shown unchanged with its author's name, photo and profile link and a link to the review on Google Maps.
 - **Store only `place_id`** permanently. Name, photo, rating etc. are fetched when needed and not written to the database.
 - **Photos go through a backend proxy route** (`/photo/<photo_name>`) so the API key never appears in HTML. Exception: review author pictures (F30, D19) are loaded straight from Google, because their URLs carry no key. **Maps of collected places** go through `/map/...` the same way.
@@ -191,8 +191,8 @@ With hidden collecting (F28, D17), no page shows another participant's options b
 
 - Location sharing is optional and requires an explicit tap. Coordinates are rounded to about 3 decimal places in JavaScript and again on the server.
 - Participant coordinates are deleted when a room closes.
-- Rooms are deleted after 7 days (CLI command `uv run flask --app app cleanup`). Groups are deleted 90 days after their last new room, collected places (visits) 180 days after their date, as long as the cookie lives (D15). The cleanup command is **planned, not built yet**: no task builds it so far, so until then these are the target periods, not something the app does.
-- The session cookie lasts 180 days and holds only random tokens (rooms, groups, the person token for collected places).
+- Rooms are deleted after 7 days (CLI command `uv run flask --app app cleanup`). Groups are deleted 90 days after their last new room (D15). Collected places (visits, F26) would be deleted 180 days after their date; F26 is not built. The cleanup command is **planned, not built yet**: no task builds it so far, so until then these are the target periods, not something the app does.
+- The session cookie lasts 180 days and holds only random tokens (rooms, groups; the person token for collected places only once F26 is built).
 - No analytics, no tracking scripts, no external fonts.
 
 ## Mobile and PWA
@@ -222,5 +222,5 @@ Update this section as the project progresses.
 - [ ] Sprint 2 – Voting: F4, F5 (with tests), F6 → minimum version complete
 - [ ] Sprint 3 – Places: F8, F9, F22
 - [ ] Sprint 4 – Excitement: F10, F11, F12, F13
-- [ ] Sprint 5 – Coming back (D15): F25 my rooms, F16 groups, F26 place collection and map
+- [ ] Sprint 5 – Coming back (D15): F25 my rooms, F16 groups (F26 place collection and map not built)
 - [ ] Parked: F14, F15, F17–F21, only if time remains

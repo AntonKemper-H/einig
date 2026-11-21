@@ -32,7 +32,7 @@ Each line is one task: own spec in `specs/`, own branch, own pull request, fresh
 - [x] A8 F25 My rooms on the home page, cookie kept 180 days (`specs/a8-my-rooms.md`, D15) (PR #46, checked on the deployed app and on a phone)
 - [x] A9 F16 Fixed groups: plan one activity after another, one-tap join (`specs/a9-groups.md`, D15) (PR #51, checked on the deployed app with a phone and an iPad)
 - [x] A10 F4 Swipe to rate + menu link on the rating card (`specs/a10-swipe-rating.md`, D16) (PR #55, checked on the deployed app on an iPhone in Safari; Android Chrome still open)
-- [ ] A11 F28 Hidden collecting (`specs/a11-hidden-collecting.md`, D17) – after C9 and B6
+- [x] A11 F28 Hidden collecting (`specs/a11-hidden-collecting.md`, D17) (PR #64) – fix for the creator's start hint in a secret room still open (#69)
 
 ### Track B – Voting & result – Timonhio
 
@@ -41,7 +41,7 @@ Each line is one task: own spec in `specs/`, own branch, own pull request, fresh
 - [x] B3 F6 Result page (PR #19)
 - [x] B4 F10 Joker / veto (PR #44)
 - [x] B5 F11 Deadline, and closing when everyone is done (PR #53)
-- [ ] B6 Room page layout: participants and options collapsible, invite at the end (`specs/b6-room-page-layout.md`, D17) – after B4, B5 and C9
+- [x] B6 Room page layout: participants and options collapsible, invite at the end (`specs/b6-room-page-layout.md`, D17) (PR #68)
 - [x] B7 F29 Share and save the result: WhatsApp link and calendar file (PR #66) – still to check once by hand on the deployed app
 
 ### Track C – Online & places – mkim-nova
@@ -57,11 +57,11 @@ Each line is one task: own spec in `specs/`, own branch, own pull request, fresh
 - [x] C4 F12 Surprise mode (PR #27)
 - [x] C5 F13 "Been there" (PR #29) – checked on the deployed app with a real key
 - [x] C6 F23 Find a place by name and pick the right match (`docs/decisions.md` D14) (PR #39) – checked on the deployed app with a real key
-- [ ] C7 F26 "I was there", "My places" and badges (`specs/c7-collect-places.md`, D15) – after A9; Track A reviews the new table
-- [x] C10 F30 Place details: kind and rating count on every card, reviews and more on the back of the rating card (`specs/c10-place-details.md`, D19) (PR #70) – checked on the deployed app with a real key on a phone
+- [ ] ~~C7 F26 "I was there", "My places" and badges (`specs/c7-collect-places.md`, D15)~~ – **not built for the submission** (D15 update 2026-11-21)
+- [x] C10 F30 Place details: kind and rating count on every card, reviews and more on the back of the rating card (`specs/c10-place-details.md`, D19) (PR #70) – checked on a phone with a real key (tap/swipe, author link, reviews, keyboard, no JavaScript, lazy photos)
 - [ ] C11 F4/F30 Full-screen rating card with pages (menu, photos, reviews), joker by swiping down (`specs/c11-fullscreen-card.md`, D20) – C10 is merged
-- [ ] C8 F26 Map of my places and of a group, Maps Static API (`specs/c8-place-map.md`, D15) – after C7; enable the Maps Static API for the server key first
-- [x] C9 F27 Room setup: activity, kind, options per person (`specs/c9-room-setup.md`, D17) (PR #56) – checked on the deployed app with a real key ("Surprise me", Sport – Bowling). Kind `sport.climbing` dropped (no climbing type in Google's Table A). The setup section sits below the options list until B6 moves it to the top.
+- [ ] ~~C8 F26 Map of my places and of a group, Maps Static API (`specs/c8-place-map.md`, D15)~~ – **not built for the submission** (D15 update 2026-11-21)
+- [x] C9 F27 Room setup: activity, kind, options per person (`specs/c9-room-setup.md`, D17) (PR #56) – checked on the deployed app with a real key ("Surprise me", Sport – Bowling). Kind `sport.climbing` dropped (no climbing type in Google's Table A). B6 keeps the setup form below the options list and shows the one-line setup at the top.
 
 ### Dependencies
 
@@ -71,7 +71,7 @@ A1 schema ──► A2 F1 ──► A3 F2 ──► A4 F3 ──► A5 F7
                  │          └──► B2 F4 ──► B3 F6 ──► B4 F10, B5 F11
                  └──► C2 F8 ──► C3 F9, C4 F12 ──► C5 F13
 B1 F5 (no dependencies)        C1 deploy (no dependencies)
-A8 F25 ──► A9 F16 ──► C7 F26 ──► C8 F26 map
+A8 F25 ──► A9 F16          (C7, C8 F26 not built, D15)
 ```
 
 ## 3. Milestones
@@ -81,7 +81,7 @@ A8 F25 ──► A9 F16 ──► C7 F26 ──► C8 F26 map
 | **12 Nov** | Skeleton merged · app **online** · schema merged · algorithm done |
 | **16 Nov** | **Minimum version F1–F7 online** – from here we always have a submittable app |
 | **20 Nov** | F8–F13, F22, F23, F24; A8 F25 |
-| **21 Nov** | A9 F16, C7 + C8 F26 (D15) – cut from the end if time runs short |
+| **21 Nov** | A9 F16 done; C7 + C8 F26 cut (D15) |
 | **21–22 Nov** | Click through every workflow with invalid input, fix bugs, README, rehearse the demo |
 | **23 Nov** | Submit only, nothing new |
 
