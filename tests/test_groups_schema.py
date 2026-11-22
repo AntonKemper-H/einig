@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from app.db import get_db, init_db
+from typed_option import add_typed_option
 
 GROUP_TABLES = {
     "groups": ["id", "name", "created_at", "last_activity_at"],
@@ -75,8 +76,8 @@ def test_fresh_database_has_the_four_tables_and_unchanged_room_tables(app):
 
 def test_init_db_adds_the_tables_and_keeps_all_data(app, client, runner):
     room_id = create_room(client)
-    client.post(f"/rooms/{room_id}/options", data={"label": "Thai Garden"})
-    client.post(f"/rooms/{room_id}/options", data={"label": "Burger Bar"})
+    add_typed_option(client, room_id, "Thai Garden")
+    add_typed_option(client, room_id, "Burger Bar")
     assert client.post(f"/rooms/{room_id}/start").status_code in (302, 303)
     with app.app_context():
         connection = get_db()

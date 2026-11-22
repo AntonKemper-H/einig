@@ -12,6 +12,7 @@ import pytest
 from app import create_app
 from app.db import get_db
 from app.services import places
+from typed_option import add_typed_option
 
 FAKE_KEY = "fake-key-for-tests-0123456789"
 
@@ -21,7 +22,7 @@ WRONG_MODE_MESSAGE = "Surprise places can only be suggested in a &#34;Surprise m
 NOT_COLLECTING_MESSAGE = "Options can only be added before voting starts."
 ALREADY_SUGGESTED_MESSAGE = "Places have already been suggested for this room."
 UNAVAILABLE_MESSAGE = (
-    "Place suggestions are not available right now. You can still add options yourself."
+    "Place suggestions are not available right now."
 )
 NO_RESULTS_MESSAGE = "No places found. Try a larger radius or fewer filters."
 CATEGORY_MESSAGE = "Please choose a category."
@@ -305,9 +306,9 @@ def test_widening_text_not_shown_to_visitor(client, visitor, google, room_id):
 
 
 def test_manual_options_still_work_after_search(app, client, room_id):
-    client.post(f"/rooms/{room_id}/options", data={"label": "Pizza at home"})
+    add_typed_option(client, room_id, "Pizza at home")
     search(client, room_id)
-    response = client.post(f"/rooms/{room_id}/options", data={"label": "Picnic"})
+    response = add_typed_option(client, room_id, "Picnic")
     assert response.status_code in (302, 303)
     labels = [option["label"] for option in options(app, room_id) if option["source"] == "manual"]
     assert labels == ["Pizza at home", "Picnic"]
@@ -346,7 +347,7 @@ def test_google_error_shows_friendly_message(app, client, google, room_id):
     assert response.status_code == 503
     html = response.data.decode()
     assert UNAVAILABLE_MESSAGE in html
-    assert f'action="/rooms/{room_id}/options"' in html
+    assert f'action="/rooms/{room_id}/options"' not in html  # E1: no typed options any more
     assert len(google.calls) == 1
     assert_nothing_saved(app, room_id)
 

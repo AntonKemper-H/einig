@@ -10,6 +10,7 @@ from app import create_app, db
 from app.db import get_db
 from app.services.results import every_option_vetoed, veto_counts
 from app.services.voting import JOKER_USED_MESSAGE, veto_errors
+from typed_option import add_typed_option
 
 NOT_STARTED_MESSAGE = "Voting has not started yet."
 NO_WINNER_MESSAGE = "No winner: nobody rated any option."
@@ -39,7 +40,7 @@ def join(app, room_id, nickname):
 
 
 def add_option(client, room_id, label):
-    response = client.post(f"/rooms/{room_id}/options", data={"label": label})
+    response = add_typed_option(client, room_id, label)
     assert response.status_code in (302, 303)
 
 

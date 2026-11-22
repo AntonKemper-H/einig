@@ -21,6 +21,7 @@ from app import create_app
 from app.db import get_db
 from app.services import options as option_rules
 from app.services import places, surprise
+from typed_option import add_typed_option
 
 FAKE_KEY = "fake-key-for-tests-0123456789"
 NEARBY_URL = "https://places.googleapis.com/v1/places:searchNearby"
@@ -130,7 +131,7 @@ def save_setup(client, room_id, hide=None, reveal=None, marker=True, kind="food.
 
 
 def add_option(client, room_id, label):
-    return client.post(f"/rooms/{room_id}/options", data={"label": label})
+    return add_typed_option(client, room_id, label)
 
 
 def surprise_me(client, room_id):
@@ -417,22 +418,6 @@ def test_been_there_on_a_secret_place_is_rejected(app, google, secret_surprise_r
     assert len(google.posts) == posts_before
 
 
-def test_same_label_as_a_hidden_idea_is_rejected(app, hidden_room):
-    room_id = hidden_room["id"]
-    before = snapshot(app)
-    response = add_option(hidden_room["guest"], room_id, CREATOR_IDEA)
-    html = response.data.decode()
-    assert response.status_code == 400
-    assert SAME_IDEA_MESSAGE in html
-    assert CREATOR_IDEA not in without_typed_label(html, CREATOR_IDEA)
-    assert snapshot(app) == before
-    assert CREATOR_IDEA not in page(hidden_room["guest"], room_id)
-
-    # The same rule ignores upper/lower case, like the normal duplicate check.
-    response = add_option(hidden_room["guest"], room_id, CREATOR_IDEA.lower())
-    assert response.status_code == 400
-    assert SAME_IDEA_MESSAGE in response.data.decode()
-    assert snapshot(app) == before
 
 
 def test_finding_a_hidden_place_by_name_is_rejected(app, client, google):
@@ -464,14 +449,6 @@ def test_finding_a_hidden_place_by_name_is_rejected(app, client, google):
     assert SAME_IDEA_MESSAGE not in response.data.decode()
 
 
-def test_same_label_as_own_idea_keeps_the_normal_message(app, hidden_room):
-    before = snapshot(app)
-    response = add_option(hidden_room["guest"], hidden_room["id"], GUEST_IDEA)
-    html = response.data.decode()
-    assert response.status_code == 400
-    assert option_rules.DUPLICATE_MESSAGE in html
-    assert SAME_IDEA_MESSAGE not in html
-    assert snapshot(app) == before
 
 
 def test_deleting_a_hidden_option_is_ignored_like_an_unknown_one(app, client, secret_surprise_room):
@@ -502,8 +479,6 @@ def test_rejected_actions_do_not_leak_hidden_options(app, secret_surprise_room):
     guest = secret_surprise_room["guest"]
     secret_place = next(row["id"] for row in active_options(app, room_id) if row["source"] == "google")
     responses = [
-        add_option(guest, room_id, "One more idea"),  # over the limit of 1
-        add_option(guest, room_id, ""),  # empty label
         guest.post(f"/rooms/{room_id}/options/{secret_place}/been-there"),
         guest.post(f"/rooms/{room_id}/find", data={"name": ""}),
     ]

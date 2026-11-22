@@ -8,6 +8,7 @@ import pytest
 from app import db
 from app.db import get_db
 from app.services import places
+from typed_option import add_typed_option
 
 DETAILS_URL = "https://places.googleapis.com/v1/places/"
 FAKE_KEY = "fake-key-for-tests-0123456789"
@@ -71,7 +72,7 @@ def join(app, room_id, nickname):
 
 
 def add_option(client, room_id, label):
-    assert client.post(f"/rooms/{room_id}/options", data={"label": label}).status_code in (302, 303)
+    assert add_typed_option(client, room_id, label).status_code in (302, 303)
 
 
 def add_google_options(app, room_id, place_ids):
@@ -264,14 +265,12 @@ def test_setup_line_first_setup_form_after_the_options(app, client, room):
     assert setup_line < participants < options_end < setup_form
 
 
-def test_invite_and_qr_code_come_after_options_and_add_form(client, room):
+def test_invite_and_qr_code_come_after_the_options(client, room):
     page_html = page(client, room["id"])
-    add_form = page_html.index(f'action="/rooms/{room["id"]}/options"')
     last_option = page_html.index("Tacos")
     invite_field = page_html.index('aria-label="Invite link"')
     qr_code = page_html.index("Scan to join this room.")
-    assert last_option < add_form < invite_field
-    assert add_form < qr_code
+    assert last_option < invite_field < qr_code
 
 
 def test_invite_url_in_one_block_at_the_end(client, room):

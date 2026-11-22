@@ -10,6 +10,7 @@ from app import create_app, db
 from app.db import get_db
 from app.services.results import close_errors, rating_counts
 from app.services.scoring import pick_winner
+from typed_option import add_typed_option
 
 ONLY_CREATOR_MESSAGE = "Only the creator can close the room."
 NOT_STARTED_MESSAGE = "Voting has not started yet."
@@ -37,7 +38,7 @@ def join(client, room_id, nickname):
 
 def add_option(client, room_id, label):
     """Add a manual option through the A4 form."""
-    response = client.post(f"/rooms/{room_id}/options", data={"label": label})
+    response = add_typed_option(client, room_id, label)
     assert response.status_code in (302, 303)
 
 
