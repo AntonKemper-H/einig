@@ -22,6 +22,7 @@ from app.services.deadline import (
     time_left_text,
 )
 from app.services.scoring import pick_winner
+from typed_option import add_typed_option
 
 CLOSED_MESSAGE = "This room is closed. You can no longer vote."
 LABELS = ["Pizza", "Sushi", "Tacos"]
@@ -53,7 +54,7 @@ def join(app, room_id, nickname):
 
 
 def add_option(client, room_id, label):
-    response = client.post(f"/rooms/{room_id}/options", data={"label": label})
+    response = add_typed_option(client, room_id, label)
     assert response.status_code in (302, 303)
 
 

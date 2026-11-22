@@ -290,7 +290,7 @@
           </li>
         {% endfor %}
       </ul>
-      <p>Not in the list? Add it as your own option below.</p>
+      <p>Not in the list? Search again with another spelling.</p>
     {% endif %}
 
     {% if option_errors %}
@@ -304,19 +304,9 @@
     {% if room.status == "collecting" and at_limit %}
       {# F27: this participant has added as many options as the room allows. #}
       <p>You have added {{ own_option_count }} of {{ options_per_person }} {{ "option" if options_per_person == 1 else "options" }}.</p>
-    {% elif room.status == "collecting" %}
-      <form action="{{ url_for('rooms.add_option', room_id=room.id) }}" method="post">
-        <label>
-          Add an option
-          <input type="text" name="label" maxlength="80" required
-                 placeholder="Pizza place" value="{{ option_label }}">
-        </label>
-        {% if options_per_person is not none %}
-          <p>{{ own_option_count }} of {{ options_per_person }} {{ "option" if options_per_person == 1 else "options" }} added</p>
-        {% endif %}
-        <button type="submit">Add option</button>
-      </form>
-    {% else %}
+    {% elif room.status == "collecting" and options_per_person is not none %}
+      <p>{{ own_option_count }} of {{ options_per_person }} {{ "option" if options_per_person == 1 else "options" }} added</p>
+    {% elif room.status != "collecting" %}
       <p>Options can no longer be added.</p>
     {% endif %}
     </div>

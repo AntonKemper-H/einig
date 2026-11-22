@@ -13,6 +13,7 @@ import pytest
 from app import db
 from app.db import get_db
 from app.services import places, share
+from typed_option import add_typed_option
 
 INVALID_TIME = "Please enter a valid date and time."
 NO_RESULT = "There is no result to add to the calendar yet."
@@ -63,7 +64,7 @@ def create_room(client, nickname="Zorbia", title="Dinner on Friday"):
 
 
 def add_option(client, room_id, label):
-    assert client.post(f"/rooms/{room_id}/options", data={"label": label}).status_code in (302, 303)
+    assert add_typed_option(client, room_id, label).status_code in (302, 303)
 
 
 def option_ids(app, room_id):

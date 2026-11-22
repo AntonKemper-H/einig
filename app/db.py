@@ -351,34 +351,6 @@ def replace_option(room_id: str, option_id: int, place_id: str, category: str) -
     return True
 
 
-def get_option_labels(room_id: str) -> list[str]:
-    """Return the labels of all manual options in this room (used for the duplicate check)."""
-    rows = get_db().execute(
-        "SELECT label FROM options WHERE room_id = ? AND label IS NOT NULL", (room_id,)
-    ).fetchall()
-    return [row["label"] for row in rows]
-
-
-def add_manual_option(room_id: str, label: str, participant_id: int) -> bool:
-    """Save a manually entered option and who added it. Return False if the database refuses it."""
-    try:
-        # db.transaction() instead of "with connection:", which would close a Postgres connection.
-        # Option and author row are saved together, or neither (F24).
-        with transaction() as connection:
-            option = connection.execute(
-                "INSERT INTO options (room_id, source, label) VALUES (?, 'manual', ?) RETURNING id",
-                (room_id, label),
-            ).fetchone()
-            connection.execute(
-                "INSERT INTO option_authors (option_id, room_id, participant_id) VALUES (?, ?, ?)",
-                (option["id"], room_id, participant_id),
-            )
-    except INTEGRITY_ERRORS:
-        # The same label saved by another request a moment earlier (UNIQUE room_id, label).
-        return False
-    return True
-
-
 def add_place_option(room_id: str, place_id: str, participant_id: int) -> bool:
     """F23 (C6): save a place found by name as a Google option, with the participant as its author.
 
@@ -474,42 +446,6 @@ def count_own_options(room_id: str, participant_id: int) -> int:
     """How many options this participant added to the room (typed or found by name; search results never count)."""
     row = get_db().execute(COUNT_OWN_OPTIONS_SQL, (room_id, participant_id)).fetchone()
     return row["own_count"]
-
-
-def add_manual_option_within_limit(
-    room_id: str, label: str, participant_id: int, options_per_person: int
-) -> str:
-    """Save a typed option only if the participant is below the room's limit, in one transaction.
-
-    Returns "added", "limit", "duplicate" or "not_collecting"; in the last three cases nothing is saved.
-    """
-    try:
-        with transaction() as connection:
-            # Lock the room row first, so two adds at the same moment are counted one after
-            # the other and can never both pass the limit (AGENTS.md, simultaneous actions).
-            lock = connection.execute(
-                "UPDATE rooms SET status = status WHERE id = ? AND status = 'collecting'",
-                (room_id,),
-            )
-            if lock.rowcount != 1:
-                return "not_collecting"
-            own_count = connection.execute(
-                COUNT_OWN_OPTIONS_SQL, (room_id, participant_id)
-            ).fetchone()["own_count"]
-            if own_count >= options_per_person:
-                return "limit"
-            option = connection.execute(
-                "INSERT INTO options (room_id, source, label) VALUES (?, 'manual', ?) RETURNING id",
-                (room_id, label),
-            ).fetchone()
-            connection.execute(
-                "INSERT INTO option_authors (option_id, room_id, participant_id) VALUES (?, ?, ?)",
-                (option["id"], room_id, participant_id),
-            )
-    except INTEGRITY_ERRORS:
-        # The same label saved a moment earlier (UNIQUE room_id, label); the transaction was rolled back.
-        return "duplicate"
-    return "added"
 
 
 def add_place_option_within_limit(

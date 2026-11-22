@@ -7,6 +7,7 @@ and must not be edited.
 import pytest
 
 from app.services.lobby import status_text
+from typed_option import add_typed_option
 
 TOO_FEW_OPTIONS_MESSAGE = "Add at least 2 options before starting the voting."
 WAITING_MESSAGE = "Waiting for the creator to start the voting."
@@ -21,7 +22,7 @@ def create_room(client):
 
 def add_options(client, room_id, labels):
     for label in labels:
-        response = client.post(f"/rooms/{room_id}/options", data={"label": label})
+        response = add_typed_option(client, room_id, label)
         assert response.status_code in (302, 303)
 
 

@@ -11,6 +11,7 @@ import pytest
 from app import create_app
 from app.db import get_db
 from app.services import places
+from typed_option import add_typed_option
 
 FAKE_KEY = "fake-key-for-tests-0123456789"
 NEARBY_URL = "https://places.googleapis.com/v1/places:searchNearby"
@@ -21,7 +22,7 @@ WRONG_MODE_MESSAGE = "Places can only be suggested in a &#34;Places nearby&#34; 
 NOT_COLLECTING_MESSAGE = "Options can only be added before voting starts."
 ALREADY_SUGGESTED_MESSAGE = "Places have already been suggested for this room."
 UNAVAILABLE_MESSAGE = (
-    "Place suggestions are not available right now. You can still add options yourself."
+    "Place suggestions are not available right now."
 )
 NO_RESULTS_MESSAGE = "No places found. Try a larger radius or fewer filters."
 LOCATION_MESSAGE = "Please share your location so we can search nearby."
@@ -284,9 +285,9 @@ def test_after_search_everyone_sees_places_and_form_is_gone(client, guest, room_
 
 
 def test_manual_options_work_before_and_after_search(app, client, room_id):
-    client.post(f"/rooms/{room_id}/options", data={"label": "Pizza place"})
+    add_typed_option(client, room_id, "Pizza place")
     suggest(client, room_id)
-    response = client.post(f"/rooms/{room_id}/options", data={"label": "Cinema"})
+    response = add_typed_option(client, room_id, "Cinema")
     assert_redirects_to_room(response, room_id)
     stored = options(app, room_id)
     assert [row["label"] for row in stored if row["source"] == "manual"] == ["Pizza place", "Cinema"]
@@ -344,7 +345,7 @@ def test_google_error_shows_friendly_message(app, client, room_id, google):
     html = response.data.decode()
     assert response.status_code == 503
     assert UNAVAILABLE_MESSAGE in html
-    assert 'action="/rooms/' + room_id + '/options"' in html  # manual adding still possible
+    assert 'action="/rooms/' + room_id + '/options"' not in html  # E1: no typed options any more
     assert_nothing_saved(app, room_id)
 
 

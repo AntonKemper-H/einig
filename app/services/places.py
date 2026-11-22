@@ -735,9 +735,8 @@ EMPTY_NAME_MESSAGE = "Please enter a name to search for."
 LONG_NAME_MESSAGE = f"A name can be at most {NAME_MAX_LENGTH} characters."
 NAME_SEARCH_LIMIT_MESSAGE = (
     f"You have already searched {MAX_NAME_SEARCHES} times in this room."
-    " You can still add options yourself."
 )
-NO_MATCHES_MESSAGE = "No places found with this name. You can still add it as your own option."
+NO_MATCHES_MESSAGE = "No places found with this name. Try another spelling or add the city."
 EXPIRED_MATCHES_MESSAGE = "This search result has expired. Please search again."
 ALREADY_AN_OPTION_MESSAGE = "This place is already an option."
 

@@ -225,10 +225,9 @@ MANUAL_OPTION_MESSAGE = "Only places from Google Maps can be replaced."
 PICKED_PLACE_MESSAGE = "Only places from the surprise search can be replaced."
 REPLACEMENT_LIMIT_MESSAGE = (
     f"This room has already replaced {MAX_REPLACEMENTS_PER_ROOM} places."
-    " You can still add options yourself."
 )
 NOTHING_NEW_MESSAGE = (
-    "No other place was found nearby, so this place stays. You can still add options yourself."
+    "No other place was found nearby, so this place stays."
 )
 
 

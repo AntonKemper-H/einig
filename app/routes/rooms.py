@@ -38,7 +38,7 @@ NOT_JOINED_DELETE_MESSAGE = "Please join the room before deleting options."
 OPTION_REFUSED_MESSAGE = "Something went wrong while adding the option. Please try again."
 ONLY_CREATOR_MESSAGE = "Only the creator can start the voting."
 PLACES_UNAVAILABLE_MESSAGE = (
-    "Place suggestions are not available right now. You can still add options yourself."
+    "Place suggestions are not available right now."
 )
 NO_PLACES_FOUND_MESSAGE = "No places found. Try a larger radius or fewer filters."
 NOT_JOINED_VOTE_MESSAGE = "Please join the room before voting."
@@ -196,16 +196,6 @@ def is_hidden_from(room, participant, option) -> bool:
     return not shown
 
 
-def is_someone_elses_hidden_idea(room, participant, label: str) -> bool:
-    """True if the label is taken only by an option this participant cannot see (F28)."""
-    privacy = privacy_for(room)
-    if privacy is None:
-        return False
-    shown, _, _ = option_rules.visible_options(db.get_options(room["id"]), participant["id"], *privacy)
-    shown_labels = [option["label"] for option in shown if option["label"] is not None]
-    return not option_rules.is_label_taken(label, shown_labels)
-
-
 def place_taken_message(room, participant, place_id: str) -> str:
     """The message when a place found by name is already in the room (C6, F28).
 
@@ -223,7 +213,6 @@ def render_room_page(
     participant,
     join_nickname: str = "",
     errors: list[str] | None = None,
-    option_label: str = "",
     option_errors: list[str] | None = None,
     search_values=None,
     search_errors: list[str] | None = None,
@@ -365,7 +354,6 @@ def render_room_page(
         join_nickname=join_nickname,
         errors=errors or [],
         cards=cards,
-        option_label=option_label,
         option_errors=option_errors or [],
         show_search_form=show_search_form,
         show_surprise_form=show_surprise_form,
@@ -535,56 +523,6 @@ def join_as_group_member(room):
 
     remember_token(room["id"], session_token)
     return redirect(url_for("rooms.show_room", room_id=room["id"]), code=303)
-
-
-@bp.post("/rooms/<room_id>/options")
-def add_option(room_id: str):
-    """F3: a participant adds an option while the room is collecting, then redirect (Post/Redirect/Get)."""
-    room = db.get_room(room_id)
-    if room is None:
-        abort(404)
-
-    # Permission check on the server: hiding the form is not enough.
-    participant = db.get_participant(room_id, session_token_for(room_id))
-    if participant is None:
-        return render_room_page(room, None, errors=[NOT_JOINED_MESSAGE]), 403
-
-    label = room_rules.clean_text(request.form.get("label"))
-    errors = option_rules.option_errors(label, room["status"], db.get_option_labels(room_id))
-    if errors == [option_rules.DUPLICATE_MESSAGE] and is_someone_elses_hidden_idea(room, participant, label):
-        # F28: say that the idea exists without showing whose it is.
-        errors = [option_rules.SAME_IDEA_MESSAGE]
-    if errors:
-        return render_room_page(room, participant, option_label=label, option_errors=errors), 400
-
-    options_per_person = options_per_person_for(room_id)
-    if options_per_person is None:
-        # No limit (no setup, or "Unlimited"): exactly as before F27.
-        if not db.add_manual_option(room_id, label, participant["id"]):
-            return render_room_page(
-                room, participant, option_label=label, option_errors=[OPTION_REFUSED_MESSAGE]
-            ), 400
-        return redirect(url_for("rooms.show_room", room_id=room_id), code=303)
-
-    def show_option_error(message: str):
-        return render_room_page(
-            room, participant, option_label=label, option_errors=[message]
-        ), 400
-
-    limit_text = activities.limit_message(options_per_person)
-    # Fast check for the message; the database decides below (another add may come at the same moment).
-    if activities.limit_reached(db.count_own_options(room_id, participant["id"]), options_per_person):
-        return show_option_error(limit_text)
-    result = db.add_manual_option_within_limit(room_id, label, participant["id"], options_per_person)
-    if result == "limit":
-        return show_option_error(limit_text)
-    if result == "duplicate":
-        if is_someone_elses_hidden_idea(room, participant, label):
-            return show_option_error(option_rules.SAME_IDEA_MESSAGE)
-        return show_option_error(option_rules.DUPLICATE_MESSAGE)
-    if result == "not_collecting":
-        return show_option_error(option_rules.NOT_COLLECTING_MESSAGE)
-    return redirect(url_for("rooms.show_room", room_id=room_id), code=303)
 
 
 @bp.post("/rooms/<room_id>/options/<int:option_id>/delete")
@@ -998,7 +936,6 @@ def find_place(room_id: str):
         return render_room_page(
             room,
             participant,
-            option_label=name,
             find_name=name,
             find_errors=messages,
             find_matches=matches,
