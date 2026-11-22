@@ -112,6 +112,34 @@ def test_the_design_colours_are_custom_properties_on_root():
         assert re.search(rf"{re.escape(name)}\s*:", declared), f"{name} missing on :root"
 
 
+def contrast(foreground, background):
+    """WCAG 2 contrast ratio of two #RRGGBB colours."""
+    def luminance(colour):
+        channels = [int(colour[i:i + 2], 16) / 255 for i in (1, 3, 5)]
+        linear = [c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4 for c in channels]
+        return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2]
+    lighter, darker = sorted((luminance(foreground), luminance(background)), reverse=True)
+    return (lighter + 0.05) / (darker + 0.05)
+
+
+def test_text_colours_meet_the_contrast_the_spec_promises():
+    # Review of #77: the spec promises 4.5:1 for all text; check every text/background pair of D0.
+    css = css_without_comments()
+    colours = dict(re.findall(r"(--einig-[a-z0-9-]+)\s*:\s*(#[0-9A-Fa-f]{6})\b", css))
+    pairs = [
+        ("--einig-text", "--einig-bg"),
+        ("--einig-muted", "--einig-bg"),
+        ("--einig-text", "--einig-button"),
+        ("--einig-on-button-muted", "--einig-button"),
+        ("--einig-card-text", "--einig-card"),
+        ("--einig-card-muted", "--einig-card"),
+    ]
+    for text, background in pairs:
+        assert text in colours and background in colours, (text, background)
+        ratio = contrast(colours[text], colours[background])
+        assert ratio >= 4.5, f"{text} on {background}: {ratio:.2f}:1"
+
+
 def test_app_css_has_the_three_section_markers_in_order():
     text = APP_CSS.read_text()
     positions = [text.find(marker) for marker in SECTION_MARKERS]
