@@ -5,75 +5,103 @@
    the list of modes lives only in services/rooms.py. #}
 {% set mode_labels = {"manual": "Enter options myself", "nearby": "Places nearby", "surprise": "Surprise me"} %}
 
+{% block body_class %}home-page{% endblock %}
+
 {% block content %}
-  <h1>Einig</h1>
-  <p>Decide together – pick the option everyone can live with.</p>
+  <div class="home-intro">
+    <h1>Decide together</h1>
+    <p>Pick the option everyone can live with.</p>
+  </div>
 
-  <h2>My groups</h2>
+  {# D1a (D21): three parts that look like three screens. A tap on a tile opens one part and
+     CSS hides the rest; a tap on its heading goes back. All three stay in this page, because
+     the reviewed tests want the lists and the create form on the home page (A2, A8, A9).
+     The source order (groups, rooms, create) is pinned too; the tiles are ordered in CSS. #}
+  <div class="home-parts">
+    <details class="home-part home-groups" name="home-part">
+      <summary>
+        <h2>My groups</h2>
+        <small>{% if my_groups %}{{ my_groups|length }} group{% if my_groups|length != 1 %}s{% endif %}{% else %}Same friends, one plan after another{% endif %}</small>
+      </summary>
+      {% if my_groups %}
+        {# F16: only groups this browser is a member of. #}
+        <ul class="tile-list">
+          {% for group in my_groups %}
+            <li>
+              <a href="{{ url_for('groups.show_group', group_id=group.id) }}">{{ group.name }}</a>
+              <small>{{ group.member_count }} member{% if group.member_count != 1 %}s{% endif %}</small>
+            </li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+      <p><a href="{{ url_for('groups.new_group') }}" role="button" class="secondary">Create a group</a></p>
+      <p><small>Plan one activity after another with the same friends.</small></p>
+    </details>
 
-  {% if my_groups %}
-    {# F16: only groups this browser is a member of. #}
-    <ul>
-      {% for group in my_groups %}
-        <li>
-          <a href="{{ url_for('groups.show_group', group_id=group.id) }}">{{ group.name }}</a>
-          <br><small>{{ group.member_count }} member{% if group.member_count != 1 %}s{% endif %}</small>
-        </li>
-      {% endfor %}
-    </ul>
-  {% endif %}
-  <p><a href="{{ url_for('groups.new_group') }}">Create a group</a> to plan one activity after another with the same friends.</p>
+    <details class="home-part home-rooms" name="home-part">
+      <summary>
+        <h2>My rooms</h2>
+        <small>{% if my_rooms %}{{ my_rooms|length }} room{% if my_rooms|length != 1 %}s{% endif %}{% else %}No rooms yet{% endif %}</small>
+      </summary>
+      {% if my_rooms %}
+        {# F25: only rooms this browser joined; nothing about other people or their votes. #}
+        <ul class="tile-list">
+          {% for room in my_rooms %}
+            <li>
+              <a href="{{ room.url }}">{{ room.title }}</a>
+              <small>{{ room.status_label }} · You are {{ room.nickname }}{% if room.is_creator %} · Creator{% endif %}</small>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p>You are not in any room yet. Create one below or open an invite link.</p>
+      {% endif %}
+    </details>
 
-  <h2>My rooms</h2>
+    <details class="home-part home-create" name="home-part"{% if errors %} open{% endif %}>
+      <summary>
+        <h2>Create a room</h2>
+        <small>Start a new vote</small>
+      </summary>
 
-  {% if my_rooms %}
-    {# F25: only rooms this browser joined; nothing about other people or their votes. #}
-    <ul>
-      {% for room in my_rooms %}
-        <li>
-          <a href="{{ room.url }}">{{ room.title }}</a>
-          <br><small>{{ room.status_label }} · You are {{ room.nickname }}{% if room.is_creator %} · Creator{% endif %}</small>
-        </li>
-      {% endfor %}
-    </ul>
-  {% else %}
-    <p>You are not in any room yet. Create one below or open an invite link.</p>
-  {% endif %}
+      {% if errors %}
+        <ul role="alert">
+          {% for error in errors %}
+            <li>{{ error }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
 
-  <h2>Create a room</h2>
+      <form action="{{ url_for('rooms.create_room') }}" method="post">
+        <div class="step">
+          <label>
+            <span class="step-number">1</span> What do you want to decide?
+            <input type="text" name="title" maxlength="80" required
+                   placeholder="Dinner on Friday" value="{{ form.title or '' }}">
+          </label>
+        </div>
 
-  {% if errors %}
-    <ul role="alert">
-      {% for error in errors %}
-        <li>{{ error }}</li>
-      {% endfor %}
-    </ul>
-  {% endif %}
+        <fieldset class="step">
+          <legend><span class="step-number">2</span> Where do the options come from?</legend>
+          {% for mode in modes %}
+            <label>
+              <input type="radio" name="mode" value="{{ mode }}"
+                     {% if form.mode == mode or (not form.mode and mode == "manual") %}checked{% endif %}>
+              {{ mode_labels.get(mode, mode) }}
+            </label>
+          {% endfor %}
+        </fieldset>
 
-  <form action="{{ url_for('rooms.create_room') }}" method="post">
-    <label>
-      What do you want to decide?
-      <input type="text" name="title" maxlength="80" required
-             placeholder="Dinner on Friday" value="{{ form.title or '' }}">
-    </label>
+        <div class="step">
+          <label>
+            <span class="step-number">3</span> Your nickname
+            <input type="text" name="nickname" maxlength="30" required
+                   placeholder="Anna" value="{{ form.nickname or '' }}">
+          </label>
+        </div>
 
-    <fieldset>
-      <legend>Where do the options come from?</legend>
-      {% for mode in modes %}
-        <label>
-          <input type="radio" name="mode" value="{{ mode }}"
-                 {% if form.mode == mode or (not form.mode and mode == "manual") %}checked{% endif %}>
-          {{ mode_labels.get(mode, mode) }}
-        </label>
-      {% endfor %}
-    </fieldset>
-
-    <label>
-      Your nickname
-      <input type="text" name="nickname" maxlength="30" required
-             placeholder="Anna" value="{{ form.nickname or '' }}">
-    </label>
-
-    <button type="submit">Create room</button>
-  </form>
+        <button type="submit">Create room</button>
+      </form>
+    </details>
+  </div>
 {% endblock %}
