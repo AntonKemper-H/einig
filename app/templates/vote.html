@@ -71,15 +71,17 @@
     <div class="card-line">
       <span>Option {{ position }} of {{ order|length }}</span>
       <details data-card-menu>
-        <summary>Menu</summary>
-        <p><a href="{{ url_for('rooms.show_lobby', room_id=room.id) }}">Back to the lobby</a></p>
-        {% if own_veto_name %}<p>You used your joker on: {{ own_veto_name }}</p>{% endif %}
-        {% if is_creator %}
-          {# Only the creator sees this; the close route checks the creator flag again (B3). #}
-          <form action="{{ url_for('rooms.close_room', room_id=room.id) }}" method="post">
-            <button type="submit" class="secondary">Close the room and show the result</button>
-          </form>
-        {% endif %}
+        <summary class="menu-button" aria-label="Menu"><span aria-hidden="true">⋯</span></summary>
+        <div class="menu-panel">
+          <p><a href="{{ url_for('rooms.show_lobby', room_id=room.id) }}">Back to the lobby</a></p>
+          {% if own_veto_name %}<p>You used your joker on: {{ own_veto_name }}</p>{% endif %}
+          {% if is_creator %}
+            {# Only the creator sees this; the close route checks the creator flag again (B3). #}
+            <form action="{{ url_for('rooms.close_room', room_id=room.id) }}" method="post">
+              <button type="submit" class="secondary">Close the room and show the result</button>
+            </form>
+          {% endif %}
+        </div>
       </details>
     </div>
     {# A10: swipe.js removes "hidden", so the hint only shows where swiping works. #}
@@ -113,6 +115,14 @@
         </div>
       {% endif %}
     </article>
+    {# D1b: what each swipe does. Text only and aria-hidden, because the hidden rating buttons already
+       serve the keyboard and screen readers (D20). app.css shows it only once swipe.js is running. #}
+    <div class="swipe-legend" data-swipe-legend aria-hidden="true">
+      <span>← Rather not</span>
+      <span>↑ Fine with me</span>
+      <span>Rather yes →</span>
+      {% if own_veto is none %}<span>↓ Joker</span>{% endif %}
+    </div>
     <script src="{{ url_for('static', filename='js/swipe.js') }}" defer></script>
 
   {% else %}

@@ -3,6 +3,8 @@
 
 {% block title %}Result: {{ room.title }} – Einig{% endblock %}
 
+{% block body_class %}result-page{% endblock %}
+
 {% block content %}
   <h1>{{ room.title }}</h1>
 
@@ -19,6 +21,7 @@
 
   {% else %}
     {% if winner %}
+      <p><span class="pill pill-winner">Winner</span></p>
       {% if winner.card.source == "google" %}
         {# C3: the Google winner's card, map and route (specs/c3-winner-map.md). #}
         <h2>The group's choice: {{ winner.card.name }}</h2>
@@ -41,13 +44,19 @@
 
     {% if share_url %}
       {# F29 (D18): plain links, no API. Only the title, the winner and the route link go out. #}
-      <p><a href="{{ share_url }}" target="_blank" rel="noopener noreferrer" role="button">Share in WhatsApp</a></p>
-      <form action="{{ url_for('rooms.calendar_file', room_id=room.id) }}" method="get">
-        {# No default: the server runs in UTC, so "today, next hour" could be an hour off. #}
-        <label>Date <input type="date" name="date" required></label>
-        <label>Time <input type="time" name="time" required></label>
-        <button type="submit" class="secondary">Add to calendar</button>
-      </form>
+      {# D1b: two tiles; the calendar tile opens on tap and shows its fields. #}
+      <div class="share-tiles">
+        <a href="{{ share_url }}" target="_blank" rel="noopener noreferrer" role="button" class="share-tile">Share in WhatsApp</a>
+        <details class="share-tile">
+          <summary>Add to calendar</summary>
+          <form action="{{ url_for('rooms.calendar_file', room_id=room.id) }}" method="get">
+            {# No default: the server runs in UTC, so "today, next hour" could be an hour off. #}
+            <label>Date <input type="date" name="date" required></label>
+            <label>Time <input type="time" name="time" required></label>
+            <button type="submit" class="secondary">Add to calendar</button>
+          </form>
+        </details>
+      </div>
     {% endif %}
 
     {% if winner_option_id is not none and every_option_vetoed %}
@@ -57,12 +66,17 @@
 
     {# Anonymous counts only (AGENTS.md: individual votes are private, no names here). #}
     <h3>How the options were rated</h3>
-    <ul>
+    <ul class="rating-results">
       {% for option_id, count in counts.items() %}
         <li>
-          <strong>{{ labels[option_id] }}</strong><br>
-          {{ count.yes }}× {{ rating_labels.yes }} · {{ count.ok }}× {{ rating_labels.ok }} · {{ count.no }}× {{ rating_labels.no }}
-          {% if joker_counts.get(option_id) %} · excluded by {{ joker_counts[option_id] }}× joker{% endif %}
+          <strong>{{ labels[option_id] }}</strong>
+          {# The bar is a picture of the counts below it; the counts stay as text. #}
+          <div class="rating-bar" role="img" aria-label="{{ count.yes }} {{ rating_labels.yes }}, {{ count.ok }} {{ rating_labels.ok }}, {{ count.no }} {{ rating_labels.no }}">
+            <span class="bar-yes" style="flex-grow: {{ count.yes }}"></span>
+            <span class="bar-ok" style="flex-grow: {{ count.ok }}"></span>
+            <span class="bar-no" style="flex-grow: {{ count.no }}"></span>
+          </div>
+          <small>{{ count.yes }}× {{ rating_labels.yes }} · {{ count.ok }}× {{ rating_labels.ok }} · {{ count.no }}× {{ rating_labels.no }}{% if joker_counts.get(option_id) %} · excluded by {{ joker_counts[option_id] }}× joker{% endif %}</small>
         </li>
       {% endfor %}
     </ul>
