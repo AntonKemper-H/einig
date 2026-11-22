@@ -20,6 +20,7 @@
   <div class="home-parts">
     <details class="home-part home-groups" name="home-part">
       <summary>
+        <span class="back-label visually-hidden">Back to the start:</span>
         <h2>My groups</h2>
         <small>{% if my_groups %}{{ my_groups|length }} group{% if my_groups|length != 1 %}s{% endif %}{% else %}Same friends, one plan after another{% endif %}</small>
       </summary>
@@ -40,6 +41,7 @@
 
     <details class="home-part home-rooms" name="home-part">
       <summary>
+        <span class="back-label visually-hidden">Back to the start:</span>
         <h2>My rooms</h2>
         <small>{% if my_rooms %}{{ my_rooms|length }} room{% if my_rooms|length != 1 %}s{% endif %}{% else %}No rooms yet{% endif %}</small>
       </summary>
@@ -60,6 +62,7 @@
 
     <details class="home-part home-create" name="home-part"{% if errors %} open{% endif %}>
       <summary>
+        <span class="back-label visually-hidden">Back to the start:</span>
         <h2>Create a room</h2>
         <small>Start a new vote</small>
       </summary>

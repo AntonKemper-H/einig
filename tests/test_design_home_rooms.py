@@ -72,6 +72,16 @@ def test_home_parts_are_closed_on_a_normal_visit(client):
         assert not is_open(tag), HOME_PARTS[key]
 
 
+def test_every_home_part_tells_screen_readers_that_its_heading_goes_back(client):
+    # Review of #78: when a part is open its heading is the way back, shown only as an arrow icon.
+    html = page(client, "/")
+    for key in HOME_PARTS:
+        _, block = home_part(html, key)
+        summary = re.search(r"<summary\b.*?</summary>", block, flags=re.DOTALL).group(0)
+        label = re.search(r'<span class="back-label visually-hidden">\s*Back to the start:?\s*</span>', summary)
+        assert label, HOME_PARTS[key]
+
+
 def test_rejected_create_opens_the_create_part_with_the_errors(client):
     response = client.post("/rooms", data={"title": "", "mode": "manual", "nickname": "Anna"})
     assert response.status_code == 400

@@ -439,7 +439,7 @@ body.rating-screen {
 }
 .tile-list a::after { content: ""; position: absolute; inset: 0; border-radius: inherit; }
 .tile-list a:focus-visible::after { outline: 3px solid var(--einig-accent-2); outline-offset: 2px; }
-.tile-list small { display: block; margin-top: 0.25rem; color: #DCE6FF; }
+.tile-list small { display: block; margin-top: 0.25rem; color: var(--einig-on-button-muted); }
 
 /* Numbered steps of a form (create a room, plan an activity). */
 .step {
@@ -532,7 +532,7 @@ details.home-part > summary h2 {
   font-size: 1.2rem;
   color: #FFFFFF;
 }
-details.home-part > summary small { color: #DCE6FF; }
+details.home-part > summary small { color: var(--einig-on-button-muted); }
 details.home-part > summary:focus-visible { outline: 3px solid var(--einig-accent-2); outline-offset: 3px; }
 /* The icon itself sits in a second layer on the summary's h2 (::before of the heading). */
 details.home-part > summary h2::before {
@@ -609,6 +609,8 @@ details.home-part[open] > summary h2::before {
 }
 details.home-part[open] > summary h2 { font-size: clamp(1.6rem, 6vw, 2rem); }
 details.home-part[open] > summary small { display: none; }
+/* Review of #78: the arrow is only an icon; this text tells screen readers it goes back. */
+details.home-part:not([open]) .back-label { display: none; }
 
 /* --- Room page ------------------------------------------------------------------------- */
 .invite-kicker { margin: 1.5rem 0 0.25rem; color: var(--einig-muted); }
@@ -696,7 +698,7 @@ details.home-part[open] > summary small { display: none; }
   color: #FFFFFF;
 }
 .room-page .room-main > form[action$="/surprise"] p,
-.room-page .room-main > form[action$="/suggest"] p { color: #DCE6FF; font-size: 0.875rem; }
+.room-page .room-main > form[action$="/suggest"] p { color: var(--einig-on-button-muted); font-size: 0.875rem; }
 
 /* Folded tools at the end of the options part: dashed rows. */
 .room-page .room-main > .own-idea,
@@ -712,7 +714,7 @@ details.home-part[open] > summary small { display: none; }
   min-height: 52px;
   display: flex;
   align-items: center;
-  color: #DCE6FF;
+  color: var(--einig-muted);
   font-weight: 600;
 }
 .room-page .room-main > .own-idea[open],
