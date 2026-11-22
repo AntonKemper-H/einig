@@ -166,6 +166,9 @@ body > header.site-header {
 }
 /* C11's rating page: a smaller logo, because the card needs the height. C11's
    ".rating-screen header" sets the side padding to 0; the pill should not touch the screen edge. */
+/* On the home page "My rooms" leads to the same page, so the pill is hidden there. It stays in the
+   HTML (A8 pins it) and out of the tab order; the logo keeps its place on the right. */
+.home-page .site-header > a { visibility: hidden; }
 .rating-screen .site-header > img { height: 1.75rem; }
 body.rating-screen > header.site-header {
   padding-left: var(--pico-block-spacing-horizontal, 1rem);
