@@ -57,3 +57,8 @@ def test_an_invalid_place_id_gets_no_map(app, client, room, monkeypatch):
     bad = [{"place_id": "bad id\"><script>", "name": "Evil", "address": "x"}]
     monkeypatch.setattr(places, "search_by_name", lambda *args, **kwargs: bad)
     assert "<iframe" not in find(client, room)
+
+
+def test_page_jumps_to_the_matches(client, room):
+    html = find(client, room)
+    assert 'id="find-results" tabindex="-1" autofocus>Which one do you mean?' in html
