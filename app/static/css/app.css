@@ -1,5 +1,177 @@
 /* Einig's own styles, on top of Pico classless (AGENTS.md: plain CSS here, no framework). */
 
+/* D0 foundation */
+/* D21: one look for the whole app, the same in light and dark mode. The design tasks write only
+   in their own section: D0 here, D1a and D1b at the end of this file. */
+:root {
+  --einig-bg: #0B1F4D;                          /* page background */
+  --einig-surface: rgba(255, 255, 255, 0.08);   /* see-through panels on the background */
+  --einig-surface-strong: rgba(255, 255, 255, 0.14);
+  --einig-line: rgba(255, 255, 255, 0.22);
+  --einig-button: #2563EB;                      /* main buttons, white text 5.2:1 */
+  --einig-button-hover: #1D4ED8;
+  --einig-text: #FFFFFF;
+  --einig-muted: #C7D4F5;                       /* secondary text on the background */
+  --einig-accent: #FFC94D;                      /* yellow i-dot, highlights */
+  --einig-accent-2: #7DD3FC;                    /* light blue i-dot, links */
+  --einig-card: #FFFFFF;                        /* white cards */
+  --einig-card-text: #0B1F4D;
+  --einig-card-muted: #4A5B82;
+  --einig-radius: 16px;
+  --einig-radius-lg: 24px;
+}
+
+/* Pico's colour variables, for both colour schemes. ":not(#einig)" only raises the specificity
+   above Pico's own ":root:not([data-theme=dark])" and dark-mode rules. */
+:root:not(#einig) {
+  color-scheme: dark;
+  --pico-font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --pico-border-radius: var(--einig-radius);
+  --pico-background-color: var(--einig-bg);
+  --pico-color: var(--einig-text);
+  --pico-h1-color: var(--einig-text);
+  --pico-h2-color: var(--einig-text);
+  --pico-h3-color: var(--einig-text);
+  --pico-h4-color: var(--einig-text);
+  --pico-h5-color: var(--einig-text);
+  --pico-h6-color: var(--einig-text);
+  --pico-muted-color: var(--einig-muted);
+  --pico-muted-border-color: var(--einig-line);
+  --pico-border-color: var(--einig-line);
+  --pico-primary: var(--einig-accent-2);
+  --pico-primary-underline: rgba(125, 211, 252, 0.5);
+  --pico-primary-hover: var(--einig-text);
+  --pico-primary-hover-underline: var(--einig-text);
+  --pico-primary-focus: rgba(125, 211, 252, 0.5);
+  --pico-primary-background: var(--einig-button);
+  --pico-primary-border: var(--einig-button);
+  --pico-primary-hover-background: var(--einig-button-hover);
+  --pico-primary-hover-border: var(--einig-button-hover);
+  --pico-primary-inverse: #FFFFFF;
+  --pico-secondary: var(--einig-muted);
+  --pico-secondary-hover: var(--einig-text);
+  --pico-secondary-background: var(--einig-surface);
+  --pico-secondary-border: var(--einig-line);
+  --pico-secondary-hover-background: var(--einig-surface-strong);
+  --pico-secondary-hover-border: var(--einig-text);
+  --pico-secondary-inverse: var(--einig-text);
+  --pico-secondary-focus: rgba(255, 255, 255, 0.35);
+  --pico-card-background-color: var(--einig-card);
+  --pico-card-sectioning-background-color: #EEF2FB;
+  --pico-card-border-color: transparent;
+  --pico-card-box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3);
+  --pico-form-element-background-color: #FFFFFF;
+  --pico-form-element-active-background-color: #FFFFFF;
+  --pico-form-element-selected-background-color: #EEF2FB;
+  --pico-form-element-color: var(--einig-card-text);
+  --pico-form-element-border-color: #FFFFFF;
+  --pico-form-element-active-border-color: var(--einig-accent-2);
+  --pico-form-element-focus-color: rgba(125, 211, 252, 0.6);
+  --pico-form-element-placeholder-color: #5A6A94;
+  --pico-accordion-border-color: var(--einig-line);
+  --pico-accordion-close-summary-color: var(--einig-text);
+  --pico-accordion-open-summary-color: var(--einig-text);
+  --pico-accordion-active-summary-color: var(--einig-accent-2);
+  --pico-table-border-color: var(--einig-line);
+  --pico-mark-background-color: var(--einig-accent);
+  --pico-mark-color: var(--einig-card-text);
+  --pico-text-selection-color: rgba(125, 211, 252, 0.35);
+  --pico-code-background-color: var(--einig-surface-strong);
+  --pico-code-color: var(--einig-text);
+}
+body { background-color: var(--einig-bg); }
+/* White form fields with dark text: native pickers (date, time, select) use the light scheme. */
+input, select, textarea { color-scheme: light; }
+
+/* Type: the system font, bold and a little tighter headings. */
+h1, h2, h3 { font-weight: 700; line-height: 1.15; letter-spacing: -0.01em; }
+h1 { font-size: clamp(1.75rem, 6vw, 2.25rem); }
+h2 { font-size: clamp(1.3rem, 4.5vw, 1.6rem); }
+small { color: var(--einig-muted); }
+
+/* Buttons: large, rounded, easy to tap. */
+button,
+[role="button"],
+input[type="submit"],
+input[type="button"] {
+  min-height: 48px;
+  border-radius: var(--einig-radius);
+  font-weight: 600;
+}
+
+/* Cards: white with dark text. The variables are set again inside, so headings, links,
+   muted text and the joker question's background stay readable on white. */
+article,
+.card-white {
+  --pico-background-color: var(--einig-card);
+  --pico-color: var(--einig-card-text);
+  --pico-h1-color: var(--einig-card-text);
+  --pico-h2-color: var(--einig-card-text);
+  --pico-h3-color: var(--einig-card-text);
+  --pico-h4-color: var(--einig-card-text);
+  --pico-muted-color: var(--einig-card-muted);
+  --pico-primary: var(--einig-button);
+  --pico-primary-hover: var(--einig-button-hover);
+  --pico-primary-underline: rgba(37, 99, 235, 0.4);
+  --pico-secondary: var(--einig-card-muted);
+  --pico-secondary-background: #FFFFFF;
+  --pico-secondary-border: #C9D3EC;
+  --pico-secondary-inverse: var(--einig-card-text);
+  --pico-secondary-hover-background: #EEF2FB;
+  --pico-secondary-hover-border: var(--einig-card-text);
+  --pico-accordion-close-summary-color: var(--einig-card-text);
+  --pico-accordion-open-summary-color: var(--einig-card-text);
+  --pico-border-color: #C9D3EC;
+  --pico-muted-border-color: #DCE3F3;
+  color: var(--einig-card-text);
+  border-radius: var(--einig-radius-lg);
+}
+article small,
+.card-white small { color: var(--einig-card-muted); }
+/* See-through panel on the background, for groups of controls. */
+.card {
+  background: var(--einig-surface);
+  border-radius: var(--einig-radius-lg);
+  padding: 1rem 1.125rem;
+  margin-bottom: 1rem;
+}
+
+/* The header on every page: "My rooms" as a pill on the left, the logo on the right. */
+body > header.site-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-top: 0.75rem;
+  padding-bottom: 0.5rem;
+}
+.site-header > a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 1.125rem;
+  border-radius: 999px;
+  background: var(--einig-button);
+  color: #FFFFFF;
+  font-weight: 600;
+  text-decoration: none;
+}
+.site-header > a:hover,
+.site-header > a:focus-visible { background: var(--einig-button-hover); color: #FFFFFF; }
+.site-header > img {
+  display: block;
+  height: 2.25rem;
+  width: auto;
+}
+/* C11's rating page: a smaller logo, because the card needs the height. C11's
+   ".rating-screen header" sets the side padding to 0; the pill should not touch the screen edge. */
+.rating-screen .site-header > img { height: 1.75rem; }
+body.rating-screen > header.site-header {
+  padding-left: var(--pico-block-spacing-horizontal, 1rem);
+  padding-right: var(--pico-block-spacing-horizontal, 1rem);
+}
+
+
 /* F24: the "Delete" button next to an option. Small and outlined, so it does not look
    like the page's main action (Pico classless makes every button full-width and blue). */
 button[type=submit].option-delete {  /* beats Pico's "button[type=submit] { width: 100% }" */
@@ -214,3 +386,11 @@ body.rating-screen {
   padding: 1rem;
   background: var(--pico-background-color, #fff);
 }
+
+
+/* D1a home, groups, room */
+/* Home page, group pages and the room page (specs/d1a-design-home-rooms.md). */
+
+
+/* D1b vote, lobby, result */
+/* Rating card, lobby and result page (specs/d1b-design-vote-result.md). */

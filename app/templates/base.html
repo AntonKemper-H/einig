@@ -11,9 +11,10 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
 </head>
 <body class="{% block body_class %}{% endblock %}">
-  <header>
-    <strong>Einig</strong>
+  {# D0 (D21): "My rooms" on the left (its text is pinned by A8's tests), the logo on the right. #}
+  <header class="site-header">
     <a href="{{ url_for('main.home') }}">My rooms</a>
+    <img src="{{ url_for('static', filename='img/logo.svg') }}" alt="Einig" width="92" height="48">
   </header>
   <main>
     {% block content %}{% endblock %}
