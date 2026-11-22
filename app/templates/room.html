@@ -300,6 +300,11 @@
           <li>
             <strong>{{ match.name }}</strong>
             {% if match.address %}<br>{{ match.address }}{% endif %}
+            {% if match.map_url %}
+              {# E2: shows at once which of several places with the same name is meant. #}
+              <iframe src="{{ match.map_url }}" title="Map of {{ match.name }}" width="100%" height="180"
+                      style="border: 0" loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe>
+            {% endif %}
             <form action="{{ url_for('rooms.add_found_place', room_id=room.id) }}" method="post">
               <input type="hidden" name="place_id" value="{{ match.place_id }}">
               <button type="submit">Add this place</button>

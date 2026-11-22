@@ -973,6 +973,11 @@ def find_place(room_id: str):
     save_name_search_entry(room_id, [match["place_id"] for match in matches], count)
     if not matches:
         return show_page(200, [places.NO_MATCHES_MESSAGE])
+    # E2: a small map per match (the browser key, restricted to our domain, may appear in the page).
+    embed_key = current_app.config.get("GOOGLE_MAPS_EMBED_KEY")
+    matches = [
+        {**match, "map_url": places.map_embed_url(embed_key, match["place_id"])} for match in matches
+    ]
     return show_page(200, [], matches)
 
 
