@@ -10,6 +10,7 @@
   --einig-line: rgba(255, 255, 255, 0.22);
   --einig-button: #2563EB;                      /* main buttons, white text 5.2:1 */
   --einig-button-hover: #1D4ED8;
+  --einig-on-button-muted: #EEF3FF;             /* secondary text on the button blue, 4.65:1 */
   --einig-text: #FFFFFF;
   --einig-muted: #C7D4F5;                       /* secondary text on the background */
   --einig-accent: #FFC94D;                      /* yellow i-dot, highlights */
