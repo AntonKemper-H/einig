@@ -27,10 +27,15 @@ The home page is one long list: groups, rooms and the create form one below the 
 - No Python change, no JavaScript, no new dependency.
 
 Checks (one line = one test), `tests/test_design_home_rooms.py`:
-- [ ] The home page has the three parts (`My rooms`, `Create a room`, `My groups`) as `<details>` blocks, and still contains the create form and both lists (A2, A8, A9 stay green).
-- [ ] After a rejected create, the `Create a room` part is open and shows the errors.
-- [ ] In a surprise room the add form and the find form are inside a collapsed `<details>` named `Add your own idea`; in a manual room they are not collapsed.
-- [ ] The room page keeps its source order (as B6's tests) and the start form stays in the participants section.
+- [ ] The home page has the three parts (`My groups`, `My rooms`, `Create a room`) as `<details class="home-part">` blocks with the heading in the summary; the rooms list, the create form and the "Create a group" link are inside them (A2, A8, A9 stay green).
+- [ ] On a normal visit all three parts are closed.
+- [ ] After a rejected create, the `Create a room` part is open and shows the errors; the other two are closed.
+- [ ] In a surprise room and in a "Places nearby" room the add form and the find form are inside one closed `<details class="own-idea">` with the summary `Add your own idea`; in a manual room there is no such block.
+- [ ] A rejected own idea in such a room shows the block open, with the error.
+- [ ] The participants section (with the start form) is open for the creator and closed for guests.
+- [ ] The room page has the body class `room-page` (for the D1a styles only).
+
+The source order of the room page is already pinned by B6's tests (`tests/test_room_page_layout.py`).
 
 All existing tests stay green and unchanged. Checked in the browser at 380 px and 1280 px, light and dark, before and after screenshots in the PR.
 
