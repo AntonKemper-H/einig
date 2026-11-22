@@ -177,6 +177,43 @@ def test_creator_of_a_closed_room_sees_no_warning(app, anna, room):
     assert CREATOR_WARNING not in my_rooms_part(home(anna))
 
 
+# --- F31: the confirmation page before Remove (review of #85) -----------------
+
+def test_remove_confirmation_page_shows_the_title_and_a_post_form(anna, room):
+    response = anna.get(f"/rooms/{room}/forget")
+    assert response.status_code == 200
+    html = response.data.decode()
+    assert "Dinner" in html
+    assert REMOVE_HINT in html
+    assert f'action="/rooms/{room}/forget"' in html
+    assert 'method="post"' in html
+
+
+def test_opening_the_remove_confirmation_page_changes_nothing(app, anna, room):
+    anna.get(f"/rooms/{room}/forget")
+    anna.get(f"/rooms/{room}/forget")
+    assert room in remembered(anna)
+    assert room_exists(app, room)
+    assert count(app, "participants", room) == 2
+
+
+def test_remove_confirmation_warns_the_creator_of_an_open_room_only(app, anna, ben, room):
+    assert CREATOR_WARNING in anna.get(f"/rooms/{room}/forget").data.decode()
+    assert CREATOR_WARNING not in ben.get(f"/rooms/{room}/forget").data.decode()
+    set_status(app, room, "closed")
+    assert CREATOR_WARNING not in anna.get(f"/rooms/{room}/forget").data.decode()
+
+
+def test_remove_confirmation_redirects_home_when_there_is_nothing_to_remove(app, anna, room):
+    stranger = app.test_client()
+    assert stranger.get(f"/rooms/{room}/forget").status_code in (302, 303)
+    assert anna.get("/rooms/does-not-exist/forget").status_code in (302, 303)
+    anna.post(f"/rooms/{room}/forget")
+    response = anna.get(f"/rooms/{room}/forget")
+    assert response.status_code in (302, 303)
+    assert response.headers["Location"].endswith("/")
+
+
 # --- F32: delete room (creator) -----------------------------------------------
 
 def test_creator_sees_a_delete_link_and_a_guest_does_not(anna, ben, room):
