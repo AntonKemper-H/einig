@@ -178,7 +178,7 @@ With hidden collecting (F28, D17), no page shows another participant's options b
 - **Reviews and "serves" fields** (F30, D19) are loaded only for the one card on the rating page, in its single details call. Each review is shown unchanged with its author's name, photo and profile link and a link to the review on Google Maps.
 - **Store only `place_id`** permanently. Name, photo, rating etc. are fetched when needed and not written to the database.
 - **Photos go through a backend proxy route** (`/photo/<photo_name>`) so the API key never appears in HTML. Exception: review author pictures (F30, D19) are loaded straight from Google, because their URLs carry no key. **Maps of collected places** go through `/map/...` the same way.
-- **Map of the winner:** Maps Embed API in an `<iframe>`, using the separate, browser-restricted key `GOOGLE_MAPS_EMBED_KEY`. Route link: a normal Google Maps URL, no API call.
+- **Map of the winner and maps of the search matches (E2):** Maps Embed API in an `<iframe>`, using the separate, browser-restricted key `GOOGLE_MAPS_EMBED_KEY`. The matches of the search by name each get a small embed while the room is collecting. Route link: a normal Google Maps URL, no API call.
 - All API calls have a **timeout (5 s)**. On any error, show a friendly message and let the group continue with manual options.
 - **Tests never call Google.** Mock all HTTP calls.
 
