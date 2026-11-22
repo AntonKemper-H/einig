@@ -239,6 +239,19 @@
           </select>
         </label>
 
+        {% if not show_surprise_form %}
+          {# E4: how many of the found places become options ("Surprise me" keeps its own 5). #}
+          {% set chosen_count = search_values.get("place_count") or default_place_count %}
+          <label>
+            How many places?
+            <select name="place_count">
+              {% for value, text in place_count_choices.items() %}
+                <option value="{{ value }}" {% if chosen_count == value %}selected{% endif %}>{{ text }}</option>
+              {% endfor %}
+            </select>
+          </label>
+        {% endif %}
+
         {# Filled by geolocation.js with rounded coordinates after the tap below. #}
         <input type="hidden" name="latitude" id="latitude" value="{{ search_values.get('latitude', '') }}">
         <input type="hidden" name="longitude" id="longitude" value="{{ search_values.get('longitude', '') }}">

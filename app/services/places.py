@@ -38,6 +38,11 @@ CATEGORIES = {
 RADIUS_CHOICES = {"500": "500 m", "1000": "1 km", "2000": "2 km", "5000": "5 km"}
 MIN_RATING_CHOICES = {"3.5": "3.5 ★ or more", "4.0": "4.0 ★ or more", "4.5": "4.5 ★ or more"}
 PRICE_LEVEL_CHOICES = {"1": "€", "2": "€€", "3": "€€€", "4": "€€€€"}
+# E4: how many of the found places become options. Google is still asked for MAX_RESULT_COUNT;
+# the app keeps the first N after the filters. 15 (= all) is the default, as before E4.
+PLACE_COUNT_CHOICES = {"5": "5 places", "10": "10 places", "15": "Up to 15 places"}
+DEFAULT_PLACE_COUNT = 15
+PLACE_COUNT_MESSAGE = "Please choose how many places to suggest."
 
 # Google sends the price level as text. Anything else (e.g. PRICE_LEVEL_UNSPECIFIED)
 # counts as "no price level".
@@ -219,6 +224,16 @@ def validate_search(form, category_required: bool = True) -> tuple[dict, list[st
     return cleaned, errors
 
 
+def validate_place_count(form) -> tuple[int, list[str]]:
+    """E4: the chosen number of places, or the default when the form has no choice (older forms)."""
+    text = form.get("place_count") or ""
+    if text == "":
+        return DEFAULT_PLACE_COUNT, []
+    if text in PLACE_COUNT_CHOICES:
+        return int(text), []
+    return DEFAULT_PLACE_COUNT, [PLACE_COUNT_MESSAGE]
+
+
 def values_to_show_again(form) -> dict[str, str]:
     """The entered search values for showing the form again after a rejected search.
 
@@ -227,7 +242,7 @@ def values_to_show_again(form) -> dict[str, str]:
     """
     values = {
         name: form.get(name) or ""
-        for name in ("category", "radius_m", "min_rating", "max_price_level")
+        for name in ("category", "radius_m", "min_rating", "max_price_level", "place_count")
     }
     location = parse_location(form.get("latitude"), form.get("longitude"))
     if location is None:
