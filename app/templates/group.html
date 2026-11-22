@@ -4,6 +4,8 @@
 
 {% block title %}{{ group.name }} – Einig{% endblock %}
 
+{% block body_class %}group-page{% endblock %}
+
 {% block content %}
   <h1>{{ group.name }}</h1>
 
@@ -18,13 +20,15 @@
   {% if member %}
     <h2>Plan a new activity</h2>
     <form action="{{ url_for('groups.plan_activity', group_id=group.id) }}" method="post">
+      <div class="step">
       <label>
-        What do you want to decide?
+        <span class="step-number">1</span> What do you want to decide?
         <input type="text" name="title" maxlength="80" required
                placeholder="Dinner on Friday" value="{{ activity.title or '' }}">
       </label>
-      <fieldset>
-        <legend>Where do the options come from?</legend>
+      </div>
+      <fieldset class="step">
+        <legend><span class="step-number">2</span> Where do the options come from?</legend>
         {% for mode in modes %}
           <label>
             <input type="radio" name="mode" value="{{ mode }}"
@@ -38,11 +42,11 @@
 
     <h2>Activities</h2>
     {% if rooms %}
-      <ul>
+      <ul class="tile-list">
         {% for room in rooms %}
           <li>
             <a href="{{ room.url }}">{{ room.title }}</a>
-            <br><small>{{ room.status_label }}</small>
+            <small>{{ room.status_label }}</small>
           </li>
         {% endfor %}
       </ul>
@@ -51,7 +55,7 @@
     {% endif %}
 
     <h2>Members</h2>
-    <ul>
+    <ul class="member-list">
       {% for person in members %}
         <li>{{ person.nickname }}</li>
       {% endfor %}

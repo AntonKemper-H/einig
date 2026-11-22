@@ -391,6 +391,425 @@ body.rating-screen {
 /* D1a home, groups, room */
 /* Home page, group pages and the room page (specs/d1a-design-home-rooms.md). */
 
+/* Icons as CSS masks (stroke SVGs as data URIs, nothing is loaded from outside). */
+:root {
+  --einig-icon-home: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 10.5 12 4l9 6.5'/%3E%3Cpath d='M5 9.5V20h14V9.5'/%3E%3Cpath d='M10 20v-5h4v5'/%3E%3C/svg%3E");
+  --einig-icon-plus: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round'%3E%3Cpath d='M12 5v14M5 12h14'/%3E%3C/svg%3E");
+  --einig-icon-people: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='9' cy='8' r='3.2'/%3E%3Cpath d='M3 19c.6-3.3 3-5 6-5s5.4 1.7 6 5'/%3E%3Cpath d='M16 5.2a3 3 0 0 1 0 5.6M18 14.3c1.6.7 2.7 2.2 3 4.7'/%3E%3C/svg%3E");
+  --einig-icon-back: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M19 12H5'/%3E%3Cpath d='m11 6-6 6 6 6'/%3E%3C/svg%3E");
+  --einig-icon-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 6 6 6-6 6'/%3E%3C/svg%3E");
+}
+
+/* Lists of rooms, groups and activities: every entry is one big button. The link covers the
+   whole entry (a::after), the small line below stays plain text. */
+.tile-list {
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.tile-list li {
+  position: relative;
+  list-style: none;
+  margin: 0;
+  padding: 1rem 3rem 1rem 1.125rem;
+  border-radius: 22px;
+  background: var(--einig-button);
+}
+.tile-list li::after {          /* the chevron on the right */
+  content: "";
+  position: absolute;
+  right: 1rem;
+  top: 50%;
+  width: 1.25rem;
+  height: 1.25rem;
+  margin-top: -0.625rem;
+  background: #FFFFFF;
+  -webkit-mask: var(--einig-icon-chevron) center / contain no-repeat;
+  mask: var(--einig-icon-chevron) center / contain no-repeat;
+}
+.tile-list a {
+  color: #FFFFFF;
+  font-weight: 700;
+  font-size: 1.05rem;
+  text-decoration: none;
+}
+.tile-list a::after { content: ""; position: absolute; inset: 0; border-radius: inherit; }
+.tile-list a:focus-visible::after { outline: 3px solid var(--einig-accent-2); outline-offset: 2px; }
+.tile-list small { display: block; margin-top: 0.25rem; color: #DCE6FF; }
+
+/* Numbered steps of a form (create a room, plan an activity). */
+.step {
+  margin: 0 0 0.875rem;
+  padding: 1rem;
+  border: 0;
+  border-radius: 22px;
+  background: var(--einig-surface);
+}
+.step > label,
+.step > legend { font-weight: 600; }
+.step > legend { float: left; width: 100%; padding: 0; margin-bottom: 0.75rem; }
+.step > legend + * { clear: left; }
+.step input:not([type="radio"]) { margin-bottom: 0; margin-top: 0.5rem; }
+.step-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.625rem;
+  height: 1.625rem;
+  margin-right: 0.5rem;
+  border-radius: 50%;
+  background: var(--einig-button);
+  color: #FFFFFF;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+/* The room modes as chips: the whole row is the tap target, the chosen one turns white. */
+fieldset.step > label {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 48px;
+  margin: 0 0 0.5rem;
+  padding: 0 1rem;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.1);
+  font-weight: 500;
+  cursor: pointer;
+}
+fieldset.step > label:last-child { margin-bottom: 0; }
+fieldset.step > label:has(input:checked) { background: #FFFFFF; color: var(--einig-card-text); }
+fieldset.step > label input { margin: 0; }
+
+/* --- Home page: three tiles that open like screens ------------------------------------ */
+.home-intro { margin-bottom: 1.5rem; }
+.home-intro h1 { margin-bottom: 0.5rem; }
+.home-intro p { color: var(--einig-muted); margin: 0; }
+.home-parts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.875rem;
+}
+.home-rooms { order: 1; }
+.home-create { order: 2; }
+.home-groups { order: 3; grid-column: 1 / -1; }
+details.home-part {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+details.home-part > summary {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 0.25rem;
+  min-height: 10rem;
+  padding: 1.125rem;
+  border-radius: var(--einig-radius-lg);
+  background: var(--einig-button);
+  color: #FFFFFF;
+  list-style: none;
+  cursor: pointer;
+}
+details.home-part > summary::-webkit-details-marker { display: none; }
+details.home-part > summary::after { display: none; }   /* Pico's chevron */
+details.home-part > summary::before {                     /* the tile's icon in a light square */
+  content: "";
+  position: absolute;
+  top: 1.125rem;
+  left: 1.125rem;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.16);
+}
+details.home-part > summary h2 {
+  margin: 0;
+  font-size: 1.2rem;
+  color: #FFFFFF;
+}
+details.home-part > summary small { color: #DCE6FF; }
+details.home-part > summary:focus-visible { outline: 3px solid var(--einig-accent-2); outline-offset: 3px; }
+/* The icon itself sits in a second layer on the summary's h2 (::before of the heading). */
+details.home-part > summary h2::before {
+  content: "";
+  position: absolute;
+  top: 1.875rem;
+  left: 1.875rem;
+  width: 1.5rem;
+  height: 1.5rem;
+  background: #FFFFFF;
+  -webkit-mask: var(--einig-icon-home) center / contain no-repeat;
+  mask: var(--einig-icon-home) center / contain no-repeat;
+}
+details.home-create > summary h2::before {
+  -webkit-mask-image: var(--einig-icon-plus);
+  mask-image: var(--einig-icon-plus);
+}
+/* My groups: a smaller, see-through row under the two tiles. */
+details.home-groups > summary {
+  min-height: 0;
+  padding: 1rem 3rem 1rem 1.125rem;
+  background: var(--einig-surface);
+  border: 1px solid var(--einig-line);
+}
+details.home-groups > summary::before,
+details.home-groups > summary h2::before { display: none; }
+details.home-groups > summary h2 { font-size: 1.05rem; }
+details.home-groups:not([open]) > summary::after {        /* chevron on the right */
+  display: block;
+  content: "";
+  position: absolute;
+  right: 1rem;
+  top: 50%;
+  width: 1.25rem;
+  height: 1.25rem;
+  margin-top: -0.625rem;
+  float: none;
+  transform: none;
+  background: #FFFFFF;
+  -webkit-mask: var(--einig-icon-chevron) center / contain no-repeat;
+  mask: var(--einig-icon-chevron) center / contain no-repeat;
+}
+
+/* One part open: only that part is shown, its heading becomes the way back. */
+.home-parts:has(> details[open]) > details:not([open]),
+main:has(details.home-part[open]) > .home-intro { display: none; }
+details.home-part[open] { grid-column: 1 / -1; }
+details.home-part[open] > summary {
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.875rem;
+  min-height: 0;
+  margin-bottom: 1.25rem;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+details.home-part[open] > summary::before {              /* the back button */
+  position: static;
+  flex: 0 0 auto;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 14px;
+  background: var(--einig-button);
+  display: block;
+}
+details.home-part[open] > summary h2::before {
+  display: block;
+  top: 0.625rem;
+  left: 0.625rem;
+  -webkit-mask-image: var(--einig-icon-back);
+  mask-image: var(--einig-icon-back);
+}
+details.home-part[open] > summary h2 { font-size: clamp(1.6rem, 6vw, 2rem); }
+details.home-part[open] > summary small { display: none; }
+
+/* --- Room page ------------------------------------------------------------------------- */
+.invite-kicker { margin: 1.5rem 0 0.25rem; color: var(--einig-muted); }
+.invite-kicker + h1 { margin-top: 0; font-size: clamp(2rem, 8vw, 2.5rem); }
+.room-page main > h1 { margin-bottom: 0.5rem; }
+.room-page main > h1 ~ p:not(.done-link) { color: var(--einig-muted); margin-bottom: 0.5rem; }
+.room-page main > h1 ~ p a { color: var(--einig-accent-2); }
+
+/* On a phone the options come first and the participants (with "Start voting") at the bottom.
+   B6's grid from 900 px keeps them in the right column. */
+.room-page .room-columns { display: flex; flex-direction: column; margin-top: 1rem; }
+.room-page .room-columns > .room-main { order: 1; display: flex; flex-direction: column; }
+.room-page .room-columns > .participants { order: 2; }
+@media (min-width: 900px) {
+  .room-page .room-columns { display: grid; }
+}
+
+/* The options: white cards with a small delete button. */
+.room-page .room-main > h2 { margin: 0 0 0.75rem; }
+.room-page .room-main > ol {
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.room-page .room-main > ol > li {
+  list-style: none;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 3.75rem;
+  padding: 0.625rem 0.75rem 0.625rem 1rem;
+  border-radius: 18px;
+  background: var(--einig-card);
+  color: var(--einig-card-text);
+  font-weight: 600;
+}
+.room-page .room-main > ol > li > details { flex: 1 1 12rem; margin: 0; border: 0; padding: 0; }
+.room-page .room-main > ol > li > details > summary { color: var(--einig-card-text); }
+.room-page .room-main > ol > li > details > article { box-shadow: none; padding: 0; margin: 0.5rem 0 0; }
+.room-page .room-main > ol > li > form { margin: 0 0 0 auto; }
+.room-page .room-main > ol > li > form + form { margin-left: 0; }
+.room-page .room-main > ol > li button {
+  width: auto;
+  min-height: 40px;
+  margin: 0;
+  padding: 0.25rem 0.875rem;
+  font-size: 0.875rem;
+  border-radius: 12px;
+  background: #FFFFFF;
+  color: var(--einig-card-text);
+  border: 1px solid #C9D3EC;
+}
+
+/* Tools of the room (setup, search, add, find): see-through cards. */
+.room-page .room-main > details:not(.own-idea):not(.find-place),
+.room-page .room-main > form,
+.room-page .room-main > .own-idea > form {
+  margin: 0 0 0.875rem;
+  padding: 1rem 1.125rem;
+  border: 0;
+  border-radius: var(--einig-radius-lg);
+  background: var(--einig-surface);
+}
+.room-page .room-main > details:not(.own-idea):not(.find-place) > summary { font-weight: 700; }
+.room-page .room-main form h3 { font-size: 1.15rem; margin-bottom: 0.75rem; }
+/* "Surprise us" / "Find places nearby": the app's search stands out. */
+.room-page .room-main > form[action$="/surprise"],
+.room-page .room-main > form[action$="/suggest"] { background: var(--einig-button); }
+.room-page .room-main > form[action$="/surprise"] button[type="submit"],
+.room-page .room-main > form[action$="/suggest"] button[type="submit"] {
+  background: #FFFFFF;
+  border-color: #FFFFFF;
+  color: var(--einig-card-text);
+}
+/* "Use my location" inside the blue search card: an outlined button. */
+.room-page .room-main > form[action$="/surprise"] button[type="button"],
+.room-page .room-main > form[action$="/suggest"] button[type="button"] {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  color: #FFFFFF;
+}
+.room-page .room-main > form[action$="/surprise"] p,
+.room-page .room-main > form[action$="/suggest"] p { color: #DCE6FF; font-size: 0.875rem; }
+
+/* Folded tools at the end of the options part: dashed rows. */
+.room-page .room-main > .own-idea,
+.room-page .room-main > .find-place {
+  order: 1;
+  margin: 0 0 0.875rem;
+  padding: 0 1rem;
+  border: 1px dashed var(--einig-line);
+  border-radius: 18px;
+}
+.room-page .room-main > .own-idea > summary,
+.room-page .room-main > .find-place > summary {
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  color: #DCE6FF;
+  font-weight: 600;
+}
+.room-page .room-main > .own-idea[open],
+.room-page .room-main > .find-place[open] { padding-bottom: 1rem; }
+.room-page .room-main > .own-idea > form { background: rgba(255, 255, 255, 0.05); }
+
+/* Participants and "Start voting": the blue card at the bottom. Closed for guests. */
+.room-page details.participants {
+  margin: 0.5rem 0 1rem;
+  padding: 1rem 1.125rem;
+  border: 0;
+  border-radius: var(--einig-radius-lg);
+  background: var(--einig-surface);
+}
+.room-page details.participants[open] { background: var(--einig-button); }
+.room-page details.participants > summary { font-weight: 700; color: #FFFFFF; }
+.room-page details.participants ul { margin-bottom: 0.75rem; }
+.room-page details.participants a { color: #FFFFFF; }
+.room-page details.participants form { margin: 0.75rem 0 0; }
+.room-page details.participants select {
+  background-color: rgba(255, 255, 255, 0.18);
+  color: #FFFFFF;
+  border-color: transparent;
+  color-scheme: dark;
+}
+.room-page details.participants select option { color: var(--einig-card-text); }
+.room-page details.participants button[type="submit"] {
+  background: #FFFFFF;
+  border-color: #FFFFFF;
+  color: var(--einig-card-text);
+  font-size: 1.05rem;
+}
+
+/* "I'm done", invite link and QR code. */
+.room-page .done-link a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 56px;
+  border: 1px solid var(--einig-line);
+  border-radius: 18px;
+  background: var(--einig-surface);
+  color: #FFFFFF;
+  font-weight: 700;
+  text-decoration: none;
+}
+.room-page .invite {
+  margin-top: 1rem;
+  padding: 1rem 1.125rem;
+  border-radius: var(--einig-radius-lg);
+  background: var(--einig-surface);
+}
+.room-page .invite small a { color: var(--einig-muted); }
+.room-page main > figure { text-align: center; margin-top: 1rem; }
+.room-page main > figure figcaption { color: var(--einig-muted); }
+
+/* The join form (invite link) as a card. */
+.room-page main > h2 + form,
+.room-page main > h2 + ul + form { padding: 1.125rem; border-radius: var(--einig-radius-lg); background: var(--einig-surface); }
+
+/* --- Group pages and 404 ------------------------------------------------------------------ */
+.group-page main > form,
+.new-group-page main > form,
+.not-found-page main > p:last-child {
+  padding: 1.125rem;
+  border-radius: var(--einig-radius-lg);
+  background: var(--einig-surface);
+}
+.group-page main > h2 { margin-top: 1.5rem; }
+.group-page .member-list {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.group-page .member-list li {
+  list-style: none;
+  margin: 0;
+  padding: 0.5rem 0.875rem;
+  border-radius: 999px;
+  background: var(--einig-surface-strong);
+  font-weight: 600;
+}
+.group-page main > figure { text-align: center; }
+.group-page main > figure figcaption { color: var(--einig-muted); }
+.not-found-page main > p:last-child a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 52px;
+  border-radius: 16px;
+  background: var(--einig-button);
+  color: #FFFFFF;
+  font-weight: 700;
+  text-decoration: none;
+}
+
 
 /* D1b vote, lobby, result */
 /* Rating card, lobby and result page (specs/d1b-design-vote-result.md). */
