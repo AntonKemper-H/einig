@@ -418,12 +418,12 @@ def test_front_shows_kind_and_rating_count(app, client):
 
 # --- One menu link ---------------------------------------------------------------
 
-def test_the_rating_page_still_has_exactly_one_menu_link_outside_the_back(app, client):
+def test_the_rating_page_still_has_exactly_one_menu_link_now_on_the_about_page_of_the_back(app, client):
+    # C11 (D20) changed this test: the menu link moved from below the card into the back's "about" page.
     html, room_id, ids = rating_page(app, client)
     assert menu_links(html) == [places.place_page_url("place-a", "Pizza Roma")]
     back_html = elements_with(html, "data-card-back")[0][1]
-    assert MENU_TEXT.replace("&", "&amp;") not in back_html
-    assert MENU_TEXT not in html_lib.unescape(back_html)
+    assert menu_links(back_html) == menu_links(html)
 
 
 # --- Nothing more to show, nothing to turn ------------------------------------------
