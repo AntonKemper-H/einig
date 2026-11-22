@@ -527,6 +527,18 @@ def join_as_group_member(room):
     return redirect(url_for("rooms.show_room", room_id=room["id"]), code=303)
 
 
+@bp.get("/rooms/<room_id>/forget")
+def confirm_forget_room(room_id: str):
+    """F31: ask before a room is taken off the list. Opening this page changes nothing."""
+    room = db.get_room(room_id)
+    if room is None or room_id not in session.get("participant_tokens", {}):
+        # Nothing to remove (unknown room, or not on this browser's list).
+        return redirect(url_for("main.home"), code=303)
+    participant = db.get_participant(room_id, session_token_for(room_id))
+    warn_creator = bool(participant and participant["is_creator"] and room["status"] != "closed")
+    return render_template("forget_room.html", room=room, warn_creator=warn_creator)
+
+
 @bp.post("/rooms/<room_id>/forget")
 def forget_room(room_id: str):
     """F31: take a room off this browser's list. The database is not touched (Post/Redirect/Get)."""

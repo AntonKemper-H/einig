@@ -300,10 +300,10 @@ D16, D19 and D20 left the look of the app to a design phase. All features for th
 
 "My rooms" (F25) only grows: finished or mistaken rooms stay in the list, and a creator cannot get rid of a room made by accident. F31 and F32 are not in `docs/concept.md`; this decision describes them.
 
-**F31 – Remove from my list (S).** Every tile of "My rooms" has a **Remove** button (`POST /rooms/<id>/forget`).
+**F31 – Remove from my list (S).** Every tile of "My rooms" has a **Remove** button. It opens a short confirmation page (`GET /rooms/<id>/forget`, changes nothing); the removal is `POST /rooms/<id>/forget` (review of #85).
 - It only removes the room's token from this browser's cookie. The database does not change: the participant, their ratings and jokers stay and still count, and the room stays for everyone else.
-- The person cannot get back in as the same person: the token is the only proof of identity (no accounts, A3). Opening the invite link again means joining as a new participant. The tile says so.
-- **A creator may remove an unfinished room** (collecting or voting) from their list. Then nobody can start the voting or close the room, so the tile warns: `You are the creator: nobody else can start or close this room.` We warn instead of forbidding it, because the creator who wants the room gone has F32. (Check in review.)
+- The person cannot get back in as the same person: the token is the only proof of identity (no accounts, A3). Opening the invite link again means joining as a new participant. This is said once below the list and on the confirmation page, not on every tile.
+- **A creator may remove an unfinished room** (collecting or voting) from their list. Then nobody can start the voting or close the room, so the list and the confirmation page warn: `You are the creator: nobody else can start or close this room.` We warn instead of forbidding it, because the creator who wants the room gone has F32. (Check in review.)
 
 **F32 – Delete room (S).** Only the **creator**, in **any status**, deletes a room for everyone.
 - Two steps without JavaScript: a confirmation page (`GET /rooms/<id>/delete`, deletes nothing) and `POST /rooms/<id>/delete`. After it the home page shows `Room "<title>" was deleted.`
