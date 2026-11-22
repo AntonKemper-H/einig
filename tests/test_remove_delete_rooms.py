@@ -7,6 +7,7 @@ from app.db import get_db
 ONLY_CREATOR_MESSAGE = "Only the creator can delete this room."
 DELETE_WARNING = "This deletes the room for everyone"
 REMOVE_HINT = "You cannot get back into it as the same person."
+LIST_CREATOR_NOTE = "In rooms you created, nobody else can start or close the voting."
 CREATOR_WARNING = "You are the creator: nobody else can start or close this room."
 CREATE_HEADING = "Create a room"
 STATUSES = ["collecting", "voting", "closed"]
@@ -168,16 +169,22 @@ def test_after_remove_the_room_link_asks_to_join_as_a_new_participant(app, anna,
 
 
 def test_creator_of_an_open_room_sees_the_warning_but_a_guest_does_not(anna, ben, room):
-    assert CREATOR_WARNING in my_rooms_part(home(anna))
-    assert CREATOR_WARNING not in my_rooms_part(home(ben))
+    assert LIST_CREATOR_NOTE in my_rooms_part(home(anna))
+    assert LIST_CREATOR_NOTE not in my_rooms_part(home(ben))
 
 
 def test_creator_of_a_closed_room_sees_no_warning(app, anna, room):
     set_status(app, room, "closed")
-    assert CREATOR_WARNING not in my_rooms_part(home(anna))
+    assert LIST_CREATOR_NOTE not in my_rooms_part(home(anna))
 
 
 # --- F31: the confirmation page before Remove (review of #85) -----------------
+
+def test_the_remove_form_on_the_home_page_only_opens_the_confirmation_page(anna, room):
+    html = my_rooms_part(home(anna))
+    form = html[html.index(f'action="/rooms/{room}/forget"'):]
+    assert 'method="get"' in form.split("</form>", 1)[0]
+
 
 def test_remove_confirmation_page_shows_the_title_and_a_post_form(anna, room):
     response = anna.get(f"/rooms/{room}/forget")
