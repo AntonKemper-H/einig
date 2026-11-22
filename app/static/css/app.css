@@ -670,7 +670,7 @@ details.home-part:not([open]) .back-label { display: none; }
 }
 
 /* Tools of the room (setup, search, add, find): see-through cards. */
-.room-page .room-main > details:not(.own-idea):not(.find-place),
+.room-page .room-main > details:not(.own-idea),
 .room-page .room-main > form,
 .room-page .room-main > .own-idea > form {
   margin: 0 0 0.875rem;
@@ -679,7 +679,7 @@ details.home-part:not([open]) .back-label { display: none; }
   border-radius: var(--einig-radius-lg);
   background: var(--einig-surface);
 }
-.room-page .room-main > details:not(.own-idea):not(.find-place) > summary { font-weight: 700; }
+.room-page .room-main > details:not(.own-idea) > summary { font-weight: 700; }
 .room-page .room-main form h3 { font-size: 1.15rem; margin-bottom: 0.75rem; }
 /* "Surprise us" / "Find places nearby": the app's search stands out. */
 .room-page .room-main > form[action$="/surprise"],
@@ -700,25 +700,22 @@ details.home-part:not([open]) .back-label { display: none; }
 .room-page .room-main > form[action$="/surprise"] p,
 .room-page .room-main > form[action$="/suggest"] p { color: var(--einig-on-button-muted); font-size: 0.875rem; }
 
-/* Folded tools at the end of the options part: dashed rows. */
-.room-page .room-main > .own-idea,
-.room-page .room-main > .find-place {
+/* The folded own-idea row at the end of the options part: a dashed row. */
+.room-page .room-main > .own-idea {
   order: 1;
   margin: 0 0 0.875rem;
   padding: 0 1rem;
   border: 1px dashed var(--einig-line);
   border-radius: 18px;
 }
-.room-page .room-main > .own-idea > summary,
-.room-page .room-main > .find-place > summary {
+.room-page .room-main > .own-idea > summary {
   min-height: 52px;
   display: flex;
   align-items: center;
   color: var(--einig-muted);
   font-weight: 600;
 }
-.room-page .room-main > .own-idea[open],
-.room-page .room-main > .find-place[open] { padding-bottom: 1rem; }
+.room-page .room-main > .own-idea[open] { padding-bottom: 1rem; }
 .room-page .room-main > .own-idea > form { background: rgba(255, 255, 255, 0.05); }
 
 /* Participants and "Start voting": the blue card at the bottom. Closed for guests. */

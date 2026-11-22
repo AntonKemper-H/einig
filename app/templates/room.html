@@ -250,8 +250,9 @@
       <script src="{{ url_for('static', filename='js/geolocation.js') }}" defer></script>
     {% endif %}
 
-    {# D1a: in a "Places nearby" or "Surprise me" room the app's search comes first; one's own idea
-       and the search by name (F23) stay, folded into one row. Open again after an error or a search. #}
+    {# D1a: in a "Places nearby" or "Surprise me" room the app's search comes first; the search by
+       name (F23) stays, folded into one row. Open again after an error or a search. In a manual
+       room it is the only way to add a place (E1), so it stays a normal card there. #}
     {% set collapse_own = room.mode != "manual" and room.status == "collecting" %}
     {% set own_open = find_errors or option_errors or find_matches %}
     {% if collapse_own %}
@@ -267,11 +268,6 @@
       </ul>
     {% endif %}
 
-    {% if show_find_form and not collapse_own %}
-      {# D1a: in a manual room the search by name is a smaller, folded tool under the add field. #}
-      <details class="find-place"{% if find_errors or find_matches %} open{% endif %}>
-        <summary>or find a place on Google Maps</summary>
-    {% endif %}
     {% if show_find_form %}
       {# F23: step 1 – type a name; the server runs one Text Search (no JavaScript needed). #}
       <form action="{{ url_for('rooms.find_place', room_id=room.id) }}" method="post">
@@ -295,9 +291,6 @@
       {% if find_offers_location %}
         <script src="{{ url_for('static', filename='js/geolocation.js') }}" defer></script>
       {% endif %}
-    {% endif %}
-    {% if show_find_form and not collapse_own %}
-      </details>
     {% endif %}
 
     {% if find_matches %}

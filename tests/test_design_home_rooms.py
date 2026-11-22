@@ -105,20 +105,23 @@ def test_own_ideas_are_collapsed_in_rooms_with_suggested_places(client, mode):
     tag, block = blocks[0]
     assert not is_open(tag)
     assert re.search(rf"<summary[^>]*>\s*{OWN_IDEA_SUMMARY}\s*</summary>", block)
-    assert f'action="/rooms/{room_id}/options"' in block
+    # E1 (#80): the search by name is the only way to add one's own place.
     assert f'action="/rooms/{room_id}/find"' in block
 
 
-def test_own_ideas_are_not_collapsed_in_a_manual_room(client):
+def test_find_by_name_is_not_folded_in_a_manual_room(client):
+    # E1 (#80): in a manual room the search by name is the only way to add a place, so it is shown.
     room_id = create_room(client, mode="manual")
     html = page(client, f"/rooms/{room_id}")
     assert details_blocks(html, "own-idea") == []
-    assert f'action="/rooms/{room_id}/options"' in html
+    find_form = html.index(f'action="/rooms/{room_id}/find"')
+    before = html[:find_form]
+    assert before.count("<details") - before.count("</details>") == 0, "the find form is inside a <details>"
 
 
 def test_a_rejected_own_idea_opens_the_collapsed_part(client):
     room_id = create_room(client, mode="surprise")
-    response = client.post(f"/rooms/{room_id}/options", data={"label": ""})
+    response = client.post(f"/rooms/{room_id}/find", data={"name": ""})
     assert response.status_code == 400
     tag, block = details_blocks(response.get_data(as_text=True), "own-idea")[0]
     assert is_open(tag)
