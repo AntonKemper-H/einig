@@ -9,6 +9,7 @@ import re
 from pathlib import Path
 
 import pytest
+from typed_option import add_typed_option
 
 ROOT = Path(__file__).resolve().parent.parent
 APP_CSS = ROOT / "app" / "static" / "css" / "app.css"
@@ -26,7 +27,7 @@ def create_room(client, title="Dinner", nickname="Anna"):
 
 def add_options(client, room_id, labels):
     for label in labels:
-        assert client.post(f"/rooms/{room_id}/options", data={"label": label}).status_code in (302, 303)
+        assert add_typed_option(client, room_id, label).status_code in (302, 303)
 
 
 def join(guest, room_id, nickname):

@@ -4,6 +4,7 @@ import re
 from pathlib import Path
 
 import pytest
+from typed_option import add_typed_option
 
 APP_CSS = Path(__file__).resolve().parent.parent / "app" / "static" / "css" / "app.css"
 LOGO_IMG = re.compile(r'<img\b[^>]*\bsrc="/static/img/logo\.svg"[^>]*>')
@@ -31,7 +32,7 @@ def create_room(client, title="Dinner", nickname="Anna"):
 
 
 def add_option(client, room_id, label):
-    assert client.post(f"/rooms/{room_id}/options", data={"label": label}).status_code in (302, 303)
+    assert add_typed_option(client, room_id, label).status_code in (302, 303)
 
 
 def create_group(client, name="Friday friends", nickname="Anna"):

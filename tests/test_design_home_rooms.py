@@ -3,9 +3,10 @@
 import re
 
 import pytest
+from typed_option import add_typed_option
 
 HOME_PARTS = {"groups": "My groups", "rooms": "My rooms", "create": "Create a room"}
-OWN_IDEA_SUMMARY = "Add your own idea"
+OWN_IDEA_SUMMARY = "Add a place by name"
 
 
 # --- Helpers ---------------------------------------------------------------
@@ -105,7 +106,7 @@ def test_own_ideas_are_collapsed_in_rooms_with_suggested_places(client, mode):
     tag, block = blocks[0]
     assert not is_open(tag)
     assert re.search(rf"<summary[^>]*>\s*{OWN_IDEA_SUMMARY}\s*</summary>", block)
-    assert f'action="/rooms/{room_id}/options"' in block
+    assert f'action="/rooms/{room_id}/options"' not in block  # E1: no typed options any more
     assert f'action="/rooms/{room_id}/find"' in block
 
 
@@ -113,12 +114,12 @@ def test_own_ideas_are_not_collapsed_in_a_manual_room(client):
     room_id = create_room(client, mode="manual")
     html = page(client, f"/rooms/{room_id}")
     assert details_blocks(html, "own-idea") == []
-    assert f'action="/rooms/{room_id}/options"' in html
+    assert f'action="/rooms/{room_id}/options"' not in html  # E1: no typed options any more
 
 
 def test_a_rejected_own_idea_opens_the_collapsed_part(client):
     room_id = create_room(client, mode="surprise")
-    response = client.post(f"/rooms/{room_id}/options", data={"label": ""})
+    response = client.post(f"/rooms/{room_id}/find", data={"name": ""})  # E1: the find form is the way in
     assert response.status_code == 400
     tag, block = details_blocks(response.get_data(as_text=True), "own-idea")[0]
     assert is_open(tag)
