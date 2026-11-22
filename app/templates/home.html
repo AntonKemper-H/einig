@@ -68,7 +68,7 @@
         {# The explanations are shown once for the whole list, not on every tile. #}
         <p><small>Remove takes a room off your list on this device. You cannot get back into it as the same person.</small></p>
         {% if my_rooms|selectattr("is_creator")|rejectattr("status", "equalto", "closed")|list %}
-          <p><small>You are the creator: nobody else can start or close this room.</small></p>
+          <p><small>In rooms you created, nobody else can start or close the voting.</small></p>
         {% endif %}
       {% else %}
         <p>You are not in any room yet. Create one below or open an invite link.</p>
