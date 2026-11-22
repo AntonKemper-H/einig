@@ -6,6 +6,7 @@ import pytest
 
 from app import create_app
 from app.db import get_db, init_db
+from typed_option import add_typed_option
 
 NOT_JOINED_MESSAGE = "Please join the room before deleting options."
 NOT_COLLECTING_MESSAGE = "Options can only be deleted before voting starts."
@@ -29,7 +30,7 @@ def join(client, room_id, nickname):
 
 def add_option(client, room_id, label):
     """Add a manual option through the app (A4) and return its id."""
-    response = client.post(f"/rooms/{room_id}/options", data={"label": label})
+    response = add_typed_option(client, room_id, label)
     assert response.status_code in (302, 303)
     return option_id_by_label(client.application, room_id, label)
 

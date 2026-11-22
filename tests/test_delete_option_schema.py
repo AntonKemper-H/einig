@@ -10,6 +10,7 @@ import pytest
 
 from app import db as database
 from app.db import get_db
+from typed_option import add_typed_option
 
 NOT_ALLOWED_MESSAGE = "Only the person who added this option or the creator can delete it."
 
@@ -28,7 +29,7 @@ def join(client, room_id, nickname):
 
 
 def add_option(client, room_id, label):
-    response = client.post(f"/rooms/{room_id}/options", data={"label": label})
+    response = add_typed_option(client, room_id, label)
     assert response.status_code in (302, 303)
 
 

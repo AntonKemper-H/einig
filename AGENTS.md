@@ -4,7 +4,7 @@ Rules for coding agents (Claude Code, Codex, …) working on this repository. Re
 
 ## Project overview
 
-**Einig** (working title) is a mobile-first web app that helps groups decide what to do. A creator opens a "room", friends join via link or QR code without an account, everyone rates options on three levels ("Rather yes" / "Fine with me" / "Rather not"), and the app picks the option everyone can live with rather than the one most people like. Options can be entered manually or suggested from Google Maps, including a surprise mode that deliberately suggests new places.
+**Einig** (working title) is a mobile-first web app that helps groups decide what to do. A creator opens a "room", friends join via link or QR code without an account, everyone rates options on three levels ("Rather yes" / "Fine with me" / "Rather not"), and the app picks the option everyone can live with rather than the one most people like. Every option is a place from Google Maps (E1): found by name, suggested nearby, or via a surprise mode that deliberately suggests new places. Typed free-text options no longer exist.
 
 This is a university team project (Introduction to Programming). Every team member must be able to explain every part of the code in the repository walkthrough. **Prefer simple, readable code over clever or compact code.**
 
