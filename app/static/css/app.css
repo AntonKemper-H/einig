@@ -1099,3 +1099,36 @@ button.danger-button:focus-visible {
   color: #FFFFFF;
   text-align: center;
 }
+
+/* Navigation links at the end of a page ("Back to the room", "Back to the lobby", "See the result",
+   "Cancel"): a see-through button, so they look like the rest of the app and are easy to tap. */
+a.nav-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 52px;
+  margin-top: 0.5rem;
+  border: 1px solid var(--einig-line);
+  border-radius: 16px;
+  background: var(--einig-surface);
+  color: var(--einig-text);
+  font-weight: 700;
+  text-decoration: none;
+}
+a.nav-button:hover { background: var(--einig-surface-strong); color: var(--einig-text); }
+a.nav-button:focus-visible,
+a.inline-button:focus-visible { outline: 3px solid var(--einig-accent-2); outline-offset: 2px; }
+/* Small links inside a card or the head of the room page ("Refresh", "Part of <group>"). */
+a.inline-button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  border-radius: 999px;
+  color: #FFFFFF;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+a.inline-button:hover { background: rgba(255, 255, 255, 0.12); color: #FFFFFF; }

@@ -76,5 +76,5 @@
     <p><a href="{{ url_for('rooms.show_vote', room_id=room.id) }}" role="button" class="rate-button">Rate the options</a></p>
   {% endif %}
 
-  <p><a href="{{ url_for('rooms.show_room', room_id=room.id) }}">Back to the room</a></p>
+  <p><a href="{{ url_for('rooms.show_room', room_id=room.id) }}" class="nav-button">Back to the room</a></p>
 {% endblock %}
