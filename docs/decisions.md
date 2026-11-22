@@ -296,6 +296,26 @@ D16, D19 and D20 left the look of the app to a design phase. All features for th
 - **Own branch:** the work is done on `design` (from `main`). `main` and the deployed app stay as they are until the whole design is reviewed, then `design` is merged into `main` in one step, so one revert brings the old look back.
 - **Three tasks:** D0 foundation (`specs/d0-design-foundation.md`) first; then D1a home, groups and room page (`specs/d1a-design-home-rooms.md`) and D1b rating card, lobby and result (`specs/d1b-design-vote-result.md`) in parallel. Each part is reviewed and tested by the person who did not build it.
 
+## D22 – Remove a room from my list (F31) and delete a room (F32) (2026-11-22)
+
+"My rooms" (F25) only grows: finished or mistaken rooms stay in the list, and a creator cannot get rid of a room made by accident. F31 and F32 are not in `docs/concept.md`; this decision describes them.
+
+**F31 – Remove from my list (S).** Every tile of "My rooms" has a **Remove** button. It opens a short confirmation page (`GET /rooms/<id>/forget`, changes nothing); the removal is `POST /rooms/<id>/forget` (review of #85).
+- It only removes the room's token from this browser's cookie. The database does not change: the participant, their ratings and jokers stay and still count, and the room stays for everyone else.
+- The person cannot get back in as the same person: the token is the only proof of identity (no accounts, A3). Opening the invite link again means joining as a new participant. This is said once below the list and on the confirmation page, not on every tile.
+- **A creator may remove an unfinished room** (collecting or voting) from their list. Then nobody can start the voting or close the room, so the list and the confirmation page warn: `You are the creator: nobody else can start or close this room.` We warn instead of forbidding it, because the creator who wants the room gone has F32. (Check in review.)
+
+**F32 – Delete room (S).** Only the **creator**, in **any status**, deletes a room for everyone.
+- Two steps without JavaScript: a confirmation page (`GET /rooms/<id>/delete`, deletes nothing) and `POST /rooms/<id>/delete`. After it the home page shows `Room "<title>" was deleted.`
+- One `DELETE FROM rooms`; the `ON DELETE CASCADE` rules remove participants, options, ratings, jokers, authors, setup and the link to a group. **A group stays**, with its members.
+- Not joined or not the creator: 403 and nothing changes. A room that is already gone: the POST redirects home, so deleting twice is harmless.
+- Other participants lose the room from their list on their next visit of the home page (F25 already drops tokens of deleted rooms); the old link shows the 404 page.
+- **No schema change.**
+
+**Not included:** removing or deleting groups (they have members and a room history and need their own decision), restoring a deleted room, deleting several rooms at once.
+
+**Task:** E3 (`specs/e3-remove-and-delete-rooms.md`, branch `feature-e3-remove-and-delete-rooms`), tests in `tests/test_remove_delete_rooms.py`.
+
 ## Open questions
 
 - Final app name.

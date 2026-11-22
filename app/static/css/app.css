@@ -1033,3 +1033,69 @@ details.share-tile form { margin-top: 0.75rem; text-align: left; }
 .bar-yes { background: #4ADE80; }
 .bar-ok { background: #7DD3FC; }
 .bar-no { background: #F87171; }
+
+/* F31 / F32: Remove and Delete on a room tile. The tile link covers the whole tile (a::after),
+   so the actions get their own stacking level above it. Each action is at least 44 px high
+   (touch size) and the row is set apart from the tile link by a thin line. */
+.tile-list .tile-actions {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  gap: 0.5rem;
+  align-items: stretch;
+  margin-top: 0.5rem;
+  padding-top: 0.25rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.25);
+}
+.tile-list .tile-actions form { margin: 0; }
+.tile-list .tile-actions a::after { content: none; }
+.tile-list .tile-actions a,
+.tile-list .tile-action {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin: 0;
+  padding: 0 0.75rem;
+  border: 0;
+  border-radius: 12px;
+  background: none;
+  box-shadow: none;
+  cursor: pointer;
+  color: #FFFFFF;
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-decoration: underline;
+  width: auto;
+}
+.tile-list .tile-actions a:focus-visible,
+.tile-list .tile-action:focus-visible {
+  outline: 3px solid var(--einig-accent-2);
+  outline-offset: 2px;
+}
+/* The button that deletes for everyone: red, so it does not look like the normal blue one. */
+button.danger-button {
+  background: #B42318;
+  border-color: #B42318;
+  color: #FFFFFF;
+}
+button.danger-button:hover,
+button.danger-button:focus-visible {
+  background: #912018;
+  border-color: #912018;
+}
+.delete-room-link { margin-top: 2rem; }
+
+/* F32: "Room ... was deleted." at the bottom of the screen (placed last in the HTML). */
+.home-notice {
+  position: fixed;
+  bottom: 1rem;
+  left: 1rem;
+  right: 1rem;
+  z-index: 10;
+  margin: 0;
+  padding: 0.75rem 1rem;
+  border-radius: 14px;
+  background: var(--einig-button);
+  color: #FFFFFF;
+  text-align: center;
+}

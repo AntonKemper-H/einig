@@ -119,7 +119,7 @@ Keep this structure. Routes stay thin: they read the request, call `db.py` and `
 
 ## Scope
 
-Build now: **F1–F13, F16, F22, F23, F24, F25, F27, F28, F29 and F30** (see `docs/decisions.md`, D7, D14, D15, D17, D18 and D19). F23–F30 are not in `docs/concept.md`; D14, D15, D17, D18 and D19 describe them. F16 is built in the reduced form of D15.
+Build now: **F1–F13, F16, F22, F23, F24, F25, F27, F28, F29, F30, F31 and F32** (see `docs/decisions.md`, D7, D14, D15, D17, D18, D19 and D22). F23–F32 are not in `docs/concept.md`; D14, D15, D17, D18, D19 and D22 describe them. F16 is built in the reduced form of D15.
 Parked: **F14, F15, F17–F21 and F26** (F26: not built for the submission, D15). Do not build parked features, and do not prepare code "for later", unless a spec explicitly asks for it.
 
 ## Domain rules
@@ -148,6 +148,8 @@ Enforced on the server and covered by tests:
 - **Adding options:** only while the room status is `collecting`, and at most the room's "options per person" (F27, D17) own options per participant. The limit is checked and the option saved in one transaction, after locking the room row (as for votes), so two adds at the same moment never pass the limit.
 - **Room setup (F27):** only the creator, only while `collecting`.
 - **Deleting an option (F24):** only while the room status is `collecting`, by the participant who added it or by the creator. With hidden collecting (F28, D17), only by the participant who added it: the creator cannot delete other people's hidden options. Deleting an option that is already gone changes nothing.
+- **Removing a room from my list (F31, D22):** only removes this browser's token; the database does not change. Removing a room that is not on the list, or twice, changes nothing.
+- **Deleting a room (F32, D22):** only the creator, in any status. One `DELETE FROM rooms`; the cascades remove everything that belongs to the room, a group stays. Not the creator or not joined: 403 and nothing changes. Deleting a room that is already gone changes nothing.
 
 ### Rejected actions
 

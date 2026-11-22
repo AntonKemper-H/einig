@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{# F31: confirmation page of rooms.confirm_forget_room. Nothing is removed until the POST. #}
+{% block title %}Remove room – Einig{% endblock %}
+
+{% block content %}
+  <h1>Remove "{{ room.title }}" from your list?</h1>
+  <p>The room stays for everyone else. You cannot get back into it as the same person.</p>
+  {% if warn_creator %}
+    <p role="alert">You are the creator: nobody else can start or close this room.</p>
+  {% endif %}
+  <form action="{{ url_for('rooms.forget_room', room_id=room.id) }}" method="post">
+    <button type="submit">Remove from my list</button>
+  </form>
+  <p><a href="{{ url_for('main.home') }}">Cancel</a></p>
+{% endblock %}

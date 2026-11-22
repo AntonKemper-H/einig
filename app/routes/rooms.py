@@ -11,6 +11,7 @@ from flask import (
     Response,
     abort,
     current_app,
+    flash,
     redirect,
     render_template,
     request,
@@ -47,6 +48,7 @@ NOT_IN_GROUP_MESSAGE = "You are not a member of this group."
 GROUP_NICKNAME_TAKEN_MESSAGE = (
     "Your group nickname is already taken in this room. Please choose another one."
 )
+ONLY_CREATOR_DELETE_MESSAGE = "Only the creator can delete this room."
 ONLY_CREATOR_SETUP_MESSAGE = "Only the creator can set up the room."
 SETUP_NOT_COLLECTING_MESSAGE = "The setup can only be changed before voting starts."
 ALREADY_SEARCHED_MESSAGE = (
@@ -523,6 +525,71 @@ def join_as_group_member(room):
 
     remember_token(room["id"], session_token)
     return redirect(url_for("rooms.show_room", room_id=room["id"]), code=303)
+
+
+@bp.get("/rooms/<room_id>/forget")
+def confirm_forget_room(room_id: str):
+    """F31: ask before a room is taken off the list. Opening this page changes nothing."""
+    room = db.get_room(room_id)
+    if room is None or room_id not in session.get("participant_tokens", {}):
+        # Nothing to remove (unknown room, or not on this browser's list).
+        return redirect(url_for("main.home"), code=303)
+    participant = db.get_participant(room_id, session_token_for(room_id))
+    warn_creator = bool(participant and participant["is_creator"] and room["status"] != "closed")
+    return render_template("forget_room.html", room=room, warn_creator=warn_creator)
+
+
+@bp.post("/rooms/<room_id>/forget")
+def forget_room(room_id: str):
+    """F31: take a room off this browser's list. The database is not touched (Post/Redirect/Get)."""
+    tokens = session.get("participant_tokens", {})
+    if room_id in tokens:
+        session["participant_tokens"] = {
+            known_id: token for known_id, token in tokens.items() if known_id != room_id
+        }
+    return redirect(url_for("main.home"), code=303)
+
+
+def creator_check_for_delete(room):
+    """F32: (participant, None) for the creator, otherwise (None, the 403 page)."""
+    participant = db.get_participant(room["id"], session_token_for(room["id"]))
+    if participant is None or not participant["is_creator"]:
+        # The room page shows "errors" to visitors and "option_errors" to participants.
+        if participant is None:
+            page = render_room_page(room, None, errors=[ONLY_CREATOR_DELETE_MESSAGE])
+        else:
+            page = render_room_page(room, participant, option_errors=[ONLY_CREATOR_DELETE_MESSAGE])
+        return None, (page, 403)
+    return participant, None
+
+
+@bp.get("/rooms/<room_id>/delete")
+def confirm_delete_room(room_id: str):
+    """F32: ask the creator to confirm. Opening this page deletes nothing."""
+    room = db.get_room(room_id)
+    if room is None:
+        abort(404)
+    _, refusal = creator_check_for_delete(room)
+    if refusal is not None:
+        return refusal
+    return render_template(
+        "delete_room.html", room=room, participant_count=len(db.get_nicknames(room_id))
+    )
+
+
+@bp.post("/rooms/<room_id>/delete")
+def delete_room(room_id: str):
+    """F32: the creator deletes the room for everyone (Post/Redirect/Get)."""
+    room = db.get_room(room_id)
+    if room is None:
+        # Already deleted (maybe a moment ago): nothing to do.
+        return redirect(url_for("main.home"), code=303)
+    _, refusal = creator_check_for_delete(room)
+    if refusal is not None:
+        return refusal
+    if db.delete_room(room_id):
+        flash(room["title"], "room_deleted")
+    return redirect(url_for("main.home"), code=303)
 
 
 @bp.post("/rooms/<room_id>/options/<int:option_id>/delete")
