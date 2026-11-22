@@ -350,6 +350,10 @@
       <small><a href="{{ invite_url }}">{{ invite_url }}</a></small>
     </section>
     {% include "_qr_code.html" %}
+    {% if participant.is_creator %}
+      {# F32: small and at the bottom, so it is not pressed by accident. #}
+      <p class="delete-room-link"><small><a href="{{ url_for('rooms.confirm_delete_room', room_id=room.id) }}">Delete this room</a></small></p>
+    {% endif %}
   {% elif room.status == "closed" %}
     <p>This room is closed. You can no longer join.</p>
   {% else %}

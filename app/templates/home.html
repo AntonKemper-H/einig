@@ -52,6 +52,19 @@
             <li>
               <a href="{{ room.url }}">{{ room.title }}</a>
               <small>{{ room.status_label }} · You are {{ room.nickname }}{% if room.is_creator %} · Creator{% endif %}</small>
+              {# F31 / F32: the buttons sit above the link that covers the whole tile. #}
+              <div class="tile-actions">
+                <form action="{{ url_for('rooms.forget_room', room_id=room.id) }}" method="post">
+                  <button type="submit" class="tile-action">Remove</button>
+                </form>
+                {% if room.is_creator %}
+                  <a href="{{ url_for('rooms.confirm_delete_room', room_id=room.id) }}">Delete</a>
+                {% endif %}
+              </div>
+              <small>Remove: takes the room off your list on this device. You cannot get back into it as the same person.</small>
+              {% if room.is_creator and room.status != "closed" %}
+                <small>You are the creator: nobody else can start or close this room.</small>
+              {% endif %}
             </li>
           {% endfor %}
         </ul>
@@ -107,4 +120,13 @@
       </form>
     </details>
   </div>
+
+  {# F32: the notice sits at the end of the page source and is shown at the top by CSS
+     (.home-notice), so it never pushes the lists down. The quotes are written here, not
+     in the flashed text, because Jinja would escape them. #}
+  {% for category, message in get_flashed_messages(with_categories=true) %}
+    {% if category == "room_deleted" %}
+      <p class="home-notice" role="status">Room "{{ message }}" was deleted.</p>
+    {% endif %}
+  {% endfor %}
 {% endblock %}

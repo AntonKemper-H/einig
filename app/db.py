@@ -501,6 +501,17 @@ def delete_option(room_id: str, option_id: int) -> bool:
     return cursor.rowcount == 1
 
 
+def delete_room(room_id: str) -> bool:
+    """F32: delete a room in any status. Return False if it was already gone.
+
+    One statement: ON DELETE CASCADE removes the participants, options, ratings, jokers,
+    authors, setup and the link to a group with it. The group itself stays.
+    """
+    with transaction() as connection:
+        cursor = connection.execute("DELETE FROM rooms WHERE id = ?", (room_id,))
+    return cursor.rowcount == 1
+
+
 def get_participants(room_id: str) -> list[sqlite3.Row | dict]:
     """Return all participants of a room in the order they joined (for the lobby)."""
     return get_db().execute(

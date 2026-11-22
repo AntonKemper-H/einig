@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{# F32: confirmation page of rooms.confirm_delete_room. Only the creator gets here. #}
+{% block title %}Delete room – Einig{% endblock %}
+
+{% block content %}
+  <h1>Delete "{{ room.title }}"?</h1>
+  <p>{{ participant_count }} participant{% if participant_count != 1 %}s{% endif %} in this room.</p>
+  <p role="alert">This deletes the room for everyone: all options, ratings and the result. This cannot be undone.</p>
+  <form action="{{ url_for('rooms.delete_room', room_id=room.id) }}" method="post">
+    <button type="submit">Delete room</button>
+  </form>
+  <p><a href="{{ url_for('rooms.show_room', room_id=room.id) }}">Cancel</a></p>
+{% endblock %}

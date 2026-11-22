@@ -1031,3 +1031,41 @@ details.share-tile form { margin-top: 0.75rem; text-align: left; }
 .bar-yes { background: #4ADE80; }
 .bar-ok { background: #7DD3FC; }
 .bar-no { background: #F87171; }
+
+/* F31 / F32: Remove and Delete on a room tile. The tile link covers the whole tile (a::after),
+   so the actions get their own stacking level above it. */
+.tile-list .tile-actions {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  margin-top: 0.5rem;
+}
+.tile-list .tile-actions form { margin: 0; }
+.tile-list .tile-actions a::after { content: none; }
+.tile-list .tile-actions a,
+.tile-list .tile-action {
+  all: unset;
+  cursor: pointer;
+  color: #FFFFFF;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: underline;
+}
+.delete-room-link { margin-top: 2rem; }
+
+/* F32: "Room ... was deleted." at the bottom of the screen (placed last in the HTML). */
+.home-notice {
+  position: fixed;
+  bottom: 1rem;
+  left: 1rem;
+  right: 1rem;
+  z-index: 10;
+  margin: 0;
+  padding: 0.75rem 1rem;
+  border-radius: 14px;
+  background: var(--einig-button);
+  color: #FFFFFF;
+  text-align: center;
+}
