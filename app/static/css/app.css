@@ -1,5 +1,178 @@
 /* Einig's own styles, on top of Pico classless (AGENTS.md: plain CSS here, no framework). */
 
+/* D0 foundation */
+/* D21: one look for the whole app, the same in light and dark mode. The design tasks write only
+   in their own section: D0 here, D1a and D1b at the end of this file. */
+:root {
+  --einig-bg: #0B1F4D;                          /* page background */
+  --einig-surface: rgba(255, 255, 255, 0.08);   /* see-through panels on the background */
+  --einig-surface-strong: rgba(255, 255, 255, 0.14);
+  --einig-line: rgba(255, 255, 255, 0.22);
+  --einig-button: #2563EB;                      /* main buttons, white text 5.2:1 */
+  --einig-button-hover: #1D4ED8;
+  --einig-on-button-muted: #EEF3FF;             /* secondary text on the button blue, 4.65:1 */
+  --einig-text: #FFFFFF;
+  --einig-muted: #C7D4F5;                       /* secondary text on the background */
+  --einig-accent: #FFC94D;                      /* yellow i-dot, highlights */
+  --einig-accent-2: #7DD3FC;                    /* light blue i-dot, links */
+  --einig-card: #FFFFFF;                        /* white cards */
+  --einig-card-text: #0B1F4D;
+  --einig-card-muted: #4A5B82;
+  --einig-radius: 16px;
+  --einig-radius-lg: 24px;
+}
+
+/* Pico's colour variables, for both colour schemes. ":not(#einig)" only raises the specificity
+   above Pico's own ":root:not([data-theme=dark])" and dark-mode rules. */
+:root:not(#einig) {
+  color-scheme: dark;
+  --pico-font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --pico-border-radius: var(--einig-radius);
+  --pico-background-color: var(--einig-bg);
+  --pico-color: var(--einig-text);
+  --pico-h1-color: var(--einig-text);
+  --pico-h2-color: var(--einig-text);
+  --pico-h3-color: var(--einig-text);
+  --pico-h4-color: var(--einig-text);
+  --pico-h5-color: var(--einig-text);
+  --pico-h6-color: var(--einig-text);
+  --pico-muted-color: var(--einig-muted);
+  --pico-muted-border-color: var(--einig-line);
+  --pico-border-color: var(--einig-line);
+  --pico-primary: var(--einig-accent-2);
+  --pico-primary-underline: rgba(125, 211, 252, 0.5);
+  --pico-primary-hover: var(--einig-text);
+  --pico-primary-hover-underline: var(--einig-text);
+  --pico-primary-focus: rgba(125, 211, 252, 0.5);
+  --pico-primary-background: var(--einig-button);
+  --pico-primary-border: var(--einig-button);
+  --pico-primary-hover-background: var(--einig-button-hover);
+  --pico-primary-hover-border: var(--einig-button-hover);
+  --pico-primary-inverse: #FFFFFF;
+  --pico-secondary: var(--einig-muted);
+  --pico-secondary-hover: var(--einig-text);
+  --pico-secondary-background: var(--einig-surface);
+  --pico-secondary-border: var(--einig-line);
+  --pico-secondary-hover-background: var(--einig-surface-strong);
+  --pico-secondary-hover-border: var(--einig-text);
+  --pico-secondary-inverse: var(--einig-text);
+  --pico-secondary-focus: rgba(255, 255, 255, 0.35);
+  --pico-card-background-color: var(--einig-card);
+  --pico-card-sectioning-background-color: #EEF2FB;
+  --pico-card-border-color: transparent;
+  --pico-card-box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3);
+  --pico-form-element-background-color: #FFFFFF;
+  --pico-form-element-active-background-color: #FFFFFF;
+  --pico-form-element-selected-background-color: #EEF2FB;
+  --pico-form-element-color: var(--einig-card-text);
+  --pico-form-element-border-color: #FFFFFF;
+  --pico-form-element-active-border-color: var(--einig-accent-2);
+  --pico-form-element-focus-color: rgba(125, 211, 252, 0.6);
+  --pico-form-element-placeholder-color: #5A6A94;
+  --pico-accordion-border-color: var(--einig-line);
+  --pico-accordion-close-summary-color: var(--einig-text);
+  --pico-accordion-open-summary-color: var(--einig-text);
+  --pico-accordion-active-summary-color: var(--einig-accent-2);
+  --pico-table-border-color: var(--einig-line);
+  --pico-mark-background-color: var(--einig-accent);
+  --pico-mark-color: var(--einig-card-text);
+  --pico-text-selection-color: rgba(125, 211, 252, 0.35);
+  --pico-code-background-color: var(--einig-surface-strong);
+  --pico-code-color: var(--einig-text);
+}
+body { background-color: var(--einig-bg); }
+/* White form fields with dark text: native pickers (date, time, select) use the light scheme. */
+input, select, textarea { color-scheme: light; }
+
+/* Type: the system font, bold and a little tighter headings. */
+h1, h2, h3 { font-weight: 700; line-height: 1.15; letter-spacing: -0.01em; }
+h1 { font-size: clamp(1.75rem, 6vw, 2.25rem); }
+h2 { font-size: clamp(1.3rem, 4.5vw, 1.6rem); }
+small { color: var(--einig-muted); }
+
+/* Buttons: large, rounded, easy to tap. */
+button,
+[role="button"],
+input[type="submit"],
+input[type="button"] {
+  min-height: 48px;
+  border-radius: var(--einig-radius);
+  font-weight: 600;
+}
+
+/* Cards: white with dark text. The variables are set again inside, so headings, links,
+   muted text and the joker question's background stay readable on white. */
+article,
+.card-white {
+  --pico-background-color: var(--einig-card);
+  --pico-color: var(--einig-card-text);
+  --pico-h1-color: var(--einig-card-text);
+  --pico-h2-color: var(--einig-card-text);
+  --pico-h3-color: var(--einig-card-text);
+  --pico-h4-color: var(--einig-card-text);
+  --pico-muted-color: var(--einig-card-muted);
+  --pico-primary: var(--einig-button);
+  --pico-primary-hover: var(--einig-button-hover);
+  --pico-primary-underline: rgba(37, 99, 235, 0.4);
+  --pico-secondary: var(--einig-card-muted);
+  --pico-secondary-background: #FFFFFF;
+  --pico-secondary-border: #C9D3EC;
+  --pico-secondary-inverse: var(--einig-card-text);
+  --pico-secondary-hover-background: #EEF2FB;
+  --pico-secondary-hover-border: var(--einig-card-text);
+  --pico-accordion-close-summary-color: var(--einig-card-text);
+  --pico-accordion-open-summary-color: var(--einig-card-text);
+  --pico-border-color: #C9D3EC;
+  --pico-muted-border-color: #DCE3F3;
+  color: var(--einig-card-text);
+  border-radius: var(--einig-radius-lg);
+}
+article small,
+.card-white small { color: var(--einig-card-muted); }
+/* See-through panel on the background, for groups of controls. */
+.card {
+  background: var(--einig-surface);
+  border-radius: var(--einig-radius-lg);
+  padding: 1rem 1.125rem;
+  margin-bottom: 1rem;
+}
+
+/* The header on every page: "My rooms" as a pill on the left, the logo on the right. */
+body > header.site-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-top: 0.75rem;
+  padding-bottom: 0.5rem;
+}
+.site-header > a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 1.125rem;
+  border-radius: 999px;
+  background: var(--einig-button);
+  color: #FFFFFF;
+  font-weight: 600;
+  text-decoration: none;
+}
+.site-header > a:hover,
+.site-header > a:focus-visible { background: var(--einig-button-hover); color: #FFFFFF; }
+.site-header > img {
+  display: block;
+  height: 2.25rem;
+  width: auto;
+}
+/* C11's rating page: a smaller logo, because the card needs the height. C11's
+   ".rating-screen header" sets the side padding to 0; the pill should not touch the screen edge. */
+.rating-screen .site-header > img { height: 1.75rem; }
+body.rating-screen > header.site-header {
+  padding-left: var(--pico-block-spacing-horizontal, 1rem);
+  padding-right: var(--pico-block-spacing-horizontal, 1rem);
+}
+
+
 /* F24: the "Delete" button next to an option. Small and outlined, so it does not look
    like the page's main action (Pico classless makes every button full-width and blue). */
 button[type=submit].option-delete {  /* beats Pico's "button[type=submit] { width: 100% }" */
@@ -214,3 +387,647 @@ body.rating-screen {
   padding: 1rem;
   background: var(--pico-background-color, #fff);
 }
+
+
+/* D1a home, groups, room */
+/* Home page, group pages and the room page (specs/d1a-design-home-rooms.md). */
+
+/* Icons as CSS masks (stroke SVGs as data URIs, nothing is loaded from outside). */
+:root {
+  --einig-icon-home: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 10.5 12 4l9 6.5'/%3E%3Cpath d='M5 9.5V20h14V9.5'/%3E%3Cpath d='M10 20v-5h4v5'/%3E%3C/svg%3E");
+  --einig-icon-plus: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round'%3E%3Cpath d='M12 5v14M5 12h14'/%3E%3C/svg%3E");
+  --einig-icon-people: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='9' cy='8' r='3.2'/%3E%3Cpath d='M3 19c.6-3.3 3-5 6-5s5.4 1.7 6 5'/%3E%3Cpath d='M16 5.2a3 3 0 0 1 0 5.6M18 14.3c1.6.7 2.7 2.2 3 4.7'/%3E%3C/svg%3E");
+  --einig-icon-back: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M19 12H5'/%3E%3Cpath d='m11 6-6 6 6 6'/%3E%3C/svg%3E");
+  --einig-icon-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 6 6 6-6 6'/%3E%3C/svg%3E");
+}
+
+/* Lists of rooms, groups and activities: every entry is one big button. The link covers the
+   whole entry (a::after), the small line below stays plain text. */
+.tile-list {
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.tile-list li {
+  position: relative;
+  list-style: none;
+  margin: 0;
+  padding: 1rem 3rem 1rem 1.125rem;
+  border-radius: 22px;
+  background: var(--einig-button);
+}
+.tile-list li::after {          /* the chevron on the right */
+  content: "";
+  position: absolute;
+  right: 1rem;
+  top: 50%;
+  width: 1.25rem;
+  height: 1.25rem;
+  margin-top: -0.625rem;
+  background: #FFFFFF;
+  -webkit-mask: var(--einig-icon-chevron) center / contain no-repeat;
+  mask: var(--einig-icon-chevron) center / contain no-repeat;
+}
+.tile-list a {
+  color: #FFFFFF;
+  font-weight: 700;
+  font-size: 1.05rem;
+  text-decoration: none;
+}
+.tile-list a::after { content: ""; position: absolute; inset: 0; border-radius: inherit; }
+.tile-list a:focus-visible::after { outline: 3px solid var(--einig-accent-2); outline-offset: 2px; }
+.tile-list small { display: block; margin-top: 0.25rem; color: var(--einig-on-button-muted); }
+
+/* Numbered steps of a form (create a room, plan an activity). */
+.step {
+  margin: 0 0 0.875rem;
+  padding: 1rem;
+  border: 0;
+  border-radius: 22px;
+  background: var(--einig-surface);
+}
+.step > label,
+.step > legend { font-weight: 600; }
+.step > legend { float: left; width: 100%; padding: 0; margin-bottom: 0.75rem; }
+.step > legend + * { clear: left; }
+.step input:not([type="radio"]) { margin-bottom: 0; margin-top: 0.5rem; }
+.step-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.625rem;
+  height: 1.625rem;
+  margin-right: 0.5rem;
+  border-radius: 50%;
+  background: var(--einig-button);
+  color: #FFFFFF;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+/* The room modes as chips: the whole row is the tap target, the chosen one turns white. */
+fieldset.step > label {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 48px;
+  margin: 0 0 0.5rem;
+  padding: 0 1rem;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.1);
+  font-weight: 500;
+  cursor: pointer;
+}
+fieldset.step > label:last-child { margin-bottom: 0; }
+fieldset.step > label:has(input:checked) { background: #FFFFFF; color: var(--einig-card-text); }
+fieldset.step > label input { margin: 0; }
+
+/* --- Home page: three tiles that open like screens ------------------------------------ */
+.home-intro { margin-bottom: 1.5rem; }
+.home-intro h1 { margin-bottom: 0.5rem; }
+.home-intro p { color: var(--einig-muted); margin: 0; }
+.home-parts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.875rem;
+}
+.home-rooms { order: 1; }
+.home-create { order: 2; }
+.home-groups { order: 3; grid-column: 1 / -1; }
+details.home-part {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+details.home-part > summary {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 0.25rem;
+  min-height: 10rem;
+  padding: 1.125rem;
+  border-radius: var(--einig-radius-lg);
+  background: var(--einig-button);
+  color: #FFFFFF;
+  list-style: none;
+  cursor: pointer;
+}
+details.home-part > summary::-webkit-details-marker { display: none; }
+details.home-part > summary::after { display: none; }   /* Pico's chevron */
+details.home-part > summary::before {                     /* the tile's icon in a light square */
+  content: "";
+  position: absolute;
+  top: 1.125rem;
+  left: 1.125rem;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.16);
+}
+details.home-part > summary h2 {
+  margin: 0;
+  font-size: 1.2rem;
+  color: #FFFFFF;
+}
+details.home-part > summary small { color: var(--einig-on-button-muted); }
+details.home-part > summary:focus-visible { outline: 3px solid var(--einig-accent-2); outline-offset: 3px; }
+/* The icon itself sits in a second layer on the summary's h2 (::before of the heading). */
+details.home-part > summary h2::before {
+  content: "";
+  position: absolute;
+  top: 1.875rem;
+  left: 1.875rem;
+  width: 1.5rem;
+  height: 1.5rem;
+  background: #FFFFFF;
+  -webkit-mask: var(--einig-icon-home) center / contain no-repeat;
+  mask: var(--einig-icon-home) center / contain no-repeat;
+}
+details.home-create > summary h2::before {
+  -webkit-mask-image: var(--einig-icon-plus);
+  mask-image: var(--einig-icon-plus);
+}
+/* My groups: a smaller, see-through row under the two tiles. */
+details.home-groups > summary {
+  min-height: 0;
+  padding: 1rem 3rem 1rem 1.125rem;
+  background: var(--einig-surface);
+  border: 1px solid var(--einig-line);
+}
+details.home-groups > summary::before,
+details.home-groups > summary h2::before { display: none; }
+details.home-groups > summary h2 { font-size: 1.05rem; }
+details.home-groups:not([open]) > summary::after {        /* chevron on the right */
+  display: block;
+  content: "";
+  position: absolute;
+  right: 1rem;
+  top: 50%;
+  width: 1.25rem;
+  height: 1.25rem;
+  margin-top: -0.625rem;
+  float: none;
+  transform: none;
+  background: #FFFFFF;
+  -webkit-mask: var(--einig-icon-chevron) center / contain no-repeat;
+  mask: var(--einig-icon-chevron) center / contain no-repeat;
+}
+
+/* One part open: only that part is shown, its heading becomes the way back. */
+.home-parts:has(> details[open]) > details:not([open]),
+main:has(details.home-part[open]) > .home-intro { display: none; }
+details.home-part[open] { grid-column: 1 / -1; }
+details.home-part[open] > summary {
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.875rem;
+  min-height: 0;
+  margin-bottom: 1.25rem;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+details.home-part[open] > summary::before {              /* the back button */
+  position: static;
+  flex: 0 0 auto;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 14px;
+  background: var(--einig-button);
+  display: block;
+}
+details.home-part[open] > summary h2::before {
+  display: block;
+  top: 0.625rem;
+  left: 0.625rem;
+  -webkit-mask-image: var(--einig-icon-back);
+  mask-image: var(--einig-icon-back);
+}
+details.home-part[open] > summary h2 { font-size: clamp(1.6rem, 6vw, 2rem); }
+details.home-part[open] > summary small { display: none; }
+/* Review of #78: the arrow is only an icon; this text tells screen readers it goes back. */
+details.home-part:not([open]) .back-label { display: none; }
+
+/* --- Room page ------------------------------------------------------------------------- */
+.invite-kicker { margin: 1.5rem 0 0.25rem; color: var(--einig-muted); }
+.invite-kicker + h1 { margin-top: 0; font-size: clamp(2rem, 8vw, 2.5rem); }
+.room-page main > h1 { margin-bottom: 0.5rem; }
+.room-page main > h1 ~ p:not(.done-link) { color: var(--einig-muted); margin-bottom: 0.5rem; }
+.room-page main > h1 ~ p a { color: var(--einig-accent-2); }
+
+/* On a phone the options come first and the participants (with "Start voting") at the bottom.
+   B6's grid from 900 px keeps them in the right column. */
+.room-page .room-columns { display: flex; flex-direction: column; margin-top: 1rem; }
+.room-page .room-columns > .room-main { order: 1; display: flex; flex-direction: column; }
+.room-page .room-columns > .participants { order: 2; }
+@media (min-width: 900px) {
+  .room-page .room-columns { display: grid; }
+}
+
+/* The options: white cards with a small delete button. */
+.room-page .room-main > h2 { margin: 0 0 0.75rem; }
+.room-page .room-main > ol {
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.room-page .room-main > ol > li {
+  list-style: none;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 3.75rem;
+  padding: 0.625rem 0.75rem 0.625rem 1rem;
+  border-radius: 18px;
+  background: var(--einig-card);
+  color: var(--einig-card-text);
+  font-weight: 600;
+}
+.room-page .room-main > ol > li > details { flex: 1 1 12rem; margin: 0; border: 0; padding: 0; }
+.room-page .room-main > ol > li > details > summary { color: var(--einig-card-text); }
+.room-page .room-main > ol > li > details > article { box-shadow: none; padding: 0; margin: 0.5rem 0 0; }
+.room-page .room-main > ol > li > form { margin: 0 0 0 auto; }
+.room-page .room-main > ol > li > form + form { margin-left: 0; }
+.room-page .room-main > ol > li button {
+  width: auto;
+  min-height: 40px;
+  margin: 0;
+  padding: 0.25rem 0.875rem;
+  font-size: 0.875rem;
+  border-radius: 12px;
+  background: #FFFFFF;
+  color: var(--einig-card-text);
+  border: 1px solid #C9D3EC;
+}
+
+/* Tools of the room (setup, search, add, find): see-through cards. */
+.room-page .room-main > details:not(.own-idea):not(.find-place),
+.room-page .room-main > form,
+.room-page .room-main > .own-idea > form {
+  margin: 0 0 0.875rem;
+  padding: 1rem 1.125rem;
+  border: 0;
+  border-radius: var(--einig-radius-lg);
+  background: var(--einig-surface);
+}
+.room-page .room-main > details:not(.own-idea):not(.find-place) > summary { font-weight: 700; }
+.room-page .room-main form h3 { font-size: 1.15rem; margin-bottom: 0.75rem; }
+/* "Surprise us" / "Find places nearby": the app's search stands out. */
+.room-page .room-main > form[action$="/surprise"],
+.room-page .room-main > form[action$="/suggest"] { background: var(--einig-button); }
+.room-page .room-main > form[action$="/surprise"] button[type="submit"],
+.room-page .room-main > form[action$="/suggest"] button[type="submit"] {
+  background: #FFFFFF;
+  border-color: #FFFFFF;
+  color: var(--einig-card-text);
+}
+/* "Use my location" inside the blue search card: an outlined button. */
+.room-page .room-main > form[action$="/surprise"] button[type="button"],
+.room-page .room-main > form[action$="/suggest"] button[type="button"] {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  color: #FFFFFF;
+}
+.room-page .room-main > form[action$="/surprise"] p,
+.room-page .room-main > form[action$="/suggest"] p { color: var(--einig-on-button-muted); font-size: 0.875rem; }
+
+/* Folded tools at the end of the options part: dashed rows. */
+.room-page .room-main > .own-idea,
+.room-page .room-main > .find-place {
+  order: 1;
+  margin: 0 0 0.875rem;
+  padding: 0 1rem;
+  border: 1px dashed var(--einig-line);
+  border-radius: 18px;
+}
+.room-page .room-main > .own-idea > summary,
+.room-page .room-main > .find-place > summary {
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  color: var(--einig-muted);
+  font-weight: 600;
+}
+.room-page .room-main > .own-idea[open],
+.room-page .room-main > .find-place[open] { padding-bottom: 1rem; }
+.room-page .room-main > .own-idea > form { background: rgba(255, 255, 255, 0.05); }
+
+/* Participants and "Start voting": the blue card at the bottom. Closed for guests. */
+.room-page details.participants {
+  margin: 0.5rem 0 1rem;
+  padding: 1rem 1.125rem;
+  border: 0;
+  border-radius: var(--einig-radius-lg);
+  background: var(--einig-surface);
+}
+.room-page details.participants[open] { background: var(--einig-button); }
+.room-page details.participants > summary { font-weight: 700; color: #FFFFFF; }
+.room-page details.participants ul { margin-bottom: 0.75rem; }
+.room-page details.participants a { color: #FFFFFF; }
+.room-page details.participants form { margin: 0.75rem 0 0; }
+.room-page details.participants select {
+  background-color: rgba(255, 255, 255, 0.18);
+  color: #FFFFFF;
+  border-color: transparent;
+  color-scheme: dark;
+}
+.room-page details.participants select option { color: var(--einig-card-text); }
+.room-page details.participants button[type="submit"] {
+  background: #FFFFFF;
+  border-color: #FFFFFF;
+  color: var(--einig-card-text);
+  font-size: 1.05rem;
+}
+
+/* "I'm done", invite link and QR code. */
+.room-page .done-link a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 56px;
+  border: 1px solid var(--einig-line);
+  border-radius: 18px;
+  background: var(--einig-surface);
+  color: #FFFFFF;
+  font-weight: 700;
+  text-decoration: none;
+}
+.room-page .invite {
+  margin-top: 1rem;
+  padding: 1rem 1.125rem;
+  border-radius: var(--einig-radius-lg);
+  background: var(--einig-surface);
+}
+.room-page .invite small a { color: var(--einig-muted); }
+.room-page main > figure { text-align: center; margin-top: 1rem; }
+.room-page main > figure figcaption { color: var(--einig-muted); }
+
+/* The join form (invite link) as a card. */
+.room-page main > h2 + form,
+.room-page main > h2 + ul + form { padding: 1.125rem; border-radius: var(--einig-radius-lg); background: var(--einig-surface); }
+
+/* --- Group pages and 404 ------------------------------------------------------------------ */
+.group-page main > form,
+.new-group-page main > form,
+.not-found-page main > p:last-child {
+  padding: 1.125rem;
+  border-radius: var(--einig-radius-lg);
+  background: var(--einig-surface);
+}
+.group-page main > h2 { margin-top: 1.5rem; }
+.group-page .member-list {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.group-page .member-list li {
+  list-style: none;
+  margin: 0;
+  padding: 0.5rem 0.875rem;
+  border-radius: 999px;
+  background: var(--einig-surface-strong);
+  font-weight: 600;
+}
+.group-page main > figure { text-align: center; }
+.group-page main > figure figcaption { color: var(--einig-muted); }
+.not-found-page main > p:last-child a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 52px;
+  border-radius: 16px;
+  background: var(--einig-button);
+  color: #FFFFFF;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+
+/* D1b vote, lobby, result */
+/* Rating card, lobby and result page (specs/d1b-design-vote-result.md). */
+
+/* --- Rating card -------------------------------------------------------------------------- */
+.rating-screen .card-line { color: var(--einig-muted); align-items: center; padding: 0.25rem 0 0.5rem; }
+.rating-screen h1 { color: var(--einig-text); }
+
+/* The card: large, white, rounded, with a shadow. Its inner place card is flat (no second box). */
+[data-swipe-card] {
+  padding: 1rem;
+  border-radius: 28px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+}
+[data-swipe-card] [data-swipe-area] article {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+}
+[data-swipe-card] h2,
+[data-swipe-card] h3 { margin: 0.75rem 0 0.5rem; font-size: 1.5rem; }
+[data-swipe-card] img { border-radius: 20px; }
+[data-swipe-card] .place-kind {
+  display: inline-block;
+  margin: 0 0 0.5rem;
+  padding: 0.2rem 0.75rem;
+  border-radius: 999px;
+  background: #E3EAFB;
+  font-size: 0.8125rem;
+}
+[data-swipe-card] [data-swipe-area] article > p:not(.place-kind) { font-weight: 600; }
+[data-flip-open] { color: var(--einig-button); font-weight: 600; text-decoration: none; text-align: center; }
+[data-flip-close] { color: var(--einig-button); font-weight: 600; text-align: center; }
+
+/* The stamp while dragging: bigger, on white, in the colour of the rating. */
+[data-swipe-card][data-swipe-choice]::before {
+  top: 1.25rem;
+  padding: 0.35rem 1rem;
+  border-width: 4px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.95);
+  font-size: 1.5rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+}
+[data-swipe-card][data-swipe-choice="yes"]::before   { color: #15803D; }
+[data-swipe-card][data-swipe-choice="ok"]::before    { color: #1D4ED8; }
+[data-swipe-card][data-swipe-choice="no"]::before    { color: #B91C1C; }
+[data-swipe-card][data-swipe-choice="joker"]::before { content: "Joker?"; color: #B45309; }
+
+/* The joker question as a panel on the card. */
+[data-joker-question]:not([hidden]) { border-radius: 28px; gap: 0.5rem; text-align: center; }
+
+/* The hint row under the card shows only where swiping works (swipe.js adds .swipe-ready).
+   The old hint line stays for screen readers, out of sight. */
+.swipe-legend { display: none; }
+[data-swipe-card].swipe-ready + .swipe-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.25rem 0.875rem;
+  margin-bottom: 0.5rem;
+  color: var(--einig-muted);
+  font-size: 0.8125rem;
+}
+.rating-screen [data-swipe-hint] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+/* The card menu: a round button, the panel opens under it. */
+.card-line details { position: relative; }
+.menu-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin: 0;
+  padding: 0;
+  border-radius: 50%;
+  background: var(--einig-surface-strong);
+  color: #FFFFFF;
+  font-size: 1.5rem;
+  line-height: 1;
+  list-style: none;
+}
+.menu-button::-webkit-details-marker { display: none; }
+.menu-button::after { display: none; }   /* Pico's chevron */
+.menu-button:focus-visible { outline: 3px solid var(--einig-accent-2); outline-offset: 2px; }
+/* The panel floats over the card (under the button, right-aligned) and does not push the page. */
+.card-line details[open] { z-index: 3; }
+.menu-panel {
+  position: absolute;
+  top: 3.25rem;
+  right: 0;
+  width: 15rem;
+  padding: 0.75rem 1rem;
+  border-radius: 16px;
+  background: #FFFFFF;
+  color: var(--einig-card-text);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+}
+.menu-panel > :last-child { margin-bottom: 0; }
+.menu-panel a { color: var(--einig-button); font-weight: 600; }
+
+/* --- Lobby -------------------------------------------------------------------------------- */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.pill-ready { background: #DCFCE7; color: #14532D; text-transform: capitalize; }
+.pill-waiting { background: var(--einig-surface-strong); color: var(--einig-text); }
+.pill-winner { background: var(--einig-accent); color: var(--einig-card-text); }
+
+.progress-ring {
+  display: grid;
+  place-items: center;
+  width: 9rem;
+  height: 9rem;
+  margin: 1rem auto 1.5rem;
+  border-radius: 50%;
+  background:
+    radial-gradient(closest-side, var(--einig-bg) 80%, transparent 82%),
+    conic-gradient(var(--einig-accent) var(--progress, 0%), var(--einig-surface-strong) 0);
+}
+.progress-ring strong { max-width: 6rem; text-align: center; line-height: 1.2; }
+
+.participant-list { list-style: none; margin: 0 0 1rem; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+.participant-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0.75rem 1rem;
+  border-radius: 18px;
+  background: var(--einig-surface);
+  font-weight: 600;
+}
+.lobby-page main > form {
+  padding: 1.125rem;
+  border-radius: var(--einig-radius-lg);
+  background: var(--einig-surface);
+}
+.lobby-page figure { text-align: center; }
+.lobby-page figure figcaption { color: var(--einig-muted); }
+.rate-button {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  min-height: 56px;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+/* --- Result ------------------------------------------------------------------------------- */
+.result-page main > h2 { margin-top: 0.5rem; }
+.result-page iframe { border-radius: 20px; margin-bottom: 1rem; }
+.share-tiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.875rem;
+  margin: 0 0 1.5rem;
+}
+.share-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 5rem;
+  margin: 0;
+  padding: 1rem;
+  border: 0;
+  border-radius: var(--einig-radius-lg);
+  text-align: center;
+  font-weight: 700;
+}
+a.share-tile { background: var(--einig-button); color: #FFFFFF; text-decoration: none; }
+details.share-tile { background: var(--einig-surface); border: 1px solid var(--einig-line); align-items: stretch; }
+details.share-tile > summary { color: #FFFFFF; list-style: none; text-align: center; }
+details.share-tile > summary::after { display: none; }
+details.share-tile[open] { grid-column: 1 / -1; }
+details.share-tile form { margin-top: 0.75rem; text-align: left; }
+
+.rating-results { list-style: none; margin: 0 0 1rem; padding: 0; display: flex; flex-direction: column; gap: 0.75rem; }
+.rating-results li {
+  list-style: none;
+  margin: 0;
+  padding: 1rem 1.125rem;
+  border-radius: 18px;
+  background: var(--einig-surface);
+}
+.rating-bar {
+  display: flex;
+  height: 0.75rem;
+  margin: 0.5rem 0;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--einig-surface-strong);
+}
+.rating-bar > span { flex-basis: 0; flex-shrink: 0; }
+.bar-yes { background: #4ADE80; }
+.bar-ok { background: #7DD3FC; }
+.bar-no { background: #F87171; }

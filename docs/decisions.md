@@ -286,6 +286,16 @@ Feedback from testing C10 on a phone: the page with the turned card gets long an
 
 **Task:** C11 (Track C, mkim-nova), own spec `specs/c11-fullscreen-card.md`, after C10 is merged. The turning from C10 stays, so most C10 tests stay true; the spec names the few that change.
 
+## D21 – Design phase: one look for the whole app, on its own branch (2026-11-22)
+
+D16, D19 and D20 left the look of the app to a design phase. All features for the submission are merged, so the design phase starts now.
+
+- **Look:** a dark blue background, lighter blue buttons, white text, white cards and the "Einig" logo with two coloured i-dots. One theme for light and dark mode. The agreed draft is shared in the team.
+- **Only the front end changes:** templates, `app.css`, the logo, and in `swipe.js` only a stamp while dragging. No route, form, scoring rule or database change. Swiping works exactly as today.
+- **Reviewed tests stay unchanged.** Where a test pins a text or an order, the new layout keeps it in the HTML and changes only the visual order with CSS. Where that is not possible, the task stops and asks.
+- **Own branch:** the work is done on `design` (from `main`). `main` and the deployed app stay as they are until the whole design is reviewed, then `design` is merged into `main` in one step, so one revert brings the old look back.
+- **Three tasks:** D0 foundation (`specs/d0-design-foundation.md`) first; then D1a home, groups and room page (`specs/d1a-design-home-rooms.md`) and D1b rating card, lobby and result (`specs/d1b-design-vote-result.md`) in parallel. Each part is reviewed and tested by the person who did not build it.
+
 ## Open questions
 
 - Final app name.

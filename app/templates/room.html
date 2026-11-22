@@ -3,7 +3,13 @@
 
 {% block title %}{{ room.title }} – Einig{% endblock %}
 
+{% block body_class %}room-page{% endblock %}
+
 {% block content %}
+  {% if not participant and room.status != "closed" %}
+    {# D1a: the first page a friend sees after opening the invite link. #}
+    <p class="invite-kicker">You're invited to decide</p>
+  {% endif %}
   <h1>{{ room.title }}</h1>
 
   {% if participant %}
@@ -18,7 +24,9 @@
 
     {# B6: participants in a side column on wide screens (CSS grid in app.css), at the top on a phone. #}
     <div class="room-columns">
-    <details class="participants">
+    {# D1a: open for the creator while collecting, so "Start voting" is in sight at the bottom
+       (the start form must stay in this section, B6's tests). #}
+    <details class="participants"{% if participant.is_creator and room.status == "collecting" %} open{% endif %}>
       <summary>Participants ({{ participants|length }} · {{ finished_count }} done)</summary>
       <ul>
         {% for person in participants %}
@@ -242,6 +250,15 @@
       <script src="{{ url_for('static', filename='js/geolocation.js') }}" defer></script>
     {% endif %}
 
+    {# D1a: in a "Places nearby" or "Surprise me" room the app's search comes first; one's own idea
+       and the search by name (F23) stay, folded into one row. Open again after an error or a search. #}
+    {% set collapse_own = room.mode != "manual" and room.status == "collecting" %}
+    {% set own_open = find_errors or find_matches %}
+    {% if collapse_own %}
+      <details class="own-idea"{% if own_open %} open{% endif %}>
+        <summary>Add a place by name</summary>
+    {% endif %}
+
     {% if find_errors %}
       <ul role="alert">
         {% for error in find_errors %}
@@ -309,10 +326,13 @@
     {% elif room.status != "collecting" %}
       <p>Options can no longer be added.</p>
     {% endif %}
+    {% if collapse_own %}
+      </details>
+    {% endif %}
     </div>
     </div>
 
-    <p><a href="{{ url_for('rooms.show_lobby', room_id=room.id) }}">I'm done – wait for the others</a></p>
+    <p class="done-link"><a href="{{ url_for('rooms.show_lobby', room_id=room.id) }}">I'm done – wait for the others</a></p>
 
     {# B6: invite link and QR code at the end, in one compact block. Both the field and the
        link stay (reviewed test invite_urls_in in tests/test_proxy_headers.py). #}
