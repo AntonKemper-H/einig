@@ -3,7 +3,7 @@
 How we get from the skeleton to the submission on **2026-11-23, 23:59**.
 Scope and reasons: `docs/decisions.md`. Feature details: `docs/concept.md`.
 
-Last updated: 2026-11-16. Tick boxes as work is merged into `main`.
+Last updated: 2026-11-22. Tick boxes as work is merged into `main`.
 
 ---
 
