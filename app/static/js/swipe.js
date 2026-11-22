@@ -58,6 +58,11 @@
   function moveCard(dx, dy) {
     card.style.transform = "translate(" + dx + "px, " + dy + "px) rotate(" + dx / 20 + "deg)";
     var choice = choiceFor(dx, dy);
+    // D1b: a long swipe down shows "Joker?" as a label only; choiceFor() never gives it, so the
+    // release still just asks the question and nothing is rated.
+    if (!choice && question && dy >= SWIPE_DISTANCE && Math.abs(dy) > Math.abs(dx)) {
+      choice = "joker";
+    }
     if (choice) {
       card.setAttribute("data-swipe-choice", choice);
     } else {

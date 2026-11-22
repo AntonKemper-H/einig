@@ -395,3 +395,217 @@ body.rating-screen {
 
 /* D1b vote, lobby, result */
 /* Rating card, lobby and result page (specs/d1b-design-vote-result.md). */
+
+/* --- Rating card -------------------------------------------------------------------------- */
+.rating-screen .card-line { color: var(--einig-muted); align-items: center; padding: 0.25rem 0 0.5rem; }
+.rating-screen h1 { color: var(--einig-text); }
+
+/* The card: large, white, rounded, with a shadow. Its inner place card is flat (no second box). */
+[data-swipe-card] {
+  padding: 1rem;
+  border-radius: 28px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+}
+[data-swipe-card] [data-swipe-area] article {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+}
+[data-swipe-card] h2,
+[data-swipe-card] h3 { margin: 0.75rem 0 0.5rem; font-size: 1.5rem; }
+[data-swipe-card] img { border-radius: 20px; }
+[data-swipe-card] .place-kind {
+  display: inline-block;
+  margin: 0 0 0.5rem;
+  padding: 0.2rem 0.75rem;
+  border-radius: 999px;
+  background: #E3EAFB;
+  font-size: 0.8125rem;
+}
+[data-swipe-card] [data-swipe-area] article > p:not(.place-kind) { font-weight: 600; }
+[data-flip-open] { color: var(--einig-button); font-weight: 600; text-decoration: none; text-align: center; }
+[data-flip-close] { color: var(--einig-button); font-weight: 600; text-align: center; }
+
+/* The stamp while dragging: bigger, on white, in the colour of the rating. */
+[data-swipe-card][data-swipe-choice]::before {
+  top: 1.25rem;
+  padding: 0.35rem 1rem;
+  border-width: 4px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.95);
+  font-size: 1.5rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+}
+[data-swipe-card][data-swipe-choice="yes"]::before   { color: #15803D; }
+[data-swipe-card][data-swipe-choice="ok"]::before    { color: #1D4ED8; }
+[data-swipe-card][data-swipe-choice="no"]::before    { color: #B91C1C; }
+[data-swipe-card][data-swipe-choice="joker"]::before { content: "Joker?"; color: #B45309; }
+
+/* The joker question as a panel on the card. */
+[data-joker-question]:not([hidden]) { border-radius: 28px; gap: 0.5rem; text-align: center; }
+
+/* The hint row under the card shows only where swiping works (swipe.js adds .swipe-ready).
+   The old hint line stays for screen readers, out of sight. */
+.swipe-legend { display: none; }
+[data-swipe-card].swipe-ready + .swipe-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.25rem 0.875rem;
+  margin-bottom: 0.5rem;
+  color: var(--einig-muted);
+  font-size: 0.8125rem;
+}
+.rating-screen [data-swipe-hint] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+/* The card menu: a round button, the panel opens under it. */
+.card-line details { position: relative; }
+.menu-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin: 0;
+  padding: 0;
+  border-radius: 50%;
+  background: var(--einig-surface-strong);
+  color: #FFFFFF;
+  font-size: 1.5rem;
+  line-height: 1;
+  list-style: none;
+}
+.menu-button::-webkit-details-marker { display: none; }
+.menu-button::after { display: none; }   /* Pico's chevron */
+.menu-button:focus-visible { outline: 3px solid var(--einig-accent-2); outline-offset: 2px; }
+/* The panel floats over the card (under the button, right-aligned) and does not push the page. */
+.card-line details[open] { z-index: 3; }
+.menu-panel {
+  position: absolute;
+  top: 3.25rem;
+  right: 0;
+  width: 15rem;
+  padding: 0.75rem 1rem;
+  border-radius: 16px;
+  background: #FFFFFF;
+  color: var(--einig-card-text);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+}
+.menu-panel > :last-child { margin-bottom: 0; }
+.menu-panel a { color: var(--einig-button); font-weight: 600; }
+
+/* --- Lobby -------------------------------------------------------------------------------- */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.pill-ready { background: #DCFCE7; color: #14532D; text-transform: capitalize; }
+.pill-waiting { background: var(--einig-surface-strong); color: var(--einig-text); }
+.pill-winner { background: var(--einig-accent); color: var(--einig-card-text); }
+
+.progress-ring {
+  display: grid;
+  place-items: center;
+  width: 9rem;
+  height: 9rem;
+  margin: 1rem auto 1.5rem;
+  border-radius: 50%;
+  background:
+    radial-gradient(closest-side, var(--einig-bg) 80%, transparent 82%),
+    conic-gradient(var(--einig-accent) var(--progress, 0%), var(--einig-surface-strong) 0);
+}
+.progress-ring strong { max-width: 6rem; text-align: center; line-height: 1.2; }
+
+.participant-list { list-style: none; margin: 0 0 1rem; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+.participant-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0.75rem 1rem;
+  border-radius: 18px;
+  background: var(--einig-surface);
+  font-weight: 600;
+}
+.lobby-page main > form {
+  padding: 1.125rem;
+  border-radius: var(--einig-radius-lg);
+  background: var(--einig-surface);
+}
+.lobby-page figure { text-align: center; }
+.lobby-page figure figcaption { color: var(--einig-muted); }
+.rate-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 56px;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+/* --- Result ------------------------------------------------------------------------------- */
+.result-page main > h2 { margin-top: 0.5rem; }
+.result-page iframe { border-radius: 20px; margin-bottom: 1rem; }
+.share-tiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.875rem;
+  margin: 0 0 1.5rem;
+}
+.share-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 5rem;
+  margin: 0;
+  padding: 1rem;
+  border: 0;
+  border-radius: var(--einig-radius-lg);
+  text-align: center;
+  font-weight: 700;
+}
+a.share-tile { background: var(--einig-button); color: #FFFFFF; text-decoration: none; }
+details.share-tile { background: var(--einig-surface); border: 1px solid var(--einig-line); align-items: stretch; }
+details.share-tile > summary { color: #FFFFFF; list-style: none; text-align: center; }
+details.share-tile > summary::after { display: none; }
+details.share-tile[open] { grid-column: 1 / -1; }
+details.share-tile form { margin-top: 0.75rem; text-align: left; }
+
+.rating-results { list-style: none; margin: 0 0 1rem; padding: 0; display: flex; flex-direction: column; gap: 0.75rem; }
+.rating-results li {
+  list-style: none;
+  margin: 0;
+  padding: 1rem 1.125rem;
+  border-radius: 18px;
+  background: var(--einig-surface);
+}
+.rating-bar {
+  display: flex;
+  height: 0.75rem;
+  margin: 0.5rem 0;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--einig-surface-strong);
+}
+.rating-bar > span { flex-basis: 0; flex-shrink: 0; }
+.bar-yes { background: #4ADE80; }
+.bar-ok { background: #7DD3FC; }
+.bar-no { background: #F87171; }

@@ -11,6 +11,8 @@
   {% endif %}
 {% endblock %}
 
+{% block body_class %}lobby-page{% endblock %}
+
 {% block content %}
   <h1>Lobby</h1>
   <p><strong>{{ room.title }}</strong></p>
@@ -25,21 +27,30 @@
     </ul>
   {% endif %}
 
-  {% include "_qr_code.html" %}
+  {# D1b: the ring shows how many are done; the text is the same in words (never only a picture). #}
+  {% set total = participants|length %}
+  {% set percent = (finished_count * 100 // total) if total else 0 %}
+  <div class="progress-ring" data-progress-ring style="--progress: {{ percent }}%">
+    <strong>{{ finished_count }} of {{ total }} done</strong>
+  </div>
 
   <h2>Participants</h2>
-  <ul>
+  <ul class="participant-list">
     {% for person in participants %}
-      <li>
-        {{ person.nickname }}
-        {% if person.is_creator %}(creator){% endif %}
-        {% if person.has_finished %}– done{% endif %}
+      <li>{{ person.nickname }}{% if person.is_creator %} (creator){% endif %}
+        {% if person.has_finished %}
+          <span class="pill pill-ready">done</span>
+        {% else %}
+          <span class="pill pill-waiting">{% if room.status == "voting" %}Still rating{% else %}Still adding{% endif %}</span>
+        {% endif %}
       </li>
     {% endfor %}
   </ul>
-  <p>{{ finished_count }} of {{ participants|length }} done</p>
 
   <p>{{ option_count }} options</p>
+
+  {# D1b: the ring and the people come first, the QR code (for friends who are not in yet) below. #}
+  {% include "_qr_code.html" %}
 
   {% if room.status == "collecting" %}
     {% if participant.is_creator %}
@@ -62,7 +73,7 @@
       <p>Waiting for the creator to start the voting.</p>
     {% endif %}
   {% elif room.status == "voting" %}
-    <p><a href="{{ url_for('rooms.show_vote', room_id=room.id) }}">Rate the options</a></p>
+    <p><a href="{{ url_for('rooms.show_vote', room_id=room.id) }}" role="button" class="rate-button">Rate the options</a></p>
   {% endif %}
 
   <p><a href="{{ url_for('rooms.show_room', room_id=room.id) }}">Back to the room</a></p>
