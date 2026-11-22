@@ -553,6 +553,7 @@ body.rating-screen {
 .lobby-page figure figcaption { color: var(--einig-muted); }
 .rate-button {
   display: flex;
+  width: 100%;
   align-items: center;
   justify-content: center;
   min-height: 56px;
