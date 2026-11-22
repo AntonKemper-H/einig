@@ -16,7 +16,7 @@ The features were built for function first. On a phone the pages are long lists 
 
 ### Decisions in this spec (please check in the review)
 - **One theme for light and dark mode:** a dark blue background (`#0B1F4D`), lighter blue buttons (`#2563EB`), white text, two accent colours (yellow `#FFC94D`, light blue `#7DD3FC`) and white cards with dark text. The app looks the same in both modes, so both are checked but neither needs its own palette. All text meets 4.5:1 contrast.
-- **Colours are CSS custom properties** on `:root` in `app.css` (`--einig-bg`, `--einig-surface`, `--einig-button`, `--einig-text`, `--einig-muted`, `--einig-accent`, `--einig-accent-2`, `--einig-card`, `--einig-card-text`). Pico's own variables (`--pico-background-color`, `--pico-color`, `--pico-primary-background`, …) are set from them, for both `prefers-color-scheme` values. Pico classless stays.
+- **Colours are CSS custom properties** on `:root` in `app.css` (`--einig-bg`, `--einig-surface`, `--einig-button`, `--einig-on-button-muted`, `--einig-text`, `--einig-muted`, `--einig-accent`, `--einig-accent-2`, `--einig-card`, `--einig-card-text`). Pico's own variables (`--pico-background-color`, `--pico-color`, `--pico-primary-background`, …) are set from them, for both `prefers-color-scheme` values. Pico classless stays.
 - **Type:** the system font stack (`system-ui, -apple-system, "Segoe UI", Roboto, sans-serif`). No font files and no external fonts (AGENTS.md, privacy). Headings bold, slightly tighter line height.
 - **Buttons:** at least 48 px high, 16 px corner radius, full width on a phone. The main button is the lighter blue; `.secondary` is a see-through white outline.
 - **Cards:** `article` and the new `.card` class get 24 px corners and a white or see-through-white surface. Space between blocks is 16 px on a phone.
@@ -33,6 +33,7 @@ Checks (one line = one test), `tests/test_design_foundation.py`:
 - [ ] Every main page (home, room, lobby, rating page, result, group page, 404) shows the logo as an `<img>` with `alt="Einig"` and a local `/static/img/logo.svg` source.
 - [ ] `/static/img/logo.svg` is served with status 200 as SVG and contains no `https://` link and no `<script>`.
 - [ ] `app.css` defines the design colours as custom properties on `:root`.
+- [ ] Every text colour meets 4.5:1 on its background (white and muted text on the page, white and `--einig-on-button-muted` on the button blue, dark text on white cards). Added after the review of #77.
 - [ ] `app.css` has the three section markers, in the order D0, D1a, D1b.
 - [ ] The header keeps the `My rooms` link to `/` on every page (as A8).
 
