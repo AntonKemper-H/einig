@@ -294,7 +294,9 @@
 
     {% if find_matches %}
       {# F23: step 2 – pick the right match. Names and addresses are only shown, never stored. #}
-      <h3>Which one do you mean?</h3>
+      {# E2: the search sends a whole new page; autofocus scrolls the browser to the matches,
+         so nobody has to scroll down to find them. Without JavaScript. #}
+      <h3 id="find-results" tabindex="-1" autofocus>Which one do you mean?</h3>
       <ul>
         {% for match in find_matches %}
           <li>

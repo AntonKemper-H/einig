@@ -14,3 +14,4 @@ Two places can have the same name at different locations, and people often do no
 - `loading="lazy"`, a `title` naming the place, `referrerpolicy="strict-origin-when-cross-origin"`. No JavaScript.
 - Without an embed key (or with an invalid place id) the match is shown as before, without a map.
 - Nothing is stored: the matches are still only shown, and the session still holds only their ids. The Text Search request is unchanged (no extra fields, no extra cost).
+- **No scrolling:** after the search the page jumps to the matches (`autofocus` on the heading "Which one do you mean?", which has `tabindex="-1"`), so they appear right below the search field. Suggestions while typing are not possible without JavaScript and are not built (AGENTS.md).
