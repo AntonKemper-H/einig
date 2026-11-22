@@ -48,12 +48,12 @@ UNKNOWN_OPTION_MESSAGE = "This option does not exist in this room."
 WRONG_MODE_MESSAGE = "&#34;Been there&#34; is only available in a &#34;Surprise me&#34; room."
 NOT_COLLECTING_MESSAGE = "Options can only be added before voting starts."
 MANUAL_OPTION_MESSAGE = "Only places from Google Maps can be replaced."
-LIMIT_MESSAGE = "This room has already replaced 5 places. You can still add options yourself."
+LIMIT_MESSAGE = "This room has already replaced 5 places."
 UNAVAILABLE_MESSAGE = (
-    "Place suggestions are not available right now. You can still add options yourself."
+    "Place suggestions are not available right now."
 )
 NOTHING_NEW_MESSAGE = (
-    "No other place was found nearby, so this place stays. You can still add options yourself."
+    "No other place was found nearby, so this place stays."
 )
 REFUSED_MESSAGE = "Something went wrong while adding the option. Please try again."
 
@@ -424,7 +424,7 @@ def test_google_error_changes_nothing(app, guest, google, room_id, option_ids):
     assert UNAVAILABLE_MESSAGE in html
     assert snapshot(app) == before
     assert html.count("<article") == 5
-    assert f'action="/rooms/{room_id}/options"' in html
+    assert f'action="/rooms/{room_id}/options"' not in html  # E1: no typed options any more
 
 
 def test_without_key_google_is_not_called(app, guest, google, room_id, option_ids):

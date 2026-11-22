@@ -6,6 +6,7 @@ import pytest
 
 from app import db
 from app.db import get_db
+from typed_option import add_typed_option
 
 CLOSED_MESSAGE = "This room is closed. You can no longer vote."
 LABELS = ["Pizza", "Sushi", "Tacos"]
@@ -56,7 +57,7 @@ def room(app, client):
     guest = app.test_client()
     assert guest.post(f"/rooms/{room_id}/join", data={"nickname": "Ben"}).status_code in (302, 303)
     for label in LABELS:
-        assert client.post(f"/rooms/{room_id}/options", data={"label": label}).status_code in (302, 303)
+        assert add_typed_option(client, room_id, label).status_code in (302, 303)
     assert client.post(f"/rooms/{room_id}/start").status_code == 303
     with app.app_context():
         options = {row["label"]: row["id"] for row in db.get_options(room_id)}

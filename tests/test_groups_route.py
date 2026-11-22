@@ -7,6 +7,7 @@ import pytest
 from app import create_app
 from app import db as database
 from app.db import get_db
+from typed_option import add_typed_option
 
 NOT_MEMBER_PLAN_MESSAGE = "Please join the group before planning an activity."
 NOT_IN_GROUP_MESSAGE = "You are not a member of this group."
@@ -432,8 +433,8 @@ def test_unknown_group_is_404(anna, method, path):
 
 def test_non_member_sees_no_members_or_rooms_and_members_see_no_options(app, anna, ben, zoe, group_id):
     room_id = plan_room(anna, group_id, "Sunday cinema")
-    anna.post(f"/rooms/{room_id}/options", data={"label": "Thai Garden"})
-    anna.post(f"/rooms/{room_id}/options", data={"label": "Burger Bar"})
+    add_typed_option(anna, room_id, "Thai Garden")
+    add_typed_option(anna, room_id, "Burger Bar")
 
     html = page(zoe, f"/groups/{group_id}")
     for secret in ("Anna", "Ben", "Sunday cinema", room_id):

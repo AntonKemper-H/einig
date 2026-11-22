@@ -9,6 +9,7 @@ import pytest
 from app import create_app
 from app.db import get_db
 from app.services import places
+from typed_option import add_typed_option
 
 FAKE_KEY = "fake-key-for-tests-0123456789"
 DETAILS_URL = "https://places.googleapis.com/v1/places/"
@@ -118,7 +119,7 @@ def add_places(app, room_id, place_ids, centre=CENTRE):
 
 
 def add_manual(client, room_id, label):
-    response = client.post(f"/rooms/{room_id}/options", data={"label": label})
+    response = add_typed_option(client, room_id, label)
     assert response.status_code in (302, 303)
 
 

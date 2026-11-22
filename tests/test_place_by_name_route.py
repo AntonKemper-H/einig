@@ -16,6 +16,7 @@ from app import create_app
 from app import db as database
 from app.db import get_db
 from app.services import places
+from typed_option import add_typed_option
 
 FAKE_KEY = "fake-key-for-tests-0123456789"
 TEXT_SEARCH_URL = "https://places.googleapis.com/v1/places:searchText"
@@ -26,11 +27,11 @@ NOT_JOINED_MESSAGE = "Please join the room before adding options."
 NOT_COLLECTING_MESSAGE = "Options can only be added before voting starts."
 EMPTY_NAME_MESSAGE = "Please enter a name to search for."
 LONG_NAME_MESSAGE = "A name can be at most 80 characters."
-LIMIT_MESSAGE = "You have already searched 10 times in this room. You can still add options yourself."
+LIMIT_MESSAGE = "You have already searched 10 times in this room."
 UNAVAILABLE_MESSAGE = (
-    "Place suggestions are not available right now. You can still add options yourself."
+    "Place suggestions are not available right now."
 )
-NO_MATCHES_MESSAGE = "No places found with this name. You can still add it as your own option."
+NO_MATCHES_MESSAGE = "No places found with this name. Try another spelling or add the city."
 EXPIRED_MESSAGE = "This search result has expired. Please search again."
 ALREADY_OPTION_MESSAGE = "This place is already an option."
 PICKED_PLACE_MESSAGE = "Only places from the surprise search can be replaced."
@@ -362,7 +363,7 @@ def test_step_two_saves_google_option_and_forgets_matches(app, guest, room_id, g
 
 
 def test_picked_place_is_shown_to_everyone_and_counted_in_lobby(app, client, guest, room_id):
-    client.post(f"/rooms/{room_id}/options", data={"label": "Sushi bar"})
+    add_typed_option(client, room_id, "Sushi bar")
     find(guest, room_id)
     add(guest, room_id)
     for browser in (client, guest):

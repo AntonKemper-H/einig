@@ -8,6 +8,7 @@ import pytest
 from app import create_app
 from app.db import get_db
 from app.services import rooms as room_rules
+from typed_option import add_typed_option
 
 NO_ROOMS_TEXT = "You are not in any room yet. Create one below or open an invite link."
 # Attributes, line breaks and tags inside the link may change; the target and the text may not.
@@ -308,8 +309,8 @@ def test_create_form_with_errors_still_shows_the_list(anna):
 def test_list_shows_no_other_participants_and_no_votes(app, anna, ben):
     room_id = create_room(anna, "Dinner", nickname="Anna")
     join(ben, room_id, "Bernadette")
-    anna.post(f"/rooms/{room_id}/options", data={"label": "Thai Garden"})
-    anna.post(f"/rooms/{room_id}/options", data={"label": "Burger Bar"})
+    add_typed_option(anna, room_id, "Thai Garden")
+    add_typed_option(anna, room_id, "Burger Bar")
     set_status(app, room_id, "voting")
 
     part = my_rooms_part(home(anna))

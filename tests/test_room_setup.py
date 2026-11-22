@@ -15,6 +15,7 @@ from app import create_app
 from app import db as database
 from app.db import get_db
 from app.services import activities, places, surprise
+from typed_option import add_typed_option
 
 FAKE_KEY = "fake-key-for-tests-0123456789"
 TEXT_SEARCH_URL = "https://places.googleapis.com/v1/places:searchText"
@@ -118,7 +119,7 @@ def save_setup(client, room_id, kind="food.brunch", options_per_person="3"):
 
 
 def add_option(client, room_id, label):
-    return client.post(f"/rooms/{room_id}/options", data={"label": label})
+    return add_typed_option(client, room_id, label)
 
 
 def find(client, room_id, name="Trattoria Luigi"):
@@ -496,7 +497,7 @@ def test_room_without_setup_is_unchanged(app, client, mode):
     for label in ["One", "Two", "Three", "Four", "Five", "Six"]:
         assert_redirects_to_room(add_option(guest, room_id, label), room_id)
     assert len(all_options(app, room_id)) == 6
-    assert add_action(room_id) in page(guest, room_id)
+    assert add_action(room_id) not in page(guest, room_id)  # E1: no typed options any more
 
 
 # --- Searches in a set-up room ---------------------------------------------------
@@ -591,81 +592,12 @@ def test_been_there_in_set_up_surprise_room_searches_same_type(app, client, goog
 
 # --- Limit: typed options ----------------------------------------------------------
 
-def test_third_option_rejected_with_limit_of_two(app, client, room_id):
-    save_setup(client, room_id, kind="food.brunch", options_per_person="2")
-    ben = app.test_client()
-    join(ben, room_id, "Ben")
-    cleo = app.test_client()
-    join(cleo, room_id, "Cleo")
-
-    assert_redirects_to_room(add_option(ben, room_id, "Café Central"), room_id)
-    assert_redirects_to_room(add_option(ben, room_id, "Bakery Lux"), room_id)
-    before = snapshot(app)
-    response = add_option(ben, room_id, "Brunch Club")
-    assert response.status_code == 400
-    assert limit_message(2) in response.data.decode()
-    assert snapshot(app) == before
-
-    assert_redirects_to_room(add_option(cleo, room_id, "Brunch Club"), room_id)
-    assert_redirects_to_room(add_option(cleo, room_id, "Pancake House"), room_id)
-    assert author_count(app, room_id, participant_id(app, room_id, "Ben")) == 2
-    assert author_count(app, room_id, participant_id(app, room_id, "Cleo")) == 2
 
 
-def test_database_holds_limit_when_route_check_misses_it(app, client, guest, room_id, monkeypatch):
-    save_setup(client, room_id, kind="food.brunch", options_per_person="2")
-    add_option(guest, room_id, "One")
-    add_option(guest, room_id, "Two")
-    # The route's fast check sees "below the limit", as if the other add came a moment later.
-    # Only the route's check is patched: the count inside the database transaction stays real.
-    route_checks = pretend_route_sees_below_limit(monkeypatch)
-    before = snapshot(app)
-    response = add_option(guest, room_id, "Three")
-    # The route used the patched check, so the rejection below came from the database.
-    assert route_checks
-    assert response.status_code == 400
-    assert limit_message(2) in response.data.decode()
-    assert snapshot(app) == before
-    assert author_count(app, room_id, participant_id(app, room_id, "Ben")) == 2
 
 
-def test_add_manual_option_within_limit_results(app, client, guest, room_id):
-    ben = participant_id(app, room_id, "Ben")
-    with app.app_context():
-        assert database.add_manual_option_within_limit(room_id, "One", ben, 2) == "added"
-        assert database.add_manual_option_within_limit(room_id, "Two", ben, 2) == "added"
-        assert database.count_own_options(room_id, ben) == 2
-
-    before = snapshot(app)
-    with app.app_context():
-        assert database.add_manual_option_within_limit(room_id, "Three", ben, 2) == "limit"
-    assert snapshot(app) == before
-
-    with app.app_context():
-        assert database.add_manual_option_within_limit(room_id, "One", ben, 5) == "duplicate"
-    assert snapshot(app) == before
-
-    set_room_status(app, room_id, "voting")
-    before = snapshot(app)
-    with app.app_context():
-        assert database.add_manual_option_within_limit(room_id, "Four", ben, 5) == "not_collecting"
-    assert snapshot(app) == before
 
 
-def test_duplicate_and_not_collecting_keep_their_messages_with_limit(app, client, guest, room_id):
-    save_setup(client, room_id, kind="food.brunch", options_per_person="3")
-    add_option(guest, room_id, "Café Central")
-    before = snapshot(app)
-    response = add_option(guest, room_id, "café central")
-    assert response.status_code == 400
-    assert DUPLICATE_LABEL_MESSAGE in response.data.decode()
-
-    set_room_status(app, room_id, "voting")
-    response = add_option(guest, room_id, "Something new")
-    assert response.status_code == 400
-    assert NOT_COLLECTING_MESSAGE in response.data.decode()
-    run_sql(app, "UPDATE rooms SET status = 'collecting' WHERE id = ?", (room_id,))
-    assert snapshot(app) == before
 
 
 def test_google_results_do_not_count(app, client):
@@ -675,22 +607,11 @@ def test_google_results_do_not_count(app, client):
     assert len(all_options(app, room_id)) == surprise.SURPRISE_OPTION_COUNT
     guest = app.test_client()
     join(guest, room_id, "Ben")
-    assert_redirects_to_room(add_option(guest, room_id, "Own idea"), room_id)
-    response = add_option(guest, room_id, "Second idea")
-    assert response.status_code == 400
-    assert limit_message(1) in response.data.decode()
+    find(guest, room_id)
+    assert_redirects_to_room(add_found(guest, room_id), room_id)
+    assert len(all_options(app, room_id)) == surprise.SURPRISE_OPTION_COUNT + 1
 
 
-def test_lowered_limit_keeps_options_but_blocks_more(app, client, guest, room_id):
-    save_setup(client, room_id, kind="food.brunch", options_per_person="3")
-    add_option(guest, room_id, "One")
-    add_option(guest, room_id, "Two")
-    save_setup(client, room_id, kind="food.brunch", options_per_person="1")
-    assert [row["label"] for row in all_options(app, room_id)] == ["One", "Two"]
-    response = add_option(guest, room_id, "Three")
-    assert response.status_code == 400
-    assert limit_message(1) in response.data.decode()
-    assert len(all_options(app, room_id)) == 2
 
 
 def test_add_form_shows_count_and_hides_at_limit(app, client, guest, room_id):
@@ -698,7 +619,8 @@ def test_add_form_shows_count_and_hides_at_limit(app, client, guest, room_id):
     add_option(guest, room_id, "One")
     html = page(guest, room_id)
     assert "1 of 3 options added" in html
-    assert add_action(room_id) in html
+    assert add_action(room_id) not in html  # E1: no typed options any more
+    assert find_action(room_id) in html
 
     add_option(guest, room_id, "Two")
     add_option(guest, room_id, "Three")
@@ -709,7 +631,7 @@ def test_add_form_shows_count_and_hides_at_limit(app, client, guest, room_id):
     # The creator has added nothing yet and still sees both forms.
     html = page(client, room_id)
     assert "0 of 3 options added" in html
-    assert add_action(room_id) in html
+    assert find_action(room_id) in html
 
 
 # --- Limit: places found by name (C6) -------------------------------------------------
@@ -730,11 +652,9 @@ def test_place_by_name_counts_towards_limit(app, client, guest, room_id):
     save_setup(client, room_id, kind="food.brunch", options_per_person="1")
     find(guest, room_id)
     assert_redirects_to_room(add_found(guest, room_id), room_id)
-    before = snapshot(app)
-    response = add_option(guest, room_id, "Own idea")
-    assert response.status_code == 400
-    assert limit_message(1) in response.data.decode()
-    assert snapshot(app) == before
+    html = page(guest, room_id)
+    assert at_limit_text(1) in html
+    assert find_action(room_id) not in html
 
 
 def test_name_search_at_limit_does_not_call_google(app, client, guest, room_id, google):
@@ -855,7 +775,4 @@ def test_setup_and_limit_survive_restart(app, client, guest, room_id):
     html = page(browser, room_id)
     assert BRUNCH_LINE in html
     assert at_limit_text(3) in html
-    response = add_option(browser, room_id, "Four")
-    assert response.status_code == 400
-    assert limit_message(3) in response.data.decode()
     assert len(all_options(restarted, room_id)) == 3
