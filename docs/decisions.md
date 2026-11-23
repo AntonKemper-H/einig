@@ -316,7 +316,7 @@ D16, D19 and D20 left the look of the app to a design phase. All features for th
 
 **Task:** E3 (`specs/e3-remove-and-delete-rooms.md`, branch `feature-e3-remove-and-delete-rooms`), tests in `tests/test_remove_delete_rooms.py`.
 
-## D23 – Security check of the packages with pip-audit (2026-11-23)
+## D24 – Security check of the packages with pip-audit (2026-11-23)
 
 The course briefing asks for "dependencies minimal, pinned, no known vulnerabilities". We checked the pinned packages in `uv.lock` once with `pip-audit`, which looks every pinned version up in the public vulnerability database of the Python Packaging Authority (PyPI/OSV).
 
