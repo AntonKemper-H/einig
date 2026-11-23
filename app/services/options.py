@@ -19,6 +19,23 @@ def is_label_taken(label: str, existing_labels: list[str]) -> bool:
     return any(existing.casefold() == wanted for existing in existing_labels)
 
 
+def option_errors(label: str, room_status: str, existing_labels: list[str]) -> list[str]:
+    """Check whether this cleaned label may be added to the room (F3; since E5 only while Google is unavailable).
+
+    Returns at most one message: the first rule that fails. The route looks up
+    the room status and the existing labels, so this function needs no database.
+    """
+    if room_status != "collecting":
+        return [NOT_COLLECTING_MESSAGE]
+    if not label:
+        return ["Please enter an option."]
+    if len(label) > LABEL_MAX_LENGTH:
+        return [f"An option can be at most {LABEL_MAX_LENGTH} characters."]
+    if is_label_taken(label, existing_labels):
+        return [DUPLICATE_MESSAGE]
+    return []
+
+
 def may_delete(is_creator: bool, participant_id: int, added_by: int | None) -> bool:
     """F24: the creator may delete every option, anyone else only the options they added.
 
