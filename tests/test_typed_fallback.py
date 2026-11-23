@@ -331,3 +331,29 @@ def test_state_belongs_to_the_app(app, tmp_path):
 
     places.note_google_available(app)
     assert not places.typed_fallback_active(app, now)
+
+
+@pytest.mark.parametrize("mode, route", [("nearby", "suggest"), ("surprise", "surprise")])
+def test_successful_nearby_and_surprise_search_turn_it_off_at_once(client, google, mode, route):
+    room_id = create_room(client, mode=mode)
+    turn_fallback_on(client, google, room_id)
+    assert FALLBACK_LINE in page(client, room_id)
+
+    response = client.post(f"/rooms/{room_id}/{route}", data=search_form())
+    assert response.status_code == 303
+    html = page(client, room_id)
+    assert FALLBACK_LINE not in html
+    assert f'action="/rooms/{room_id}/options"' not in html
+
+
+def test_successful_been_there_search_turns_it_off_at_once(app, client, google):
+    room_id = create_room(client, mode="surprise")
+    assert client.post(f"/rooms/{room_id}/surprise", data=search_form()).status_code == 303
+    turn_fallback_on(client, google, room_id)
+    assert FALLBACK_LINE in page(client, room_id)
+
+    option_id = options(app, room_id)[0]["id"]
+    # Google answers (with places the room already has, so nothing is replaced): a successful call.
+    response = client.post(f"/rooms/{room_id}/options/{option_id}/been-there")
+    assert response.status_code in (200, 303)
+    assert FALLBACK_LINE not in page(client, room_id)
