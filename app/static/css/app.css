@@ -1206,3 +1206,6 @@ a.danger-outline-button:focus-visible { outline: 3px solid var(--einig-accent-2)
 .mode-tile .mode-icon { font-size: 1.75rem; }
 .mode-tile:has(input:checked) { border-color: var(--einig-accent); background: rgba(255, 201, 77, 0.15); }
 .mode-tile:has(input:focus-visible) { outline: 3px solid var(--einig-accent-2); outline-offset: 2px; }
+/* U1: the one main step of the room page. */
+.next-step { margin: 0.5rem 0 1rem; font-weight: 700; }
+.next-step a[role="button"] { display: block; text-align: center; padding: 0.9rem 1rem; font-size: 1.1rem; }

@@ -31,6 +31,24 @@
       <p>{{ setup_line }}</p>
     {% endif %}
 
+    {# U1: one main step for the state the room is in. The start form (with its time limit) stays
+       in the participants section below, where B6's tests pin it; the button jumps to it. #}
+    {% if room.status == "collecting" %}
+      {% if participant.is_creator %}
+        <p class="next-step"><a href="#start-voting" role="button">Start voting</a></p>
+      {% else %}
+        <p class="next-step">Waiting for the creator to start</p>
+      {% endif %}
+    {% elif room.status == "voting" %}
+      {% if participant.has_finished %}
+        <p class="next-step">Waiting for {{ participants|length - finished_count }} more</p>
+      {% else %}
+        <p class="next-step"><a href="{{ url_for('rooms.show_vote', room_id=room.id) }}" role="button">Rate now</a></p>
+      {% endif %}
+    {% elif room.status == "closed" %}
+      <p class="next-step"><a href="{{ url_for('rooms.show_result', room_id=room.id) }}" role="button">See the result</a></p>
+    {% endif %}
+
     {# B6: participants in a side column on wide screens (CSS grid in app.css), at the top on a phone. #}
     <div class="room-columns">
     {# D1a: open for the creator while collecting, so "Start voting" is in sight at the bottom
@@ -49,7 +67,7 @@
           <p>{{ hint }}</p>
         {% endfor %}
         {# The same form and route as in the lobby (A5), with B5's time limit. #}
-        <form action="{{ url_for('rooms.start_voting', room_id=room.id) }}" method="post">
+        <form action="{{ url_for('rooms.start_voting', room_id=room.id) }}" method="post" id="start-voting">
           <label>Time limit
             <select name="time_limit">
               <option value="" selected>No time limit</option>
