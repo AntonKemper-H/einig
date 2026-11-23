@@ -475,21 +475,20 @@ def test_rating_and_joker_buttons_are_still_buttons_and_not_hidden_by_attribute(
 
 
 def test_the_css_hides_the_buttons_visually_and_shows_them_on_focus_within():
+    # U4 (D27, changed with the team's OK): the buttons are visible as the icon row; they are
+    # never removed with display: none (as before) and never clipped out of sight any more.
     rules = css_rules()
-    text = APP_CSS.read_text()
-    assert ":focus-within" in text
     for selector, rule in rules:
         if "rating-buttons" in selector or 'name="rating"' in selector or "joker-form" in selector:
             assert "display: none" not in rule and "display:none" not in rule
-    assert any(":focus-within" in selector for selector, _ in rules)
+        if "rating-buttons" in selector or "veto" in selector:
+            assert "clip:" not in rule
 
 
 def test_the_buttons_are_hidden_only_once_swipe_js_has_started():
-    # Without JavaScript a phone user must still see the buttons (D16): hide them only under .swipe-ready.
-    hiding = [selector for selector, rule in css_rules() if "clip:" in rule and "veto" in selector]
-    assert hiding and all("swipe-ready" in selector for selector in hiding)
-    hiding = [selector for selector, rule in css_rules() if "clip:" in rule and "rating-buttons" in selector]
-    assert hiding and all("swipe-ready" in selector for selector in hiding)
+    # U4 (D27, changed with the team's OK): not hidden at all now, also not under .swipe-ready.
+    hiding = [selector for selector, rule in css_rules() if "clip:" in rule and ("veto" in selector or "rating-buttons" in selector)]
+    assert hiding == []
     assert 'classList.add("swipe-ready")' in SWIPE_JS.read_text()
 
 

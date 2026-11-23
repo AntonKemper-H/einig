@@ -355,6 +355,19 @@ Found on a phone: the lobby reloads every 4 seconds, and each reload set the cre
 
 **Task:** E7 (`specs/e7-lobby-host-refresh.md`, branch `fix-lobby-host-refresh`), tests in `tests/test_lobby_host_refresh.py`.
 
+## D27 – Rating buttons as icons under the card, a "?" for help (2026-11-23)
+
+Proposal in issue #86 (part 1): on the rating card you can only swipe, the buttons are hidden (D20) and a text row explains the directions. Testers did not see at a glance what to do.
+
+- **The rating and joker buttons are visible again** on the one-card rating page, as a row of icon buttons under the card: ✕ Rather not · 🚫 Joker · 🤷 Fine with me · ♥ Rather yes. The row doubles as the swipe legend. Supersedes D20's "no buttons in sight" and D1b's hint row. Swiping stays as it is.
+- **Same forms and fields:** swipe.js and the routes do not change; the joker stays its own form, so a swipe can still never use it.
+- **The small labels under the icons are shown only on the first card** (nothing rated yet in this room, read from the database). No cookie field, no JavaScript.
+- **A "?" next to the ⋯ menu** opens a short explanation with the points (`<details>`, no JavaScript).
+- **Not:** a tutorial with several steps, or remembering across rooms (would need a cookie field).
+- Proposed on 2026-11-23 for after the submission; needs the team's OK in the spec review (5 reviewed tests change, list in the spec).
+
+**Task:** U4 (`specs/u4-rating-icons.md`, branch `ux-4-rating-icons`), tests in `tests/test_rating_icons.py`.
+
 ## Open questions
 
 - Final app name.

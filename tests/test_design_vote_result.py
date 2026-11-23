@@ -83,29 +83,30 @@ def set_finished(app, room_id, nickname):
 # --- Rating card: hint row and joker stamp ---------------------------------
 
 def test_the_swipe_hints_sit_under_the_card_as_hidden_from_screen_readers_text(client):
+    # U4 (D27, changed with the team's OK): D1b's text row is replaced by the icon row,
+    # which holds the real buttons and sits in the card (swipe.js looks for them there).
     room_id = voting_room(client)
     html = page(client, f"/rooms/{room_id}/vote")
-    tag, inner = element(html, "data-swipe-legend")
-    assert 'aria-hidden="true"' in tag
-    text = text_of(inner)
-    for hint in ("← Rather not", "↑ Fine with me", "Rather yes →", "↓ Joker"):
-        assert hint in text
-    # Text only: the hidden buttons stay the only controls (D20).
-    assert "<button" not in inner and "<form" not in inner
-    # Under the card, not inside it.
+    assert "data-swipe-legend" not in html
     card_start = html.index("<article data-swipe-card")
     card_end = html.index("</article>", card_start)
-    assert card_end < html.index("data-swipe-legend")
+    row_start = html.index("data-rating-row")
+    assert card_start < row_start < card_end
+    _, inner = element(html, "data-rating-row")
+    for icon in ("✕", "🤷", "♥", "🚫"):
+        assert icon in inner
+    assert inner.count('name="rating"') == 3
 
 
 def test_the_joker_hint_is_left_out_once_the_joker_is_used(client):
+    # U4 (D27, changed with the team's OK): the joker button leaves the icon row once used.
     room_id = voting_room(client)
     first = option_ids(page(client, f"/rooms/{room_id}/vote"))[0]
     assert client.post(f"/rooms/{room_id}/veto", data={"option_id": first}).status_code in (302, 303)
     html = page(client, f"/rooms/{room_id}/vote")
-    _, inner = element(html, "data-swipe-legend")
-    assert "Joker" not in text_of(inner)
-    assert "← Rather not" in text_of(inner)
+    _, inner = element(html, "data-rating-row")
+    assert "🚫" not in inner
+    assert "✕" in inner
 
 
 def test_no_hint_row_on_the_overview_after_all_options_are_rated(app, client):
@@ -265,7 +266,8 @@ def test_result_without_a_winner_has_no_winner_pill(client):
 
 # --- Stylesheet ------------------------------------------------------------
 
-D1B_ONLY_SELECTORS = ("swipe-legend", "progress-ring", "rating-bar", "share-tile", "menu-button", "pill-winner")
+# U4 (D27, changed with the team's OK): "swipe-legend" is gone with D1b's hint row.
+D1B_ONLY_SELECTORS = ("progress-ring", "rating-bar", "share-tile", "menu-button", "pill-winner")
 
 
 def test_d1b_styles_are_only_in_the_d1b_section():
