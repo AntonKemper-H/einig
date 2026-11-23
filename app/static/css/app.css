@@ -1101,6 +1101,12 @@ button.danger-button:focus-visible {
   background: var(--einig-button);
   color: #FFFFFF;
   text-align: center;
+  /* Fades out after 4 seconds and stays hidden (no JavaScript); it used to stay until a reload. */
+  animation: einig-notice-out 0.6s ease-in 4s forwards;
+}
+@keyframes einig-notice-out {
+  from { opacity: 1; }
+  to { opacity: 0; visibility: hidden; }
 }
 
 /* Navigation links at the end of a page ("Back to the room", "Back to the lobby", "See the result",
