@@ -357,17 +357,21 @@
     <p class="done-link"><a href="{{ url_for('rooms.show_lobby', room_id=room.id) }}">I'm done – wait for the others</a></p>
 
     {# B6: invite link and QR code at the end, in one compact block. Both the field and the
-       link stay (reviewed test invite_urls_in in tests/test_proxy_headers.py). #}
-    <section class="invite">
-      <label>Invite link
-        <input type="text" readonly value="{{ invite_url }}" aria-label="Invite link">
-      </label>
-      <small><a href="{{ invite_url }}">{{ invite_url }}</a></small>
-    </section>
-    {% include "_qr_code.html" %}
+       link stay (reviewed test invite_urls_in in tests/test_proxy_headers.py).
+       D21 follow-up: folded, so they do not take the whole screen while people collect ideas. #}
+    <details class="invite-fold">
+      <summary>Invite friends</summary>
+      <section class="invite">
+        <label>Invite link
+          <input type="text" readonly value="{{ invite_url }}" aria-label="Invite link">
+        </label>
+        <small><a href="{{ invite_url }}">{{ invite_url }}</a></small>
+      </section>
+      {% include "_qr_code.html" %}
+    </details>
     {% if participant.is_creator %}
-      {# F32: small and at the bottom, so it is not pressed by accident. #}
-      <p class="delete-room-link"><small><a href="{{ url_for('rooms.confirm_delete_room', room_id=room.id) }}">Delete this room</a></small></p>
+      {# F32: at the very bottom, so it is not pressed by accident; outlined red, not a main button. #}
+      <p class="delete-room-link"><a href="{{ url_for('rooms.confirm_delete_room', room_id=room.id) }}" class="danger-outline-button">Delete this room</a></p>
     {% endif %}
   {% elif room.status == "closed" %}
     <p>This room is closed. You can no longer join.</p>
