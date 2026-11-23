@@ -3,6 +3,7 @@
 from flask import Blueprint, render_template, session, url_for
 
 from app import db
+from app.services import activities
 from app.services import rooms as room_rules
 
 bp = Blueprint("main", __name__)
@@ -21,6 +22,7 @@ def render_home(form: dict, errors: list[str]) -> str:
         form=form,
         errors=errors,
         modes=room_rules.MODES,
+        kind_choices=activities.kind_choices(),
         my_groups=load_my_groups(),
         my_rooms=load_my_rooms(),
     )

@@ -179,12 +179,12 @@ def visitor(app):
 # --- Room page -------------------------------------------------------------
 
 def test_creator_of_nearby_room_sees_search_form(client, room_id):
+    client.post(f"/rooms/{room_id}/setup", data={"kind": "drinks.bar", "options_per_person": ""})  # U2: the search form needs a setup
     html = client.get(f"/rooms/{room_id}").data.decode()
     assert suggest_action(room_id) in html
-    for field in ("category", "radius_m", "min_rating", "max_price_level"):
+    for field in ("radius_m", "min_rating", "max_price_level"):
         assert f'name="{field}"' in html
-    for value in ("restaurant", "bar", "cafe", "movie_theater"):
-        assert f'value="{value}"' in html
+    assert 'name="category"' not in html  # U2: the setup decides what is searched
     for value in ("500", "1000", "2000", "5000"):
         assert f'value="{value}"' in html
     assert 'type="hidden" name="latitude"' in html
@@ -323,6 +323,7 @@ def test_only_place_id_is_stored_from_google(app, client, room_id, google):
 # --- Rejected --------------------------------------------------------------
 
 def test_no_places_found_shows_message_and_form(app, client, room_id, google):
+    client.post(f"/rooms/{room_id}/setup", data={"kind": "drinks.bar", "options_per_person": ""})  # U2: the search form needs a setup
     google.response = FakeResponse(body={})
     response = suggest(client, room_id)
     html = response.data.decode()
@@ -372,9 +373,8 @@ def test_invalid_form_shows_messages_and_values(app, client, room_id, google):
     assert response.status_code == 400
     assert CATEGORY_MESSAGE in html
     assert LOCATION_MESSAGE in html
-    assert suggest_action(room_id) in html
-    # The entered radius is selected again (attribute order does not matter).
-    assert is_selected(html, "radius_m", "2000")
+    # U2: without a setup there is no search form to show again (see tests/test_u2_what_first.py).
+    assert suggest_action(room_id) not in html
     assert google.calls == []
     assert_nothing_saved(app, room_id)
 

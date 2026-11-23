@@ -1,6 +1,5 @@
 {% extends "base.html" %}
-
-{% set mode_labels = {"manual": "Enter options myself", "nearby": "Places nearby", "surprise": "Surprise me"} %}
+{% from "_create_parts.html" import kind_select, mode_tiles %}
 
 {% block title %}{{ group.name }} – Einig{% endblock %}
 
@@ -21,21 +20,18 @@
     <h2>Plan a new activity</h2>
     <form action="{{ url_for('groups.plan_activity', group_id=group.id) }}" method="post">
       <div class="step">
+        <span class="step-number">1</span> {{ kind_select(kind_choices, activity.kind) }}
+      </div>
+      <div class="step">
       <label>
-        <span class="step-number">1</span> What do you want to decide?
-        <input type="text" name="title" maxlength="80" required
+        <span class="step-number">2</span> Name it
+        <input type="text" name="title" maxlength="80"
                placeholder="Dinner on Friday" value="{{ activity.title or '' }}">
       </label>
       </div>
       <fieldset class="step">
-        <legend><span class="step-number">2</span> Where do the options come from?</legend>
-        {% for mode in modes %}
-          <label>
-            <input type="radio" name="mode" value="{{ mode }}"
-                   {% if activity.mode == mode or (not activity.mode and mode == "manual") %}checked{% endif %}>
-            {{ mode_labels.get(mode, mode) }}
-          </label>
-        {% endfor %}
+        <legend><span class="step-number">3</span> How do you find it?</legend>
+        {{ mode_tiles(modes, activity.mode) }}
       </fieldset>
       <button type="submit">Plan a new activity</button>
     </form>

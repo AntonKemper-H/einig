@@ -3,7 +3,8 @@
 from flask import Blueprint, abort, redirect, render_template, request, session, url_for
 
 from app import db
-from app.routes.rooms import group_member_for, remember_token
+from app.routes.rooms import group_member_for, remember_token, save_first_setup
+from app.services import activities
 from app.services import groups as group_rules
 from app.services import qr
 from app.services import rooms as room_rules
@@ -58,6 +59,7 @@ def render_group_page(group, member, errors=None, join_nickname="", activity=Non
         join_nickname=join_nickname,
         activity=activity or {},
         modes=room_rules.MODES,
+        kind_choices=activities.kind_choices(),
     )
 
 
@@ -131,7 +133,7 @@ def plan_activity(group_id: str):
 
     # The same rules as F1; the nickname is the member's group nickname.
     form, errors = room_rules.validate_new_room(
-        request.form.get("title"), request.form.get("mode"), member["nickname"]
+        request.form.get("title"), request.form.get("mode"), member["nickname"], request.form.get("kind")
     )
     if errors:
         return render_group_page(group, member, errors, activity=form), 400
@@ -145,4 +147,5 @@ def plan_activity(group_id: str):
         return render_group_page(group, member, [ROOM_COLLISION_MESSAGE], activity=form), 400
 
     remember_token(room_id, session_token)
+    save_first_setup(room_id, form["kind"])
     return redirect(url_for("rooms.show_room", room_id=room_id), code=303)
