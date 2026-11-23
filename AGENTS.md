@@ -219,10 +219,10 @@ With hidden collecting (F28, D17), no page shows another participant's options b
 Update this section as the project progresses.
 
 - [x] Repository, rules and docs set up
-- [ ] Project skeleton (uv, Flask app factory, test fixture) + first deployment
-- [ ] Sprint 1 – Foundation: data model, F1, F2, F3, F7
-- [ ] Sprint 2 – Voting: F4, F5 (with tests), F6 → minimum version complete
-- [ ] Sprint 3 – Places: F8, F9, F22
-- [ ] Sprint 4 – Excitement: F10, F11, F12, F13
-- [ ] Sprint 5 – Coming back (D15): F25 my rooms, F16 groups (F26 place collection and map not built)
+- [x] Project skeleton (uv, Flask app factory, test fixture) + first deployment
+- [x] Sprint 1 – Foundation: data model, F1, F2, F3, F7
+- [x] Sprint 2 – Voting: F4, F5 (with tests), F6 → minimum version complete
+- [x] Sprint 3 – Places: F8, F9, F22
+- [x] Sprint 4 – Excitement: F10, F11, F12, F13
+- [x] Sprint 5 – Coming back (D15): F25 my rooms, F16 groups (F26 place collection and map not built)
 - [ ] Parked: F14, F15, F17–F21, only if time remains
