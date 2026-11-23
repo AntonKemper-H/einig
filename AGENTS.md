@@ -4,7 +4,7 @@ Rules for coding agents (Claude Code, Codex, …) working on this repository. Re
 
 ## Project overview
 
-**Einig** (working title) is a mobile-first web app that helps groups decide what to do. A creator opens a "room", friends join via link or QR code without an account, everyone rates options on three levels ("Rather yes" / "Fine with me" / "Rather not"), and the app picks the option everyone can live with rather than the one most people like. Every option is a place from Google Maps (E1): found by name, suggested nearby, or via a surprise mode that deliberately suggests new places. Typed free-text options no longer exist.
+**Einig** (working title) is a mobile-first web app that helps groups decide what to do. A creator opens a "room", friends join via link or QR code without an account, everyone rates options on three levels ("Rather yes" / "Fine with me" / "Rather not"), and the app picks the option everyone can live with rather than the one most people like. Every option is a place from Google Maps (E1): found by name, suggested nearby, or via a surprise mode that deliberately suggests new places. Typed free-text options come back only while Google Maps is unavailable (E5, D23).
 
 This is a university team project (Introduction to Programming). Every team member must be able to explain every part of the code in the repository walkthrough. **Prefer simple, readable code over clever or compact code.**
 
@@ -179,7 +179,7 @@ With hidden collecting (F28, D17), no page shows another participant's options b
 - **Store only `place_id`** permanently. Name, photo, rating etc. are fetched when needed and not written to the database.
 - **Photos go through a backend proxy route** (`/photo/<photo_name>`) so the API key never appears in HTML. Exception: review author pictures (F30, D19) are loaded straight from Google, because their URLs carry no key. **Maps of collected places** go through `/map/...` the same way.
 - **Map of the winner and maps of the search matches (E2):** Maps Embed API in an `<iframe>`, using the separate, browser-restricted key `GOOGLE_MAPS_EMBED_KEY`. The matches of the search by name each get a small embed while the room is collecting. Route link: a normal Google Maps URL, no API call.
-- All API calls have a **timeout (5 s)**. On any error, show a friendly message and let the group continue with manual options.
+- All API calls have a **timeout (5 s)**. On any error, show a friendly message; for 10 minutes the group can add options as text (D23).
 - **Tests never call Google.** Mock all HTTP calls.
 
 ## Secrets
