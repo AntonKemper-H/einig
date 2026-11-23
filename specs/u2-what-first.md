@@ -1,7 +1,7 @@
 # U2 – Choose *what* first
 
 Branch: `ux-2-what-first`
-Tests: `tests/test_u2_what_first.py` (new); eleven reviewed tests changed with the team's OK (list below).
+Tests: `tests/test_u2_what_first.py` (new); twelve reviewed tests changed with the team's OK (list below).
 Decision: `docs/decisions.md`, D26. Proposal: issue #95 (Timon).
 
 ## Why
@@ -22,7 +22,7 @@ They save a setup first (or check the new order). No test is removed.
 - `test_surprise_search.py`: `test_creator_of_surprise_room_sees_surprise_form`, `test_no_places_even_after_widening`, `test_invalid_form`
 - `test_place_by_name_route.py`: `test_nearby_search_still_works_after_a_pick`
 - `test_nearby_place_count.py`: `test_the_nearby_form_offers_5_10_and_15`, `test_the_surprise_form_has_no_count`, `test_an_invalid_count_is_rejected_and_nothing_changes`
-(The exact list is fixed by the test run; the eleven names come from issue #95.)
+Two of them (`test_invalid_form_shows_messages_and_values`, `test_invalid_form`) keep their category check and now assert that without a setup there is no form to show again; the "form shown again with the entered values" part moves to `tests/test_u2_what_first.py`. Three more only drop the check for the category select.
 
 ## Checks (one line = one test), `tests/test_u2_what_first.py`
 - [ ] The create form on the home page has the activity select and the three mode tiles; the mode values are unchanged.

@@ -2,6 +2,8 @@
 
 import secrets
 
+from app.services import activities
+
 MODES = ["manual", "nearby", "surprise"]
 TITLE_MAX_LENGTH = 80
 # Browsers refuse cookies over about 4 KB, which would lose every token at once (A8).
@@ -25,18 +27,27 @@ def clean_text(value: str | None) -> str:
 
 
 def validate_new_room(
-    title: str | None, mode: str | None, nickname: str | None
+    title: str | None, mode: str | None, nickname: str | None, kind: str | None = None
 ) -> tuple[dict[str, str], list[str]]:
     """Clean the create-room form and check it.
 
+    U2: the optional activity ("drinks.bar") is returned as "kind" (empty if none was chosen).
+    With a valid activity an empty title becomes the activity's name, e.g. "Bar".
     Returns the cleaned values and a list of error messages (empty if the form is valid).
     """
     cleaned = {
         "title": clean_text(title),
         "mode": mode or "",
         "nickname": clean_text(nickname),
+        "kind": clean_text(kind),
     }
     errors = []
+
+    parsed_kind = activities.parse_kind(cleaned["kind"]) if cleaned["kind"] else None
+    if cleaned["kind"] and parsed_kind is None:
+        errors.append(activities.KIND_MESSAGE)
+    if not cleaned["title"] and parsed_kind is not None:
+        cleaned["title"] = activities.kind_name(*parsed_kind)
 
     if not cleaned["title"]:
         errors.append("Please enter a title.")

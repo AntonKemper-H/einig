@@ -104,6 +104,11 @@ def kind_types(activity: str, kind: str) -> list[str]:
     return ACTIVITIES[activity]["kinds"][kind]["types"]
 
 
+def kind_name(activity: str, kind: str) -> str:
+    """The short name of a kind, e.g. "Bar"; U2 uses it as the title when none is typed."""
+    return ACTIVITIES[activity]["kinds"][kind]["label"]
+
+
 def kind_label(activity: str, kind: str) -> str:
     """The text shown for a setup, e.g. "Food – Brunch"."""
     return f"{ACTIVITIES[activity]['label']} – {ACTIVITIES[activity]['kinds'][kind]['label']}"

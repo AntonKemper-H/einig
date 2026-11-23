@@ -355,6 +355,18 @@ Found on a phone: the lobby reloads every 4 seconds, and each reload set the cre
 
 **Task:** E7 (`specs/e7-lobby-host-refresh.md`, branch `fix-lobby-host-refresh`), tests in `tests/test_lobby_host_refresh.py`.
 
+## D26 – U2: choose what first (2026-11-23)
+
+Proposal by Timo (issue #95): the app should show what to do, not explain it. A new "Surprise me" room showed the setup (*What are you planning?*) and, right below it, the old *Category* select; which one counted was not visible.
+
+- **The create form has an optional activity** (the same choices as the room setup). With one, the setup is saved at once with the values the setup form pre-selects (no limit per person, ideas secret, places shown). An empty title then becomes the activity's name, e.g. `Bar`. Without an activity the title is still required.
+- **The three modes are three tiles** (same radio field `mode`).
+- **In a Nearby or Surprise room the search form appears only with a saved setup;** the select *Category* is gone. The routes are unchanged.
+- Twelve reviewed tests changed with the OK of the team in issue #95 (see `specs/u2-what-first.md`); no test was removed.
+- **Limit:** a Nearby or Surprise room created without an activity cannot search until the creator saves the setup.
+
+**Task:** U2 (`specs/u2-what-first.md`, branch `ux-2-what-first`), tests in `tests/test_u2_what_first.py`.
+
 ## Open questions
 
 - Final app name.

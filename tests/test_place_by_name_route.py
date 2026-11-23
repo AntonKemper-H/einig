@@ -653,6 +653,7 @@ def test_nearby_search_still_works_after_a_pick(app, client, google):
     find(guest, room_id)
     add(guest, room_id, "place-luigi-1")
 
+    client.post(f"/rooms/{room_id}/setup", data={"kind": "drinks.bar", "options_per_person": ""})  # U2: the search form needs a setup
     assert 'action="/rooms/{}/suggest"'.format(room_id) in page(client, room_id)
     google.nearby_ids = ["nearby-1", "place-luigi-1", "nearby-2"]
     response = client.post(
@@ -670,8 +671,8 @@ def test_nearby_search_still_works_after_a_pick(app, client, google):
     rows = all_options(app, room_id)
     assert [(row["place_id"], row["category"]) for row in rows] == [
         ("place-luigi-1", None),
-        ("nearby-1", "restaurant"),
-        ("nearby-2", "restaurant"),
+        ("nearby-1", "bar"),  # U2: the setup (a bar) decides the category, not the posted one
+        ("nearby-2", "bar"),
     ]
     assert room_row(app, room_id)["radius_m"] == 1000
 

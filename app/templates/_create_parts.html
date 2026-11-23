@@ -1,0 +1,33 @@
+{# U2: the parts of the create form that the home page and the group page share. #}
+
+{% macro kind_select(kind_choices, selected) %}
+  {# Optional. With an activity chosen the room gets its setup at once (U2) and the title may stay empty. #}
+  <label>
+    What do you want to do?
+    <select name="kind">
+      <option value="">Choose later</option>
+      {% for activity_label, kinds in kind_choices %}
+        <optgroup label="{{ activity_label }}">
+          {% for value, text in kinds %}
+            <option value="{{ value }}" {% if selected == value %}selected{% endif %}>{{ text }}</option>
+          {% endfor %}
+        </optgroup>
+      {% endfor %}
+    </select>
+  </label>
+{% endmacro %}
+
+{% macro mode_tiles(modes, selected) %}
+  {# Three big tiles; still the radio field "mode" with the same values. #}
+  {% set tile_text = {"manual": ("✏️", "Own ideas"), "nearby": ("📍", "Popular nearby"), "surprise": ("🎲", "Surprise us")} %}
+  <div class="mode-tiles">
+    {% for mode in modes %}
+      <label class="mode-tile">
+        <input type="radio" name="mode" value="{{ mode }}"
+               {% if selected == mode or (not selected and mode == "manual") %}checked{% endif %}>
+        <span class="mode-icon" aria-hidden="true">{{ tile_text[mode][0] }}</span>
+        <span>{{ tile_text[mode][1] }}</span>
+      </label>
+    {% endfor %}
+  </div>
+{% endmacro %}

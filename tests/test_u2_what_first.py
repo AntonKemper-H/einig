@@ -120,4 +120,17 @@ def test_a_room_created_with_an_activity_shows_the_search_form_at_once(client):
     room_id = room_id_of(create(client, mode="surprise", kind=BAR))
     html = room_html(client, room_id)
     assert has_search_form(html, room_id, "surprise")
-    assert re.search(r"Searching for: Bar", html)
+    assert re.search(r"Searching for: Drinks &amp; café – Bar", html)
+
+
+def test_a_rejected_search_shows_the_form_again_with_the_entered_values(client):
+    # Moved here from the A-series tests (U2): the form only exists with a setup.
+    room_id = room_id_of(create(client, title="Lunch", mode="nearby", kind="food.restaurant"))
+    response = client.post(
+        f"/rooms/{room_id}/suggest",
+        data={"radius_m": "2000", "latitude": "", "longitude": "", "place_count": "10"},
+    )
+    assert response.status_code == 400
+    html = response.get_data(as_text=True)
+    assert has_search_form(html, room_id, "suggest")
+    assert re.search(r'<option[^>]*value="2000"[^>]*selected', html)

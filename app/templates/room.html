@@ -196,30 +196,17 @@
       {% if show_surprise_form %}
         {% set form_action = url_for('rooms.surprise_places', room_id=room.id) %}
         {% set form_heading = "Surprise us" %}
-        {% set form_categories = surprise_categories %}
         {% set submit_text = "Surprise us" %}
       {% else %}
         {% set form_action = url_for('rooms.suggest_places', room_id=room.id) %}
         {% set form_heading = "Find places nearby" %}
-        {% set form_categories = categories %}
         {% set submit_text = "Suggest places" %}
       {% endif %}
       <form action="{{ form_action }}" method="post">
         <h3>{{ form_heading }}</h3>
 
-        {% if searching_for %}
-          {# F27: the room's setup decides what is searched. #}
-          <p>Searching for: {{ searching_for }}</p>
-        {% else %}
-          <label>
-            Category
-            <select name="category" required>
-              {% for value, text in form_categories.items() %}
-                <option value="{{ value }}" {% if search_values.get("category") == value %}selected{% endif %}>{{ text }}</option>
-              {% endfor %}
-            </select>
-          </label>
-        {% endif %}
+        {# F27, U2: the form only appears with a setup, and the setup decides what is searched. #}
+        <p>Searching for: {{ searching_for }}</p>
 
         <label>
           Radius

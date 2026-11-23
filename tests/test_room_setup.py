@@ -492,7 +492,7 @@ def test_room_without_setup_is_unchanged(app, client, mode):
     assert "Activity:" not in html
     assert "options added" not in html
     if mode != "manual":
-        assert 'name="category"' in html
+        assert 'name="category"' not in html  # U2: no category select, no search form before a setup
         assert "Searching for:" not in html
     for label in ["One", "Two", "Three", "Four", "Five", "Six"]:
         assert_redirects_to_room(add_option(guest, room_id, label), room_id)
