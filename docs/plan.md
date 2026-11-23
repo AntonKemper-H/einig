@@ -71,6 +71,7 @@ Small follow-ups from testing the app on phones, each with its own spec and pull
 - [x] E2 Small map for every match of the search by name, so two places with the same name can be told apart (`specs/e2-match-maps.md`, builds on C6 and C3) (PR #84)
 - [x] E3 F31 Remove a room from my list, and F32 delete a room as its creator, with a confirmation page (`specs/e3-remove-and-delete-rooms.md`, `docs/decisions.md` D22) (PR #85, follow-up PR #87)
 - [x] E4 Choose how many places "Places nearby" suggests: 5, 10 or up to 15 (`specs/e4-nearby-place-count.md`) (PR #89)
+- [x] E6 Clearer messages when "Use my location" fails: blocked, location not found and too slow each get their own text (`specs/e6-location-messages.md`) (PR #100) – still to check by hand on the iPad after deploying
 
 ### Dependencies
 

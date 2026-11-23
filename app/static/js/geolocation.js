@@ -29,8 +29,21 @@
         longitudeField.value = roundCoordinate(position.coords.longitude);
         status.textContent = "Location shared. You can now search.";
       },
-      function () {
-        status.textContent = "Location not shared. Please allow location access and try again.";
+      function (error) {
+        // error.code tells us why it failed, so the message can say what to fix.
+        switch (error.code) {
+          case 1: // PERMISSION_DENIED
+            status.textContent = "Location is blocked. Allow it for this site in your browser. On iPhone or iPad: Settings → Privacy & Security → Location Services → Safari Websites.";
+            break;
+          case 2: // POSITION_UNAVAILABLE
+            status.textContent = "Your location could not be found. Please try again.";
+            break;
+          case 3: // TIMEOUT
+            status.textContent = "Finding your location took too long. Please try again.";
+            break;
+          default:
+            status.textContent = "Location not shared. Please allow location access and try again.";
+        }
       },
       { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
     );
