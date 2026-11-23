@@ -1101,6 +1101,12 @@ button.danger-button:focus-visible {
   background: var(--einig-button);
   color: #FFFFFF;
   text-align: center;
+  /* Fades out after 4 seconds and stays hidden (no JavaScript); it used to stay until a reload. */
+  animation: einig-notice-out 0.6s ease-in 4s forwards;
+}
+@keyframes einig-notice-out {
+  from { opacity: 1; }
+  to { opacity: 0; visibility: hidden; }
 }
 
 /* Navigation links at the end of a page ("Back to the room", "Back to the lobby", "See the result",
@@ -1210,3 +1216,25 @@ a.danger-outline-button:focus-visible { outline: 3px solid var(--einig-accent-2)
 .invite-actions { margin: 0.5rem 0 1rem; }
 .invite-actions [hidden] { display: none; }
 .invite-actions button { width: 100%; }
+
+
+/* U5: the joker counter opens a short explanation. The panel sits on the left under the counter
+   (the menu's panel opens to the right edge); its text uses the card colours like the menu's. */
+[data-joker-help] > summary { cursor: pointer; list-style: none; }
+[data-joker-help] > summary::-webkit-details-marker { display: none; }
+[data-joker-help] .help-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  margin-left: 0.25rem;
+  border-radius: 50%;
+  background: var(--einig-surface-strong);
+  color: var(--einig-text);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+[data-joker-help] .menu-panel { left: 50%; right: auto; transform: translateX(-50%); }
+[data-joker-help] .menu-panel p { color: var(--einig-card-text); margin-bottom: 0.375rem; }
+[data-joker-help] > summary::after { display: none; }
