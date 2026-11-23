@@ -345,6 +345,16 @@ If something is found: update only the affected package (`uv lock --upgrade-pack
 
 **Not included:** a check in CI or a regular schedule, and `pip-audit` as a project dependency (it is run with `uvx`, so `pyproject.toml` and `uv.lock` do not change). The result is a snapshot from today.
 
+## D25 – The creator's lobby reloads on request while collecting (2026-11-23)
+
+Found on a phone: the lobby reloads every 4 seconds, and each reload set the creator's time limit choice back to "No time limit" before they pressed "Start voting". A page without JavaScript cannot keep an unsent choice across a reload.
+
+- **While the room is collecting, the creator's lobby has no meta refresh** but a **Refresh** button, as the room page has since B6 for the same reason. Guests keep the automatic reload, and everybody reloads automatically once the voting runs.
+- Agreed by the whole team on 2026-11-23. Two A5 tests in `tests/test_lobby.py` were changed for it (see the spec).
+- **Limit:** the creator does not see new participants or "done" marks by themselves while collecting; they tap Refresh.
+
+**Task:** E7 (`specs/e7-lobby-host-refresh.md`, branch `fix-lobby-host-refresh`), tests in `tests/test_lobby_host_refresh.py`.
+
 ## Open questions
 
 - Final app name.

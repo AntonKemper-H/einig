@@ -172,9 +172,13 @@ def test_lobby_shows_status_text(app, client, room_id, status):
 
 
 @pytest.mark.parametrize("status", ["collecting", "voting"])
-def test_lobby_refreshes_while_room_is_open(app, client, room_id, status):
+def test_lobby_refreshes_while_room_is_open(app, client, guest, room_id, status):
+    # Changed with the team's OK (D25, 2026-11-23): while collecting, the creator's lobby reloads
+    # on request only, so the time limit they pick is not reset; guests keep the automatic reload.
     set_room_status(app, room_id, status)
-    assert refresh_tag(room_id) in lobby_html(client, room_id)
+    assert refresh_tag(room_id) in lobby_html(guest, room_id)
+    if status == "voting":
+        assert refresh_tag(room_id) in lobby_html(client, room_id)
 
 
 def test_lobby_does_not_refresh_when_closed(app, client, room_id):
@@ -323,8 +327,11 @@ def test_start_in_unknown_room_shows_404(client):
 
 
 def test_rejected_start_refreshes_to_lobby_not_to_start(client, room_id):
+    # Changed with the team's OK (D25, 2026-11-23): the creator's lobby has no automatic reload
+    # while collecting; its Refresh button leads to the lobby, never back to POST /start.
     html = start(client, room_id).data.decode()
-    assert refresh_tag(room_id) in html
+    assert 'http-equiv="refresh"' not in html
+    assert f'href="/rooms/{room_id}/lobby"' in html
     assert f"url=/rooms/{room_id}/start" not in html
 
 
