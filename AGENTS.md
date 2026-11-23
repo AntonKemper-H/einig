@@ -226,4 +226,6 @@ Update this section as the project progresses.
 - [x] Sprint 3 – Places: F8, F9, F22
 - [x] Sprint 4 – Excitement: F10, F11, F12, F13
 - [x] Sprint 5 – Coming back (D15): F25 my rooms, F16 groups (F26 place collection and map not built)
+- [x] Sprint 6 – Making it reliable (D17–D25): room setup F27, hidden collecting F28, share result F29, place details F30, remove/delete rooms F31/F32, places only via Google Maps with typed fallback (E1–E7), pip-audit check (D24)
+- [x] Sprint 7 – Easier to use (D26–D28): U1 one next step at a time, U2 choose what first, U5 joker explanation, U3 invite in one tap and groups first
 - [ ] Parked: F14, F15, F17–F21, only if time remains
