@@ -14,7 +14,7 @@ The joker is not explained anywhere in the app. The card line says `Joker · 1 l
   - while the joker is free:
     - `Your joker takes this option out for the whole group (unless every option gets a joker).`
     - `You have one joker per room. It can't be undone.`
-    - `To use it, swipe the card down.`
+    - `To use it, swipe the card down or tap the joker button.`
   - once used:
     - `You used your joker in this room.`
     - `Your joker takes that option out for the whole group (unless every option gets a joker).`
@@ -25,7 +25,7 @@ The joker is not explained anywhere in the app. The card line says `Joker · 1 l
 ## Checks (one line = one test), `tests/test_joker_help.py`
 - [ ] The card line holds `<details data-joker-help>` whose summary contains `Joker · 1 left`, a `?` inside an `aria-hidden="true"` element, and `What is the joker?` in a `visually-hidden` element.
 - [ ] The panel (`menu-panel`) shows the three lines for a free joker.
-- [ ] After using the joker: the summary contains `Joker · used`, the panel shows the two lines for a used joker and not `To use it, swipe the card down.`
+- [ ] After using the joker: the summary contains `Joker · used`, the panel shows the two lines for a used joker and not `To use it, swipe the card down or tap the joker button.`
 - [ ] The ⋯ menu is still there with its lobby link (the details element is a second one, not a replacement).
 - [ ] The help is only on the one-card rating page, not on the overview after the last card.
 - [ ] A guest who has not used the joker still sees `Joker · 1 left` and the free-joker lines after the creator used theirs (nothing about others' jokers).

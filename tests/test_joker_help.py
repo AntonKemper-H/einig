@@ -10,7 +10,7 @@ from typed_option import add_typed_option
 FREE_LINES = [
     "Your joker takes this option out for the whole group (unless every option gets a joker).",
     "You have one joker per room. It can't be undone.",
-    "To use it, swipe the card down.",
+    "To use it, swipe the card down or tap the joker button.",
 ]
 USED_LINES = [
     "You used your joker in this room.",
@@ -107,7 +107,7 @@ def test_after_using_the_joker_the_panel_says_so(app, client):
     assert "Joker · used" in summary
     for line in USED_LINES:
         assert line in panel
-    assert "To use it, swipe the card down." not in panel
+    assert "To use it, swipe the card down or tap the joker button." not in panel
 
 
 def test_the_card_menu_is_still_there(app, client):
