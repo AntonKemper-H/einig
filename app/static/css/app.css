@@ -1135,3 +1135,38 @@ a.inline-button {
   text-decoration: none;
 }
 a.inline-button:hover { background: rgba(255, 255, 255, 0.12); color: #FFFFFF; }
+
+/* Room page: invite link and QR code folded into one row ("Invite friends"). */
+.room-page details.invite-fold {
+  margin: 1rem 0 0;
+  padding: 0 1.125rem;
+  border: 0;
+  border-radius: var(--einig-radius-lg);
+  background: var(--einig-surface);
+}
+.room-page details.invite-fold > summary {
+  display: flex;
+  align-items: center;
+  min-height: 56px;
+  color: var(--einig-text);
+  font-weight: 700;
+}
+.room-page details.invite-fold[open] { padding-bottom: 1rem; }
+.room-page details.invite-fold .invite { margin: 0; padding: 0; background: none; }
+.room-page details.invite-fold figure { margin: 1rem 0 0; text-align: center; }
+.room-page details.invite-fold figcaption { color: var(--einig-muted); }
+
+/* "Delete this room": an outlined red button, clearly different from the main actions. */
+a.danger-outline-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  border: 1px solid #F87171;
+  border-radius: 16px;
+  color: #FECACA;
+  font-weight: 700;
+  text-decoration: none;
+}
+a.danger-outline-button:hover { background: rgba(248, 113, 113, 0.12); color: #FFFFFF; }
+a.danger-outline-button:focus-visible { outline: 3px solid var(--einig-accent-2); outline-offset: 2px; }
