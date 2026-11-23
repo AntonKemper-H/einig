@@ -67,10 +67,11 @@ Each line is one task: own spec in `specs/`, own branch, own pull request, fresh
 
 Small follow-ups from testing the app on phones, each with its own spec and pull request. They belong to no track, and nothing else depends on them.
 
-- [x] E1 Places only via Google Maps: the free-text "Add an option" field is gone, a place is added by the search by name (C6), the nearby search or surprise mode; typed options in old rooms still show, can be rated and deleted (`specs/e1-places-only-via-maps.md`) (PR #80) – without a Google key no new place can be added (PR #80 notes the conflict with D6)
+- [x] E1 Places only via Google Maps: the free-text "Add an option" field is gone, a place is added by the search by name (C6), the nearby search or surprise mode; typed options in old rooms still show, can be rated and deleted (`specs/e1-places-only-via-maps.md`) (PR #80) – PR #80 left the conflict with D6 open (without a Google key no new place could be added); E5 resolves it
 - [x] E2 Small map for every match of the search by name, so two places with the same name can be told apart (`specs/e2-match-maps.md`, builds on C6 and C3) (PR #84)
 - [x] E3 F31 Remove a room from my list, and F32 delete a room as its creator, with a confirmation page (`specs/e3-remove-and-delete-rooms.md`, `docs/decisions.md` D22) (PR #85, follow-up PR #87)
 - [x] E4 Choose how many places "Places nearby" suggests: 5, 10 or up to 15 (`specs/e4-nearby-place-count.md`) (PR #89)
+- [x] E5 Typed options come back as a fallback: while Google Maps cannot be used (failed call or no key) the "Add an option" field shows for 10 minutes, in the browser that hit the failure on every worker (`specs/e5-typed-options-as-fallback.md`, `docs/decisions.md` D6/D23) (PR #96)
 - [x] E6 Clearer messages when "Use my location" fails: blocked, location not found and too slow each get their own text (`specs/e6-location-messages.md`) (PR #100) – still to check by hand on the iPad after deploying
 
 ### Dependencies
