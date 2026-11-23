@@ -45,8 +45,8 @@ be copied into the dashboard by hand – see step 5.
 
 1. Create a free Postgres database on [Neon](https://neon.tech) and copy its connection string (`postgresql://…`).
 2. On [Render](https://render.com): **New → Web Service**, connect this repository through the GitHub
-   integration (the repository is private, so a public URL will not do), region **Frankfurt** – the
-   same as the database, and Render cannot move a service later.
+   integration, region **Frankfurt** – the same as the database, and Render cannot move a service
+   later.
 3. Paste the build and start commands from [`render.yaml`](render.yaml) into the service's fields.
 4. Set the environment variables under **Environment**: `DATABASE_URL` (the Neon string),
    `GOOGLE_MAPS_API_KEY`, `GOOGLE_MAPS_EMBED_KEY`, `TRUST_PROXY_HEADERS=true` (Render is exactly one
