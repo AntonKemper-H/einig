@@ -367,6 +367,16 @@ Proposal by Timo (issue #95): the app should show what to do, not explain it. A 
 
 **Task:** U2 (`specs/u2-what-first.md`, branch `ux-2-what-first`), tests in `tests/test_u2_what_first.py`.
 
+## D27 – U1: one next step at a time (2026-11-23)
+
+Proposal by Timo (issue #95), second part. On the room page the next step depends on the state but was spread over several places.
+
+- **One main step at the top of the room page:** creator while collecting: *Start voting* (jumps to the start form); guest while collecting: *Waiting for the creator to start*; while voting: *Rate now*, or *Waiting for N more* when done; closed: *See the result*.
+- **Joker counter** `Joker · 1 left` / `Joker · used` on the rating card. **Result page:** *Again with the same people* (a group member posts to `POST /groups/<id>/rooms` with the room's title, mode and activity) or *Create a new room*.
+- **Differs from the proposal:** the start form stays in the participants section and the joker button keeps its text, because reviewed tests (B6, F10, D20) pin both; no reviewed test changed.
+
+**Task:** U1 (`specs/u1-next-step.md`, branch `ux-1-next-step`, on top of U2), tests in `tests/test_u1_next_step.py`.
+
 ## Open questions
 
 - Final app name.
