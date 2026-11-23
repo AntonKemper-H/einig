@@ -70,8 +70,21 @@
     {# C11: a slim line with the position and one small menu (lobby link, creator's close button). #}
     <div class="card-line">
       <span>Option {{ position }} of {{ order|length }}</span>
-      {# U1: the joker as a counter; the button itself stays as it is (tests pin its text). #}
-      <span>Joker · {% if own_veto is none %}1 left{% else %}used{% endif %}</span>
+      {# U1: the joker as a counter; the button itself stays as it is (tests pin its text).
+         U5: tapping the counter explains the joker (a <details>, no JavaScript needed). #}
+      <details data-joker-help>
+        <summary>Joker · {% if own_veto is none %}1 left{% else %}used{% endif %} <span class="help-mark" aria-hidden="true">?</span><span class="visually-hidden">What is the joker?</span></summary>
+        <div class="menu-panel">
+          {% if own_veto is none %}
+            <p>Your joker takes this option out for the whole group (unless every option gets a joker).</p>
+            <p>You have one joker per room. It can't be undone.</p>
+            <p>To use it, swipe the card down.</p>
+          {% else %}
+            <p>You used your joker in this room.</p>
+            <p>Your joker takes that option out for the whole group (unless every option gets a joker).</p>
+          {% endif %}
+        </div>
+      </details>
       <details data-card-menu>
         <summary class="menu-button" aria-label="Menu"><span aria-hidden="true">⋯</span></summary>
         <div class="menu-panel">
