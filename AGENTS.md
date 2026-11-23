@@ -44,6 +44,7 @@ Read before working:
   - `app/static/sw.js` – minimal service worker for PWA installability (no offline caching of dynamic pages)
   - `app/static/js/register-sw.js` – registers the service worker
   - `app/static/js/swipe.js` – lets a participant swipe the rating card; it only presses the rating button that is already on the page (D16), and turns the card over on a short tap by clicking the card's flip checkbox (D19); a touch that starts on a link is left alone
+  - `app/static/js/invite.js` – the Invite button: after a tap it calls the browser's share menu (`navigator.share`) with the invite link (D28); without it the page shows plain links
   Keep each file short and commented. All other behaviour uses HTML forms and server-side Python.
 - **Live updates use meta refresh**, not JavaScript: waiting and lobby pages include `<meta http-equiv="refresh" content="4">`. Exception (D25): the creator's lobby while the room is collecting reloads on request (Refresh button), so the time limit they pick is not reset.
 - **Forms follow Post/Redirect/Get:** every POST handler redirects to a GET page so reloading never resubmits a vote.

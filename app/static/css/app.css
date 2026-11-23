@@ -498,7 +498,7 @@ fieldset.step > label input { margin: 0; }
 }
 .home-rooms { order: 1; }
 .home-create { order: 2; }
-.home-groups { order: 3; grid-column: 1 / -1; }
+.home-groups { order: 0; grid-column: 1 / -1; }  /* U3: the groups first */
 details.home-part {
   margin: 0;
   padding: 0;
@@ -1209,6 +1209,14 @@ a.danger-outline-button:focus-visible { outline: 3px solid var(--einig-accent-2)
 /* U1: the one main step of the room page. */
 .next-step { margin: 0.5rem 0 1rem; font-weight: 700; }
 .next-step a[role="button"] { display: block; text-align: center; padding: 0.9rem 1rem; font-size: 1.1rem; }
+/* D1a colours every link under the room title light blue; the main button keeps white text. */
+.room-page .next-step a[role="button"] { color: #FFFFFF; }
+
+/* U3: the Invite button (shown by invite.js) and the plain links without it. */
+.invite-actions { margin: 0.5rem 0 1rem; }
+.invite-actions [hidden] { display: none; }
+.invite-actions button { width: 100%; }
+
 
 /* U5: the joker counter opens a short explanation. The panel sits on the left under the counter
    (the menu's panel opens to the right edge); its text uses the card colours like the menu's. */

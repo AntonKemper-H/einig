@@ -48,6 +48,9 @@
     {% elif room.status == "closed" %}
       <p class="next-step"><a href="{{ url_for('rooms.show_result', room_id=room.id) }}" role="button">See the result</a></p>
     {% endif %}
+    {% if room.status != "closed" %}
+      {% include "_invite.html" %}
+    {% endif %}
 
     {# B6: participants in a side column on wide screens (CSS grid in app.css), at the top on a phone. #}
     <div class="room-columns">

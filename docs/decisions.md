@@ -377,6 +377,17 @@ Proposal by Timo (issue #95), second part. On the room page the next step depend
 
 **Task:** U1 (`specs/u1-next-step.md`, branch `ux-1-next-step`, on top of U2), tests in `tests/test_u1_next_step.py`.
 
+## D28 – U3: invite in one tap, groups first (2026-11-23)
+
+Proposal by Timo (issue #95), third part.
+
+- **An Invite block on the room page (not closed) and the group page (members):** a button that opens the phone's share menu (Web Share API, tiny `invite.js`), and, without JavaScript or without the API, plain links **WhatsApp · Mail · SMS**. The message holds only the room or group name and the invite link. The link and QR code stay folded below.
+- **New JavaScript file** `invite.js`, listed in AGENTS.md. It only calls `navigator.share` after a tap and sends nothing itself. Two reviewed tests are the reason for two details: no `https://` on the room page (so WhatsApp uses `whatsapp://send`) and the invite link appears exactly three times (so the button's texts are percent-encoded and decoded by the script).
+- **One reviewed test changed:** the list of JavaScript files in `tests/test_location_messages.py` now includes `invite.js`.
+- **Home page:** groups first (CSS only; the HTML order stays), each group tile with **New decision**.
+
+**Task:** U3 (`specs/u3-invite-groups.md`, branch `ux-3-invite-groups`, on top of U1 and U2), tests in `tests/test_u3_invite_groups.py`.
+
 ## Open questions
 
 - Final app name.

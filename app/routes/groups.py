@@ -6,7 +6,7 @@ from app import db
 from app.routes.rooms import group_member_for, remember_token, save_first_setup
 from app.services import activities
 from app.services import groups as group_rules
-from app.services import qr
+from app.services import qr, share
 from app.services import rooms as room_rules
 
 bp = Blueprint("groups", __name__)
@@ -54,6 +54,7 @@ def render_group_page(group, member, errors=None, join_nickname="", activity=Non
         members=members,
         rooms=rooms,
         invite_url=invite_url,
+        invite_links=share.invite_links("group", group["name"], invite_url),
         qr_svg=qr.invite_qr_svg(invite_url) if member is not None else "",
         errors=errors or [],
         join_nickname=join_nickname,
