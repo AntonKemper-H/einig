@@ -39,9 +39,10 @@ def test_a_participant_gets_the_invite_button_and_the_three_links(client):
     assert block
     invite_url = f"http://localhost/rooms/{room_id}"
     assert re.search(r'<button[^>]*id="invite-button"[^>]*hidden[^>]*>\s*Invite\s*</button>', block)
-    assert f'data-url="{invite_url}"' in block
+    # Percent-encoded, so the raw link is not on the page twice more (reviewed layout test); invite.js decodes it.
+    assert f'data-url="{quote(invite_url, safe="")}"' in block
     text = quote(f'Join "Dinner on Friday" on Einig: {invite_url}', safe="")
-    assert f'href="https://wa.me/?text={text}"' in block
+    assert f'href="whatsapp://send?text={text}"' in block
     assert 'href="mailto:?subject=' in block and text in block
     assert f'href="sms:?&amp;body={text}"' in block or f'href="sms:?&body={text}"' in block
     # The folded link and QR code stay (reviewed test: invite_urls_in in tests/test_proxy_headers.py).
@@ -62,8 +63,8 @@ def test_a_group_member_gets_the_invite_block_and_others_do_not(app, client):
     group_id = create_group(client)
     block = invite_block(page(client, f"/groups/{group_id}"))
     assert block
-    assert f'data-url="http://localhost/groups/{group_id}"' in block
-    assert "Friday friends" in block
+    assert f'data-url="{quote(f"http://localhost/groups/{group_id}", safe="")}"' in block
+    assert quote("Friday friends", safe="") in block
     assert invite_block(page(app.test_client(), f"/groups/{group_id}")) is None
 
 

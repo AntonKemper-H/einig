@@ -386,6 +386,7 @@ def render_room_page(
         group_member=group_member,
         offer_group_join=offer_group_join and group_member is not None,
         invite_url=invite_url,
+        invite_links=share.invite_links("room", room["title"], invite_url),
         qr_svg=qr.invite_qr_svg(invite_url),
         join_nickname=join_nickname,
         errors=errors or [],

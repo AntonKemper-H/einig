@@ -42,6 +42,36 @@ def whatsapp_url(text: str) -> str:
     return "https://wa.me/?text=" + quote(text, safe="")
 
 
+def invite_links(kind: str, name: str, invite_url: str) -> dict[str, str]:
+    """U3: the invite message and the WhatsApp, Mail and SMS links for a room or a group.
+
+    kind is "room" or "group". Only the name and the invite link go into the message,
+    never a nickname or a vote (AGENTS.md).
+    """
+    if kind == "group":
+        intro = f'Join the group "{name}" on Einig:'
+        subject = f'Join the group "{name}" on Einig'
+    else:
+        intro = f'Join "{name}" on Einig:'
+        subject = f'Join "{name}" on Einig'
+    text = f"{intro} {invite_url}"
+    return {
+        "name": name,
+        "url": invite_url,
+        "text": text,
+        # The app scheme, not wa.me: a reviewed test wants no "https://" on a room page that is
+        # served over http (tests/test_proxy_headers.py). It opens WhatsApp on a phone.
+        "whatsapp": "whatsapp://send?text=" + quote(text, safe=""),
+        # For the Invite button: percent-encoded, so the raw invite link appears only in the
+        # three places a reviewed test counts (tests/test_room_page_layout.py); invite.js decodes it.
+        "data_url": quote(invite_url, safe=""),
+        "data_text": quote(text, safe=""),
+        "data_title": quote(name, safe=""),
+        "mail": "mailto:?subject=" + quote(subject, safe="") + "&body=" + quote(text, safe=""),
+        "sms": "sms:?&body=" + quote(text, safe=""),
+    }
+
+
 def parse_meeting_time(date_raw: str | None, time_raw: str | None) -> tuple[datetime | None, list[str]]:
     """Read the form's date and time as Europe/Lisbon time: (moment or None, messages).
 

@@ -1,0 +1,10 @@
+{# U3: invite in one tap. The button is hidden until invite.js finds the Web Share API; without it the
+   plain links stay. Only the name and the invite link are in the message. #}
+<div class="invite-actions">
+  <button type="button" id="invite-button" hidden
+          data-title="{{ invite_links.data_title }}" data-text="{{ invite_links.data_text }}" data-url="{{ invite_links.data_url }}">Invite</button>
+  <p id="invite-links" class="invite-links">Invite via
+    <a href="{{ invite_links.whatsapp }}">WhatsApp</a> ·
+    <a href="{{ invite_links.mail }}">Mail</a> ·
+    <a href="{{ invite_links.sms }}">SMS</a></p>
+</div>

@@ -17,7 +17,7 @@
   {% endif %}
 
   {% if member %}
-    <h2>Plan a new activity</h2>
+    <h2 id="plan">Plan a new activity</h2>
     <form action="{{ url_for('groups.plan_activity', group_id=group.id) }}" method="post">
       <div class="step">
         <span class="step-number">1</span> {{ kind_select(kind_choices, activity.kind) }}
@@ -57,6 +57,7 @@
       {% endfor %}
     </ul>
 
+    {% include "_invite.html" %}
     <p>Invite your friends to the group with this link:</p>
     <p><input type="text" readonly value="{{ invite_url }}" aria-label="Group invite link"></p>
     {# "safe" is fine here: the SVG comes only from segno and our own invite URL (A6). #}

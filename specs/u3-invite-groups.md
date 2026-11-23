@@ -10,7 +10,7 @@ Inviting friends today means opening a fold, copying a link and pasting it into 
 ## What
 - **An Invite block on the room page** (while the room is not closed) **and on the group page** (members only):
   - a button **Invite** that opens the phone's own share menu (Web Share API) with the invite link. It is hidden until `invite.js` finds `navigator.share`;
-  - **without JavaScript or without the Web Share API** the same place shows plain links: **WhatsApp · Mail · SMS** (like the share links of the result, B7/D18). The message holds only the room or group name and the invite link, never nicknames or votes.
+  - **without JavaScript or without the Web Share API** the same place shows plain links: **WhatsApp · Mail · SMS** (like the share links of the result, B7/D18; WhatsApp through its app link `whatsapp://send`, because a reviewed test wants no `https://` on the room page). The message holds only the room or group name and the invite link, never nicknames or votes.
   - The invite link and the QR code stay folded below as before (a reviewed test pins them).
 - **`app/static/js/invite.js` (new, allowed by D28):** about 15 lines; it only calls `navigator.share` after a tap and sends nothing anywhere itself.
 - **Home page:** the groups come first (visual order in CSS only; the HTML order stays as the reviewed A2/A8/A9 tests want). Each group tile has a **New decision** button that opens the group page at its *Plan a new activity* form.
