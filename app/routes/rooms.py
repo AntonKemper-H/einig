@@ -379,6 +379,8 @@ def render_room_page(
         radius_choices=places.RADIUS_CHOICES,
         min_rating_choices=places.MIN_RATING_CHOICES,
         price_level_choices=places.PRICE_LEVEL_CHOICES,
+        place_count_choices=places.PLACE_COUNT_CHOICES,  # E4
+        default_place_count=str(places.DEFAULT_PLACE_COUNT),
         setup_line=setup_line,
         searching_for=searching_for,
         options_per_person=options_per_person,
@@ -757,6 +759,8 @@ def suggest_places(room_id: str):
     # F27: in a set-up room the kind decides what is searched; a posted category is ignored.
     kind = kind_for(room_id)
     search, errors = places.validate_search(request.form, category_required=kind is None)
+    place_count, count_errors = places.validate_place_count(request.form)  # E4
+    errors += count_errors
     if errors:
         return show_search_again(errors, 400)
     if kind is None:
@@ -790,6 +794,8 @@ def suggest_places(room_id: str):
 
     if not place_ids:
         return show_search_again([NO_PLACES_FOUND_MESSAGE], 200)
+    # E4: the first N in Google's order (popularity), after the rating and price filters.
+    place_ids = place_ids[:place_count]
 
     saved = db.save_google_search(
         room_id,
