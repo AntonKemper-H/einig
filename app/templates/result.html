@@ -83,5 +83,5 @@
     <p><small>Options someone did not rate count as "{{ rating_labels.ok }}" for them.</small></p>
   {% endif %}
 
-  <p><a href="{{ url_for('rooms.show_lobby', room_id=room.id) }}">Back to the lobby</a></p>
+  <p><a href="{{ url_for('rooms.show_lobby', room_id=room.id) }}" class="nav-button">Back to the lobby</a></p>
 {% endblock %}

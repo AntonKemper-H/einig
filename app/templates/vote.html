@@ -151,10 +151,10 @@
       <button type="submit" class="secondary">Close the room and show the result</button>
     </form>
   {% elif room.status == "closed" %}
-    <p><a href="{{ url_for('rooms.show_result', room_id=room.id) }}">See the result</a></p>
+    <p><a href="{{ url_for('rooms.show_result', room_id=room.id) }}" class="nav-button">See the result</a></p>
   {% endif %}
 
   {% if not one_card %}
-    <p><a href="{{ url_for('rooms.show_lobby', room_id=room.id) }}">Back to the lobby</a></p>
+    <p><a href="{{ url_for('rooms.show_lobby', room_id=room.id) }}" class="nav-button">Back to the lobby</a></p>
   {% endif %}
 {% endblock %}

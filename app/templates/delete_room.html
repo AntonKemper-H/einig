@@ -10,5 +10,5 @@
   <form action="{{ url_for('rooms.delete_room', room_id=room.id) }}" method="post">
     <button type="submit" class="danger-button">Delete room</button>
   </form>
-  <p><a href="{{ url_for('rooms.show_room', room_id=room.id) }}">Cancel</a></p>
+  <p><a href="{{ url_for('rooms.show_room', room_id=room.id) }}" class="nav-button">Cancel</a></p>
 {% endblock %}
