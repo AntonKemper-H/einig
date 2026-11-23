@@ -6,6 +6,28 @@ Team project for *Introduction to Programming*, Nova SBE 2026/27.
 
 **Deployed URL:** https://nod-lqeq.onrender.com (free plan: the first visit after a quiet period can take up to a minute)
 
+## Objectives
+
+- **Find a decision everyone can live with,** not just what the majority wants. One strong "Rather not" weighs more than a lukewarm "yes", so the app avoids options that someone really dislikes.
+- **Make deciding quick on a phone.** No account and no app install: open the link, pick a nickname, swipe through the options.
+- **Bring in real places.** Options come from Google Maps with photos, ratings, prices and a map, so the group decides on facts, not on guesses.
+- **Keep it fair and private.** Votes are anonymous. Ideas can stay secret until the voting starts, and every person has one joker to rule out an option they cannot accept.
+
+## Features
+
+- **Create a room** in a few taps: choose what you want to do (e.g. restaurant, bar, cinema), give it a name (optional), and choose how the options are found:
+  - **Own ideas:** everyone adds places by searching Google Maps by name; each match shows a small map.
+  - **Popular nearby:** the creator searches around their location with radius, minimum rating, maximum price and how many places (5, 10 or up to 15).
+  - **Surprise us:** a varied mix of five places from random sub-categories; anyone can swap a place they already know ("Been there").
+- **Invite** with a link or a QR code. Friends join with a nickname, without an account.
+- **Room setup:** limit the places each person may add and keep ideas secret until voting.
+- **Lobby:** who has joined and who is done. The creator starts the voting, with an optional time limit (15, 30 or 60 minutes).
+- **Rating, one card at a time:** swipe right for *Rather yes*, up for *Fine with me*, left for *Rather not*, and down for the **joker** (rules an option out, once per room). A tap turns the card to show more about the place, photos and reviews. Without JavaScript the same choices are plain buttons.
+- **Result:** the winner by points (*Rather yes* +2, *Fine with me* +1, *Rather not* −4; ties: fewer "no", then more "yes"), with a map and a route link, shown with anonymous counts per option. Share it in WhatsApp or add it to your calendar.
+- **Groups:** keep the same friends together and plan one activity after another.
+- **My rooms:** every device sees the rooms it joined; a room can be removed from the list, and the creator can delete it for everyone.
+- **If Google Maps is unavailable,** the group can add options as text for 10 minutes, so a room never gets stuck (D23).
+
 ## Team
 
 | Name | Student number |
