@@ -51,3 +51,9 @@ def test_the_header_pill_is_hidden_on_the_home_page_only():
     ]
     assert hiding
     assert all(".home-page" in selector for selector in hiding)
+
+
+def test_the_home_page_carries_the_class_the_rule_needs(client):
+    # Without home-page on <body> the rule above never fires.
+    html = client.get("/").get_data(as_text=True)
+    assert re.search(r'<body[^>]*class="[^"]*\bhome-page\b', html)
