@@ -13,7 +13,6 @@ stored (Google terms); they are loaded fresh every time a card is shown.
 import json
 import math
 import re
-
 from datetime import timedelta
 from urllib.parse import urlencode
 

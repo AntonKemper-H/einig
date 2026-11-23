@@ -10,12 +10,12 @@ from datetime import timedelta
 
 import pytest
 import requests
+from typed_option import add_typed_option
 
 from app import create_app
 from app.db import get_db
 from app.services import places
 from app.services.deadline import now_utc
-from typed_option import add_typed_option
 
 FAKE_KEY = "fake-key-for-tests-0123456789"
 TEXT_SEARCH_URL = "https://places.googleapis.com/v1/places:searchText"
