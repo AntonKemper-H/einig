@@ -49,7 +49,7 @@ Streamlit Community Cloud only hosts Streamlit apps. Render (free) runs Flask. D
   - **Update 2026-11-16:** the account is in Google Cloud's free trial, where quotas cannot be lowered, so there is no daily quota for now. The trial limits the cost instead: usage is paid from the trial credit, and Google stops the APIs when the credit is used up instead of charging money. **Never upgrade to a paid account before a daily quota is set.** The budget alert (€1, 50/80/100 %) covers the project with all services, so any spending sends an email; a spending cap is not possible because it does not support the Maps APIs. If the credit were used up (e.g. through a leaked key), the Places features would stop and the group would continue with manual options. To make that unlikely, the server key is restricted to Places API (New) and never appears in a page.
 - **Key handling:** only in local `.env` and the host's secret settings. Shared privately between members. Never in the repo, in code, or in a chat with an AI. If leaked: delete the key in Google Cloud Console immediately and create a new one.
 - Tests never call Google (fake responses). Members without a key can still work and test.
-- If Google fails: friendly message, group continues with manual options.
+- If Google fails: friendly message; for 10 minutes the group can add options as text (D23).
 
 ## D7 – Scope
 
@@ -315,6 +315,18 @@ D16, D19 and D20 left the look of the app to a design phase. All features for th
 **Not included:** removing or deleting groups (they have members and a room history and need their own decision), restoring a deleted room, deleting several rooms at once.
 
 **Task:** E3 (`specs/e3-remove-and-delete-rooms.md`, branch `feature-e3-remove-and-delete-rooms`), tests in `tests/test_remove_delete_rooms.py`.
+
+## D23 – Typed options come back while Google Maps is unavailable (2026-11-23)
+
+Since E1 (#80) every option comes from Google Maps. When Google cannot be used (no key, network down, trial credit used up), a group could no longer add any option, and the room was stuck. That breaks D6 ("the group continues") and the course's "External API failures handled gracefully".
+
+- **What:** the typed field from before E1 comes back, **only as a fallback**. After a call to Google failed in the search by name (C6), places nearby (C2a), surprise (C4) or "Been there" (C5), or one of them found no server key, the room page shows `Add an option` again with the line `Google Maps is not reachable right now – you can add your idea as text.` `POST /rooms/<id>/options` then works exactly as before E1 (same checks, messages, F27 limit and F28 hidden ideas).
+- **How long:** 10 minutes after the last failure; a successful Google call in one of these routes turns it off at once. Normally nothing changes compared with E1: no field, and the route answers 404.
+- **Where the state lives:** in the app object (`app.extensions["google_unavailable_until"]`) and, for the browser whose request failed, also in its session cookie (`google_unavailable_until`, the same "until" time); the fallback is on if either says so. No database or schema change. **Why both:** on Render gunicorn runs two workers (C1c) and each has its own app object. With the app object alone, a third of the page loads showed no field, and a typed idea got a 404 about one time in three when it reached the other worker (measured in the review of #96). The cookie goes to every worker, so for the person who hit the failure the field is stable. **Limit:** other participants still depend on the app object of the worker that answers them, so they may see the field on some page loads and not on others.
+- **Any failed call counts:** every `PlacesError` turns the fallback on, including a 4xx answer from Google. If a participant sends a search Google rejects (for example an odd place name), the typed field appears for 10 minutes for everyone on that worker. That is harmless for the data, so it is accepted.
+- **The failed request itself** still answers with E1's page and no typed form (the reviewed E1 tests pin that); the form appears from the next page load on. Next to the message `Place suggestions are not available right now.` a link `Add your idea as text instead` leads back to the room page, shown only to someone who may still add an option.
+
+**Task:** E5 (`specs/e5-typed-options-as-fallback.md`, branch `feature-e5-typed-fallback`), tests in `tests/test_typed_fallback.py`.
 
 ## D24 – Security check of the packages with pip-audit (2026-11-23)
 

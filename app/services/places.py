@@ -4,6 +4,7 @@ C2a: the Nearby Search call and the search form rules.
 C2b: Place Details and photos for the option cards, and the card texts.
 C3: the map and the route link for the winner (specs/c3-winner-map.md).
 C6: find a place by name with one Text Search (specs/c6-find-place-by-name.md).
+E5: remember for a while that Google could not be used (specs/e5-typed-options-as-fallback.md).
 
 Only the place id of each result is kept. Names, photos and ratings are never
 stored (Google terms); they are loaded fresh every time a card is shown.
@@ -12,7 +13,7 @@ stored (Google terms); they are loaded fresh every time a card is shown.
 import json
 import math
 import re
-
+from datetime import datetime, timedelta
 from urllib.parse import urlencode
 
 import requests
@@ -58,6 +59,56 @@ NOT_CREATOR_MESSAGE = "Only the creator can search for places."
 WRONG_MODE_MESSAGE = 'Places can only be suggested in a "Places nearby" room.'
 NOT_COLLECTING_MESSAGE = "Options can only be added before voting starts."
 ALREADY_SUGGESTED_MESSAGE = "Places have already been suggested for this room."
+
+
+# E5 (D23): after Google could not be used, typed options are allowed again for this long.
+FALLBACK_MINUTES = 10
+# The key in app.extensions; the value is the UTC datetime until which the fallback is on.
+FALLBACK_STATE_KEY = "google_unavailable_until"
+# The same "until" time in the session cookie of the browser that hit the failure, as ISO text.
+# The cookie goes to every gunicorn worker, so for that person the field never depends on
+# which worker answers (review of #96).
+FALLBACK_SESSION_KEY = "google_unavailable_until"
+
+
+def note_google_unavailable(app, now, session=None) -> None:
+    """E5: a call to Google failed (or there is no key); allow typed options for FALLBACK_MINUTES.
+
+    The state lives in the app object, so each gunicorn worker has its own (D23); with a
+    session it is also kept in that browser's cookie, which every worker reads.
+    """
+    until = now + timedelta(minutes=FALLBACK_MINUTES)
+    app.extensions[FALLBACK_STATE_KEY] = until
+    if session is not None:
+        session[FALLBACK_SESSION_KEY] = until.isoformat()
+
+
+def note_google_available(app, session=None) -> None:
+    """E5: a call to Google worked; typed options are hidden again at once."""
+    app.extensions.pop(FALLBACK_STATE_KEY, None)
+    if session is not None:
+        session.pop(FALLBACK_SESSION_KEY, None)
+
+
+def session_fallback_until(session) -> datetime | None:
+    """E5: the "until" time kept in the session cookie, or None if there is none or it is unreadable."""
+    if session is None:
+        return None
+    try:
+        return datetime.fromisoformat(session[FALLBACK_SESSION_KEY])
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
+def typed_fallback_active(app, now, session=None) -> bool:
+    """E5: True while typed options are allowed because Google could not be used recently.
+
+    On if this worker's app state or the browser's session cookie says so.
+    """
+    for until in (app.extensions.get(FALLBACK_STATE_KEY), session_fallback_until(session)):
+        if until is not None and now < until:
+            return True
+    return False
 
 
 class PlacesError(Exception):

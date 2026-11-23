@@ -210,11 +210,42 @@ def place_taken_message(room, participant, place_id: str) -> str:
     return places.ALREADY_AN_OPTION_MESSAGE
 
 
+def is_someone_elses_hidden_idea(room, participant, label: str) -> bool:
+    """True if the label is taken only by an option this participant cannot see (F28)."""
+    privacy = privacy_for(room)
+    if privacy is None:
+        return False
+    shown, _, _ = option_rules.visible_options(db.get_options(room["id"]), participant["id"], *privacy)
+    shown_labels = [option["label"] for option in shown if option["label"] is not None]
+    return not option_rules.is_label_taken(label, shown_labels)
+
+
+def after_google_failed(answer):
+    """E5: Google could not be used (no key, timeout, error); typed options come back for a while.
+
+    Called with the finished error answer, so that answer still looks as E1 left it (the
+    reviewed tests pin that); the room page shows the typed form from the next request on.
+    """
+    places.note_google_unavailable(current_app, deadline_rules.now_utc(), session)
+    return answer
+
+
+def google_available() -> None:
+    """E5: a call to Google worked; typed options are hidden again at once."""
+    places.note_google_available(current_app, session)
+
+
+def typed_fallback_active() -> bool:
+    """E5: True while typed options are allowed (D23)."""
+    return places.typed_fallback_active(current_app, deadline_rules.now_utc(), session)
+
+
 def render_room_page(
     room,
     participant,
     join_nickname: str = "",
     errors: list[str] | None = None,
+    option_label: str = "",
     option_errors: list[str] | None = None,
     search_values=None,
     search_errors: list[str] | None = None,
@@ -356,7 +387,9 @@ def render_room_page(
         join_nickname=join_nickname,
         errors=errors or [],
         cards=cards,
+        option_label=option_label,
         option_errors=option_errors or [],
+        typed_fallback=typed_fallback_active(),
         show_search_form=show_search_form,
         show_surprise_form=show_surprise_form,
         surprise_categories=surprise.CATEGORY_LABELS,
@@ -368,6 +401,7 @@ def render_room_page(
         hidden_ideas_text=hidden_ideas_text,
         hidden_places_text=hidden_places_text,
         show_find_form=show_find_form,
+        places_unavailable_message=PLACES_UNAVAILABLE_MESSAGE,
         find_uses_room_centre=room_has_centre,
         find_offers_location=find_offers_location,
         find_name=find_name,
@@ -594,6 +628,59 @@ def delete_room(room_id: str):
     return redirect(url_for("main.home"), code=303)
 
 
+@bp.post("/rooms/<room_id>/options")
+def add_option(room_id: str):
+    """F3, back as E5: add a typed option, but only while Google Maps is unavailable (Post/Redirect/Get)."""
+    room = db.get_room(room_id)
+    if room is None:
+        abort(404)
+    # E1: normally every option comes from Google Maps, so the route does not exist (D23).
+    if not typed_fallback_active():
+        abort(404)
+
+    # Permission check on the server: hiding the form is not enough.
+    participant = db.get_participant(room_id, session_token_for(room_id))
+    if participant is None:
+        return render_room_page(room, None, errors=[NOT_JOINED_MESSAGE]), 403
+
+    label = room_rules.clean_text(request.form.get("label"))
+    errors = option_rules.option_errors(label, room["status"], db.get_option_labels(room_id))
+    if errors == [option_rules.DUPLICATE_MESSAGE] and is_someone_elses_hidden_idea(room, participant, label):
+        # F28: say that the idea exists without showing whose it is.
+        errors = [option_rules.SAME_IDEA_MESSAGE]
+    if errors:
+        return render_room_page(room, participant, option_label=label, option_errors=errors), 400
+
+    options_per_person = options_per_person_for(room_id)
+    if options_per_person is None:
+        # No limit (no setup, or "Unlimited"): exactly as before F27.
+        if not db.add_manual_option(room_id, label, participant["id"]):
+            return render_room_page(
+                room, participant, option_label=label, option_errors=[OPTION_REFUSED_MESSAGE]
+            ), 400
+        return redirect(url_for("rooms.show_room", room_id=room_id), code=303)
+
+    def show_option_error(message: str):
+        return render_room_page(
+            room, participant, option_label=label, option_errors=[message]
+        ), 400
+
+    limit_text = activities.limit_message(options_per_person)
+    # Fast check for the message; the database decides below (another add may come at the same moment).
+    if activities.limit_reached(db.count_own_options(room_id, participant["id"]), options_per_person):
+        return show_option_error(limit_text)
+    result = db.add_manual_option_within_limit(room_id, label, participant["id"], options_per_person)
+    if result == "limit":
+        return show_option_error(limit_text)
+    if result == "duplicate":
+        if is_someone_elses_hidden_idea(room, participant, label):
+            return show_option_error(option_rules.SAME_IDEA_MESSAGE)
+        return show_option_error(option_rules.DUPLICATE_MESSAGE)
+    if result == "not_collecting":
+        return show_option_error(option_rules.NOT_COLLECTING_MESSAGE)
+    return redirect(url_for("rooms.show_room", room_id=room_id), code=303)
+
+
 @bp.post("/rooms/<room_id>/options/<int:option_id>/delete")
 def delete_option(room_id: str, option_id: int):
     """F24: the author or the creator deletes an option while collecting (Post/Redirect/Get)."""
@@ -777,7 +864,7 @@ def suggest_places(room_id: str):
     # Without a key the app still works with manual options (docs/decisions.md, D6).
     api_key = current_app.config.get("GOOGLE_MAPS_API_KEY")
     if not api_key:
-        return show_search_again([PLACES_UNAVAILABLE_MESSAGE], 503)
+        return after_google_failed(show_search_again([PLACES_UNAVAILABLE_MESSAGE], 503))
     try:
         place_ids = places.search_nearby(
             api_key=api_key,
@@ -790,7 +877,8 @@ def suggest_places(room_id: str):
             included_types=included_types,
         )
     except places.PlacesError:
-        return show_search_again([PLACES_UNAVAILABLE_MESSAGE], 503)
+        return after_google_failed(show_search_again([PLACES_UNAVAILABLE_MESSAGE], 503))
+    google_available()
 
     if not place_ids:
         return show_search_again([NO_PLACES_FOUND_MESSAGE], 200)
@@ -859,7 +947,7 @@ def surprise_places(room_id: str):
 
     api_key = current_app.config.get("GOOGLE_MAPS_API_KEY")
     if not api_key:
-        return show_form_again([PLACES_UNAVAILABLE_MESSAGE], 503)
+        return after_google_failed(show_form_again([PLACES_UNAVAILABLE_MESSAGE], 503))
     try:
         result = surprise.surprise_search(
             api_key=api_key,
@@ -873,7 +961,8 @@ def surprise_places(room_id: str):
             subcategory_pool=subcategory_pool,
         )
     except places.PlacesError:
-        return show_form_again([PLACES_UNAVAILABLE_MESSAGE], 503)
+        return after_google_failed(show_form_again([PLACES_UNAVAILABLE_MESSAGE], 503))
+    google_available()
 
     if not result["choices"]:
         return show_form_again([NO_PLACES_FOUND_MESSAGE], 200)
@@ -936,7 +1025,9 @@ def been_there(room_id: str, option_id: int):
 
     api_key = current_app.config.get("GOOGLE_MAPS_API_KEY")
     has_stored_search = room["search_center_lat"] is not None and room["radius_m"] is not None
-    if not api_key or not has_stored_search:
+    if not api_key:
+        return after_google_failed(show_message(PLACES_UNAVAILABLE_MESSAGE, 503))
+    if not has_stored_search:
         return show_message(PLACES_UNAVAILABLE_MESSAGE, 503)
 
     # Search the same circle and filters as the surprise search (C4) did.
@@ -960,7 +1051,8 @@ def been_there(room_id: str, option_id: int):
             rng=rng,
         )
     except places.PlacesError:
-        return show_message(PLACES_UNAVAILABLE_MESSAGE, 503)
+        return after_google_failed(show_message(PLACES_UNAVAILABLE_MESSAGE, 503))
+    google_available()
 
     if replacement is None:
         return show_message(surprise.NOTHING_NEW_MESSAGE, 200)
@@ -1024,7 +1116,7 @@ def find_place(room_id: str):
     # Without a key the app still works with manual options (docs/decisions.md, D6).
     api_key = current_app.config.get("GOOGLE_MAPS_API_KEY")
     if not api_key:
-        return show_page(503, [PLACES_UNAVAILABLE_MESSAGE])
+        return after_google_failed(show_page(503, [PLACES_UNAVAILABLE_MESSAGE]))
 
     # The room's search centre comes first; otherwise the participant's location, if shared.
     # The participant's location is used for this one call only and never stored.
@@ -1040,7 +1132,8 @@ def find_place(room_id: str):
         matches = places.search_by_name(api_key, name, latitude, longitude)
     except places.PlacesError:
         save_name_search_entry(room_id, [], count)
-        return show_page(503, [PLACES_UNAVAILABLE_MESSAGE])
+        return after_google_failed(show_page(503, [PLACES_UNAVAILABLE_MESSAGE]))
+    google_available()
 
     # Only the ids of the shown matches are remembered: step 2 accepts nothing else.
     save_name_search_entry(room_id, [match["place_id"] for match in matches], count)

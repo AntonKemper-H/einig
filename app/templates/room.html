@@ -6,6 +6,14 @@
 {% block body_class %}room-page{% endblock %}
 
 {% block content %}
+  {# E5 (review of #96): after "Place suggestions are not available right now." point to the
+     typed field, which the room page shows from the next request on. Only for someone who
+     could add an option (collecting, joined, below the F27 limit). #}
+  {% macro add_as_text_link(error) -%}
+    {% if error == places_unavailable_message and show_find_form %}
+      <a href="{{ url_for('rooms.show_room', room_id=room.id) }}">Add your idea as text instead</a>
+    {%- endif %}
+  {%- endmacro %}
   {% if not participant and room.status != "closed" %}
     {# D1a: the first page a friend sees after opening the invite link. #}
     <p class="invite-kicker">You're invited to decide</p>
@@ -60,7 +68,7 @@
     {% if been_there_errors %}
       <ul role="alert">
         {% for error in been_there_errors %}
-          <li>{{ error }}</li>
+          <li>{{ error }}{{ add_as_text_link(error) }}</li>
         {% endfor %}
       </ul>
     {% endif %}
@@ -176,7 +184,7 @@
     {% if search_errors %}
       <ul role="alert">
         {% for error in search_errors %}
-          <li>{{ error }}</li>
+          <li>{{ error }}{{ add_as_text_link(error) }}</li>
         {% endfor %}
       </ul>
     {% endif %}
@@ -268,7 +276,9 @@
     {# D1a: in a "Places nearby" or "Surprise me" room the app's search comes first; one's own idea
        and the search by name (F23) stay, folded into one row. Open again after an error or a search. #}
     {% set collapse_own = room.mode != "manual" and room.status == "collecting" %}
-    {% set own_open = find_errors or find_matches %}
+    {# E5: while Google Maps is unavailable the typed form is in this row, so it opens. #}
+    {% set show_typed_form = typed_fallback and show_find_form %}
+    {% set own_open = find_errors or find_matches or show_typed_form %}
     {% if collapse_own %}
       <details class="own-idea"{% if own_open %} open{% endif %}>
         <summary>Add a place by name</summary>
@@ -277,7 +287,7 @@
     {% if find_errors %}
       <ul role="alert">
         {% for error in find_errors %}
-          <li>{{ error }}</li>
+          <li>{{ error }}{{ add_as_text_link(error) }}</li>
         {% endfor %}
       </ul>
     {% endif %}
@@ -305,6 +315,20 @@
       {% if find_offers_location %}
         <script src="{{ url_for('static', filename='js/geolocation.js') }}" defer></script>
       {% endif %}
+    {% endif %}
+
+    {% if show_typed_form %}
+      {# E5 (D23): typed options come back only while Google Maps could not be used recently.
+         Same form as before E1; the route checks the fallback, the participant and the limit again. #}
+      <p>Google Maps is not reachable right now – you can add your idea as text.</p>
+      <form action="{{ url_for('rooms.add_option', room_id=room.id) }}" method="post">
+        <label>
+          Add an option
+          <input type="text" name="label" maxlength="80" required
+                 placeholder="Pizza place" value="{{ option_label }}">
+        </label>
+        <button type="submit">Add option</button>
+      </form>
     {% endif %}
 
     {% if find_matches %}
