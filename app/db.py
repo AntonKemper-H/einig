@@ -13,7 +13,7 @@ import re
 import sqlite3
 from collections.abc import Iterator
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import click
@@ -892,7 +892,7 @@ def utc_now_text() -> str:
 
     Made in Python, because CURRENT_TIMESTAMP in a query gives another text format on Postgres.
     """
-    return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+    return datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S")
 
 
 def create_group_with_member(group_id: str, name: str, nickname: str, member_token: str) -> bool:
