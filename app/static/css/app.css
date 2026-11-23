@@ -1170,3 +1170,21 @@ a.danger-outline-button {
 }
 a.danger-outline-button:hover { background: rgba(248, 113, 113, 0.12); color: #FFFFFF; }
 a.danger-outline-button:focus-visible { outline: 3px solid var(--einig-accent-2); outline-offset: 2px; }
+
+/* B5 on the room page: the time left as a yellow pill under the title while voting. */
+/* "h1 ~ p" so it beats the muted colour of the lines under the room title (D1a). */
+.room-page main > h1 ~ p.time-left {
+  display: inline-block;
+  margin: 0 0 0.75rem;
+  padding: 0.25rem 0.875rem;
+  border-radius: 999px;
+  background: var(--einig-accent);
+  color: var(--einig-card-text);
+  font-weight: 700;
+}
+
+/* On the room page D1a colours every link in the lines under the title light blue
+   (".room-page main > h1 ~ p a"); the red Delete button and the small pills keep their own colour. */
+.room-page a.danger-outline-button { color: #FECACA; }
+.room-page a.danger-outline-button:hover { color: #FFFFFF; }
+.room-page a.inline-button { color: #FFFFFF; }

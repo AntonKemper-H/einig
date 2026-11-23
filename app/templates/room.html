@@ -22,6 +22,7 @@
 
   {% if participant %}
     <p>You joined as {{ participant.nickname }}.</p>
+    {% if time_left %}<p class="time-left">{{ time_left }}</p>{% endif %}
     {% if group and group_member %}
       {# F16: only for browsers that are members of this room's group, never for guests. #}
       <p><a href="{{ url_for('groups.show_group', group_id=group.id) }}" class="inline-button">Part of {{ group.name }}</a></p>

@@ -373,6 +373,8 @@ def render_room_page(
         start_hints = lobby_rules.start_errors(room["status"], option_count)
     return render_template(
         "room.html",
+        # B5: also here, not only in the lobby and on the rating page (bug found 2026-11-23).
+        time_left=time_left_for(room) if participant is not None else None,
         participants=participants,
         finished_count=finished_count,
         start_hints=start_hints,
