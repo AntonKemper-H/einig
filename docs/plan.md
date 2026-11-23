@@ -3,7 +3,7 @@
 How we get from the skeleton to the submission on **2026-11-23, 23:59**.
 Scope and reasons: `docs/decisions.md`. Feature details: `docs/concept.md`.
 
-Last updated: 2026-11-22. Tick boxes as work is merged into `main`.
+Last updated: 2026-11-23. Tick boxes as work is merged into `main`.
 
 ---
 
@@ -62,6 +62,14 @@ Each line is one task: own spec in `specs/`, own branch, own pull request, fresh
 - [x] C11 F4/F30 Full-screen rating card with pages (menu, photos, reviews), joker by swiping down (`specs/c11-fullscreen-card.md`, D20) (PR #73) – checked on the phone with a real key
 - [ ] ~~C8 F26 Map of my places and of a group, Maps Static API (`specs/c8-place-map.md`, D15)~~ – **not built for the submission** (D15 update 2026-11-21)
 - [x] C9 F27 Room setup: activity, kind, options per person (`specs/c9-room-setup.md`, D17) (PR #56) – checked on the deployed app with a real key ("Surprise me", Sport – Bowling). Kind `sport.climbing` dropped (no climbing type in Google's Table A). B6 keeps the setup form below the options list and shows the one-line setup at the top.
+
+### Extras found on phones (E tasks)
+
+Small follow-ups from testing the app on phones, each with its own spec and pull request. They belong to no track, and nothing else depends on them.
+
+- [x] E2 Small map for every match of the search by name, so two places with the same name can be told apart (`specs/e2-match-maps.md`, builds on C6 and C3) (PR #84)
+- [x] E3 F31 Remove a room from my list, and F32 delete a room as its creator, with a confirmation page (`specs/e3-remove-and-delete-rooms.md`, `docs/decisions.md` D22) (PR #85, follow-up PR #87)
+- [x] E4 Choose how many places "Places nearby" suggests: 5, 10 or up to 15 (`specs/e4-nearby-place-count.md`) (PR #89)
 
 ### Dependencies
 
