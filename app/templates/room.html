@@ -141,14 +141,16 @@
               {% endfor %}
             </select>
           </label>
+          {# Only places a person adds themselves count (db.count_own_options); search results never do. #}
           <label>
-            Options per person
+            Places each person may add
             <select name="options_per_person">
               <option value="" {% if setup_values.get("options_per_person") == "" %}selected{% endif %}>Unlimited</option>
               {% for number in options_per_person_choices %}
                 <option value="{{ number }}" {% if setup_values.get("options_per_person") == number|string %}selected{% endif %}>{{ number }}</option>
               {% endfor %}
             </select>
+            {% if room.mode != "manual" %}<small>Suggested places don't count.</small>{% endif %}
           </label>
           {# F28: the marker tells the server that this form has the two checkboxes
              (an unticked checkbox sends nothing). #}
