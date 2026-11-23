@@ -1203,6 +1203,8 @@ a.danger-outline-button:focus-visible { outline: 3px solid var(--einig-accent-2)
 /* U1: the one main step of the room page. */
 .next-step { margin: 0.5rem 0 1rem; font-weight: 700; }
 .next-step a[role="button"] { display: block; text-align: center; padding: 0.9rem 1rem; font-size: 1.1rem; }
+/* D1a colours every link under the room title light blue; the main button keeps white text. */
+.room-page .next-step a[role="button"] { color: #FFFFFF; }
 
 /* U3: the Invite button (shown by invite.js) and the plain links without it. */
 .invite-actions { margin: 0.5rem 0 1rem; }
