@@ -316,6 +316,23 @@ D16, D19 and D20 left the look of the app to a design phase. All features for th
 
 **Task:** E3 (`specs/e3-remove-and-delete-rooms.md`, branch `feature-e3-remove-and-delete-rooms`), tests in `tests/test_remove_delete_rooms.py`.
 
+## D24 – Security check of the packages with pip-audit (2026-11-23)
+
+The course briefing asks for "dependencies minimal, pinned, no known vulnerabilities". We checked the pinned packages in `uv.lock` once with `pip-audit`, which looks every pinned version up in the public vulnerability database of the Python Packaging Authority (PyPI/OSV).
+
+**Result:** `No known vulnerabilities found` (pip-audit 2.10.1, on 2026-11-23, against the `uv.lock` of `main`, runtime and test packages). No package had to be updated.
+
+**How to repeat it** (nothing is installed into the project; `uvx` runs the tool on its own):
+
+```bash
+uv export --frozen --no-emit-project -o /tmp/requirements-audit.txt
+uvx pip-audit -r /tmp/requirements-audit.txt --disable-pip
+```
+
+If something is found: update only the affected package (`uv lock --upgrade-package <name>`), run `uv run pytest`, and write the finding and the fix here.
+
+**Not included:** a check in CI or a regular schedule, and `pip-audit` as a project dependency (it is run with `uvx`, so `pyproject.toml` and `uv.lock` do not change). The result is a snapshot from today.
+
 ## Open questions
 
 - Final app name.
