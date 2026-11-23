@@ -83,4 +83,4 @@ def test_rounding_and_options_are_unchanged():
 
 def test_no_new_javascript_file_was_added():
     names = {path.name for path in JS_FOLDER.glob("*.js")}
-    assert names == {"geolocation.js", "swipe.js"}
+    assert names == {"geolocation.js", "swipe.js", "invite.js"}  # U3 (D28): invite.js, approved with the team in issue #95
