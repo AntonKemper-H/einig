@@ -226,18 +226,18 @@ def after_google_failed(answer):
     Called with the finished error answer, so that answer still looks as E1 left it (the
     reviewed tests pin that); the room page shows the typed form from the next request on.
     """
-    places.note_google_unavailable(current_app, deadline_rules.now_utc())
+    places.note_google_unavailable(current_app, deadline_rules.now_utc(), session)
     return answer
 
 
 def google_available() -> None:
     """E5: a call to Google worked; typed options are hidden again at once."""
-    places.note_google_available(current_app)
+    places.note_google_available(current_app, session)
 
 
 def typed_fallback_active() -> bool:
     """E5: True while typed options are allowed (D23)."""
-    return places.typed_fallback_active(current_app, deadline_rules.now_utc())
+    return places.typed_fallback_active(current_app, deadline_rules.now_utc(), session)
 
 
 def render_room_page(
@@ -401,6 +401,7 @@ def render_room_page(
         hidden_ideas_text=hidden_ideas_text,
         hidden_places_text=hidden_places_text,
         show_find_form=show_find_form,
+        places_unavailable_message=PLACES_UNAVAILABLE_MESSAGE,
         find_uses_room_centre=room_has_centre,
         find_offers_location=find_offers_location,
         find_name=find_name,

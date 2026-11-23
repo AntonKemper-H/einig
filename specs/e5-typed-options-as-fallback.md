@@ -14,7 +14,8 @@ Since E1 (#80) every option comes from Google Maps. That gives every card a phot
 - It stays on for **10 minutes** after the last failure (`FALLBACK_MINUTES = 10`), then turns off by itself.
 - A **successful** Google call in one of these routes turns it off at once.
 - The state lives **in the app object** (`current_app.extensions["google_unavailable_until"]`, a UTC `datetime` or missing), set and read only through two functions in `app/services/places.py`: `note_google_unavailable(app, now)` / `note_google_available(app)` and `typed_fallback_active(app, now) -> bool`. `now` is a parameter, so tests can move time.
-  - Limit (write it in D23): with several gunicorn workers each worker has its own state, so one worker may show the field a moment later than another. That is acceptable for a fallback.
+  - The browser whose request failed also keeps the same "until" time in its session cookie (`session["google_unavailable_until"]`, ISO text); the three functions take an optional `session`, and the fallback is on if the app state or the session says so. A successful call clears both. Why (review of #96): with two gunicorn workers the app state alone gave the field on only two of three page loads, and a typed idea got a 404 one time in three.
+  - Limit (write it in D23): other participants still depend on the state of the worker that answers them.
   - No database or schema change.
 
 ### While the fallback is on
@@ -46,5 +47,8 @@ Tests never call Google: fake `requests.post` / `requests.get` the way `tests/te
 - [ ] 10 minutes after the last failure the field is gone and `POST /options` is 404 again.
 - [ ] A successful search by name after a failure turns the fallback off at once.
 - [ ] The state belongs to the app: a second app created in the same test has no fallback.
+- [ ] The browser that hit the failure gets the field on another worker too (a second app object on the same database and secret key, with that browser's session cookie): the room page shows it and `POST /options` answers 303, not 404.
+- [ ] The session fallback also ends 10 minutes after the failure; a successful search clears it too.
+- [ ] The 503 answer links back to the room (`Add your idea as text instead`), but not for other messages and not for someone at the F27 limit.
 
 All existing tests stay green and unchanged (`uv run pytest`). Paste the final output and list every file changed.

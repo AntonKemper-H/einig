@@ -357,3 +357,86 @@ def test_successful_been_there_search_turns_it_off_at_once(app, client, google):
     response = client.post(f"/rooms/{room_id}/options/{option_id}/been-there")
     assert response.status_code in (200, 303)
     assert FALLBACK_LINE not in page(client, room_id)
+
+
+# --- Review of #96: the fallback must not depend on which worker answers ----
+
+def other_worker(app):
+    """A second app object on the same database file and secret key: stands in for the other gunicorn worker."""
+    return create_app(
+        {"TESTING": True, "SECRET_KEY": app.config["SECRET_KEY"], "DATABASE": app.config["DATABASE"]}
+    )
+
+
+def test_the_browser_that_hit_the_failure_gets_the_field_on_every_worker(app, client, google):
+    room_id = create_room(client)
+    turn_fallback_on(client, google, room_id)
+
+    # The same browser (same session cookie), but the request lands on the other worker.
+    browser = other_worker(app).test_client()
+    browser.set_cookie("session", client.get_cookie("session").value)
+    html = page(browser, room_id)
+    assert f'action="/rooms/{room_id}/options"' in html
+    assert FALLBACK_LINE in html
+
+    response = add_label(browser, room_id, "Pizza place")
+    assert response.status_code == 303
+    assert [option["label"] for option in options(app, room_id)] == ["Pizza place"]
+
+
+def test_the_session_fallback_also_ends_after_ten_minutes(app):
+    session = {}
+    now = now_utc()
+    places.note_google_unavailable(app, now, session)
+    places.note_google_available(app)  # only this worker's app state is cleared, the cookie is not
+    assert places.typed_fallback_active(app, now + timedelta(minutes=9, seconds=59), session)
+    assert not places.typed_fallback_active(app, now + timedelta(minutes=10), session)
+
+
+def test_a_successful_search_clears_the_session_fallback_too(app, client, google):
+    room_id = create_room(client)
+    turn_fallback_on(client, google, room_id)
+    assert find(client, room_id).status_code == 200
+
+    browser = other_worker(app).test_client()
+    browser.set_cookie("session", client.get_cookie("session").value)
+    assert FALLBACK_LINE not in page(browser, room_id)
+    assert add_label(browser, room_id, "Pizza place").status_code == 404
+
+
+ADD_AS_TEXT_LINK = "Add your idea as text instead"
+
+
+def test_the_unavailable_message_links_to_the_typed_field(client, google):
+    room_id = create_room(client)
+    break_google(google)
+    response = find(client, room_id)
+    assert response.status_code == 503
+    html = response.get_data(as_text=True)
+    assert UNAVAILABLE_MESSAGE in html
+    assert f'<a href="/rooms/{room_id}">{ADD_AS_TEXT_LINK}</a>' in html
+    # The error answer itself still has no typed form (E1's tests pin that); the room page does.
+    assert f'action="/rooms/{room_id}/options"' not in html
+    assert f'action="/rooms/{room_id}/options"' in page(client, room_id)
+
+
+def test_no_add_as_text_link_for_other_messages_or_at_the_limit(app, client, google):
+    room_id = create_room(client, mode="surprise")
+    assert ADD_AS_TEXT_LINK not in find(client, room_id, name="").get_data(as_text=True)
+
+    # Anna reaches her limit of one own option, then "Been there" fails: she could not type an idea.
+    # The suggested places are shown (reveal_places), otherwise "Been there" is not available (F28).
+    setup = {"kind": "food.restaurant", "options_per_person": "1", "privacy_choices": "1", "reveal_places": "1"}
+    assert client.post(f"/rooms/{room_id}/setup", data=setup).status_code in (302, 303)
+    assert client.post(f"/rooms/{room_id}/surprise", data=search_form()).status_code == 303
+    suggested = options(app, room_id)
+    assert find(client, room_id).status_code == 200
+    luigi = client.post(f"/rooms/{room_id}/find/add", data={"place_id": "place-luigi-1"})
+    assert luigi.status_code in (302, 303)
+    assert len(options(app, room_id)) == len(suggested) + 1
+    break_google(google)
+    response = client.post(f"/rooms/{room_id}/options/{suggested[0]['id']}/been-there")
+    assert response.status_code == 503
+    html = response.get_data(as_text=True)
+    assert UNAVAILABLE_MESSAGE in html
+    assert ADD_AS_TEXT_LINK not in html
