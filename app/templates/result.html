@@ -83,5 +83,20 @@
     <p><small>Options someone did not rate count as "{{ rating_labels.ok }}" for them.</small></p>
   {% endif %}
 
+  {% if room.status == "closed" %}
+    {# U1: go again. A group member starts the group's next activity with the same title and mode
+       (the existing route); everybody else creates a new room. #}
+    {% if again_group %}
+      <form action="{{ url_for('groups.plan_activity', group_id=again_group.id) }}" method="post">
+        <input type="hidden" name="title" value="{{ room.title }}">
+        <input type="hidden" name="mode" value="{{ room.mode }}">
+        <input type="hidden" name="kind" value="{{ again_kind }}">
+        <button type="submit">Again with the same people</button>
+      </form>
+    {% else %}
+      <p><a href="{{ url_for('main.home') }}" role="button">Create a new room</a></p>
+    {% endif %}
+  {% endif %}
+
   <p><a href="{{ url_for('rooms.show_lobby', room_id=room.id) }}" class="nav-button">Back to the lobby</a></p>
 {% endblock %}

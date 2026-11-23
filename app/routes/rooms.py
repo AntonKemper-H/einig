@@ -1447,6 +1447,15 @@ def render_result_page(room, errors: list[str] | None = None):
         share_url = share.whatsapp_url(
             share.share_text(room["title"], labels[winner_option_id], winner["route_url"])
         )
+    # U1: "Again with the same people" for a member of the room's group.
+    again_group = None
+    again_kind = ""
+    group = db.get_room_group(room["id"])
+    if group is not None and group_member_for(group["id"]) is not None:
+        again_group = group
+        setup = db.get_room_setup(room["id"])
+        if setup is not None:
+            again_kind = f"{setup['activity']}.{setup['kind']}"
     return render_template(
         "result.html",
         room=room,
@@ -1458,6 +1467,8 @@ def render_result_page(room, errors: list[str] | None = None):
         joker_counts=joker_counts,
         every_option_vetoed=every_option_vetoed,
         share_url=share_url,
+        again_group=again_group,
+        again_kind=again_kind,
         errors=errors or [],
     )
 
