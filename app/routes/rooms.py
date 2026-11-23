@@ -322,7 +322,8 @@ def render_room_page(
     # The search form uses the same rules as the route, so it is shown exactly when a search is allowed.
     show_search_form = False
     show_surprise_form = False
-    if participant is not None:
+    # U2: only once the setup is saved, so the activity decides what is searched.
+    if participant is not None and setup is not None:
         already_suggested = db.has_google_options(room["id"])
         show_search_form = places.search_refusal(
             bool(participant["is_creator"]), room["mode"], room["status"], already_suggested
@@ -471,6 +472,17 @@ def render_lobby(room, participant, errors: list[str] | None = None):
     )
 
 
+def save_first_setup(room_id: str, kind_text: str) -> None:
+    """U2: a room created with an activity gets its setup at once.
+
+    The values are the ones the setup form pre-selects: no limit per person, ideas secret
+    until voting, suggested places shown. The creator can change them while collecting.
+    """
+    parsed_kind = activities.parse_kind(kind_text)
+    if parsed_kind is not None:
+        db.save_room_setup(room_id, parsed_kind[0], parsed_kind[1], None, 1, 1)
+
+
 def show_create_form_again(form: dict, errors: list[str]):
     """Show the create-room form with the entered values and the error messages (status 400)."""
     return render_home(form, errors), 400
@@ -480,7 +492,10 @@ def show_create_form_again(form: dict, errors: list[str]):
 def create_room():
     """F1: check the form, save the room and its creator, then redirect (Post/Redirect/Get)."""
     form, errors = room_rules.validate_new_room(
-        request.form.get("title"), request.form.get("mode"), request.form.get("nickname")
+        request.form.get("title"),
+        request.form.get("mode"),
+        request.form.get("nickname"),
+        request.form.get("kind"),
     )
     if errors:
         return show_create_form_again(form, errors)
@@ -494,6 +509,7 @@ def create_room():
         return show_create_form_again(form, [CREATE_COLLISION_MESSAGE])
 
     remember_token(room_id, session_token)
+    save_first_setup(room_id, form["kind"])
     return redirect(url_for("rooms.show_room", room_id=room_id), code=303)
 
 

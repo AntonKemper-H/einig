@@ -1,9 +1,9 @@
 {% extends "base.html" %}
+{% from "_create_parts.html" import kind_select, mode_tiles %}
 
 {# Used by main.home (empty form) and rooms.create_room (form shown again with errors).
    Both go through main.render_home, which passes form, errors, modes, my_groups and my_rooms;
    the list of modes lives only in services/rooms.py. #}
-{% set mode_labels = {"manual": "Enter options myself", "nearby": "Places nearby", "surprise": "Surprise me"} %}
 
 {% block body_class %}home-page{% endblock %}
 
@@ -92,27 +92,25 @@
 
       <form action="{{ url_for('rooms.create_room') }}" method="post">
         <div class="step">
+          <span class="step-number">1</span> {{ kind_select(kind_choices, form.kind) }}
+        </div>
+
+        <div class="step">
           <label>
-            <span class="step-number">1</span> What do you want to decide?
-            <input type="text" name="title" maxlength="80" required
+            <span class="step-number">2</span> Name it
+            <input type="text" name="title" maxlength="80"
                    placeholder="Dinner on Friday" value="{{ form.title or '' }}">
           </label>
         </div>
 
         <fieldset class="step">
-          <legend><span class="step-number">2</span> Where do the options come from?</legend>
-          {% for mode in modes %}
-            <label>
-              <input type="radio" name="mode" value="{{ mode }}"
-                     {% if form.mode == mode or (not form.mode and mode == "manual") %}checked{% endif %}>
-              {{ mode_labels.get(mode, mode) }}
-            </label>
-          {% endfor %}
+          <legend><span class="step-number">3</span> How do you find it?</legend>
+          {{ mode_tiles(modes, form.mode) }}
         </fieldset>
 
         <div class="step">
           <label>
-            <span class="step-number">3</span> Your nickname
+            <span class="step-number">4</span> Your nickname
             <input type="text" name="nickname" maxlength="30" required
                    placeholder="Anna" value="{{ form.nickname or '' }}">
           </label>

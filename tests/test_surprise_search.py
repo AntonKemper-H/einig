@@ -202,14 +202,13 @@ def visitor(app):
 # --- Room page -------------------------------------------------------------
 
 def test_creator_of_surprise_room_sees_surprise_form(client, room_id):
+    client.post(f"/rooms/{room_id}/setup", data={"kind": "drinks.bar", "options_per_person": ""})  # U2: the search form needs a setup
     html = client.get(f"/rooms/{room_id}").data.decode()
     assert surprise_action(room_id) in html
     assert "Surprise us" in html
-    for field in ("category", "radius_m", "min_rating", "max_price_level"):
+    for field in ("radius_m", "min_rating", "max_price_level"):
         assert f'name="{field}"' in html
-    for value in ("restaurant", "bar", "cafe"):
-        assert f'value="{value}"' in html
-    assert 'value="movie_theater"' not in html
+    assert 'name="category"' not in html  # U2: the setup decides what is searched
     for value in ("500", "1000", "2000", "5000"):
         assert f'value="{value}"' in html
     assert 'type="hidden" name="latitude"' in html
@@ -331,6 +330,7 @@ def test_only_place_id_is_stored(app, client, google, room_id):
 # --- Rejected --------------------------------------------------------------
 
 def test_no_places_even_after_widening(app, client, google, room_id):
+    client.post(f"/rooms/{room_id}/setup", data={"kind": "drinks.bar", "options_per_person": ""})  # U2: the search form needs a setup
     google.places_for = lambda place_type, radius: []
     response = search(client, room_id)
     assert response.status_code == 200
@@ -367,8 +367,8 @@ def test_invalid_form(app, client, google, room_id):
     html = response.data.decode()
     assert CATEGORY_MESSAGE in html
     assert LOCATION_MESSAGE in html
-    assert surprise_action(room_id) in html
-    assert is_selected(html, "radius_m", "2000")
+    # U2: without a setup there is no form to show again (see tests/test_u2_what_first.py).
+    assert surprise_action(room_id) not in html
     assert google.calls == []
     assert_nothing_saved(app, room_id)
 

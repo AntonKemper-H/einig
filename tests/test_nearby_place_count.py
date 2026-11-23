@@ -72,6 +72,7 @@ def count_select(html):
 
 def test_the_nearby_form_offers_5_10_and_15(client, google):
     room_id = create_room(client)
+    client.post(f"/rooms/{room_id}/setup", data={"kind": "drinks.bar", "options_per_person": ""})  # U2: the search form needs a setup
     select = count_select(client.get(f"/rooms/{room_id}").get_data(as_text=True))
     assert select is not None
     assert re.findall(r'<option[^>]*value="([^"]*)"', select) == ["5", "10", "15"]
@@ -81,6 +82,7 @@ def test_the_nearby_form_offers_5_10_and_15(client, google):
 
 def test_the_surprise_form_has_no_count(client, google):
     room_id = create_room(client, mode="surprise")
+    client.post(f"/rooms/{room_id}/setup", data={"kind": "drinks.bar", "options_per_person": ""})  # U2: the search form needs a setup
     html = client.get(f"/rooms/{room_id}").get_data(as_text=True)
     assert f'action="/rooms/{room_id}/surprise"' in html
     assert count_select(html) is None
@@ -113,6 +115,7 @@ def test_google_is_still_asked_for_fifteen(client, google):
 
 def test_an_invalid_count_is_rejected_and_nothing_changes(app, client, google):
     room_id = create_room(client)
+    client.post(f"/rooms/{room_id}/setup", data={"kind": "drinks.bar", "options_per_person": ""})  # U2: the search form needs a setup
     response = suggest(client, room_id, place_count="7", radius_m="2000")
     assert response.status_code == 400
     html = response.get_data(as_text=True)

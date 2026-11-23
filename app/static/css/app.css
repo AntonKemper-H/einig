@@ -1194,3 +1194,15 @@ a.danger-outline-button:focus-visible { outline: 3px solid var(--einig-accent-2)
 .room-page a.danger-outline-button { color: #FECACA; }
 .room-page a.danger-outline-button:hover { color: #FFFFFF; }
 .room-page a.inline-button { color: #FFFFFF; }
+
+/* U2: the three ways to find options as three big tiles (the radio field "mode" is unchanged). */
+.mode-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; }
+.mode-tile {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 0.25rem; min-height: 5.5rem; padding: 0.5rem; text-align: center; font-weight: 600;
+  border: 2px solid rgba(255, 255, 255, 0.35); border-radius: 1rem; cursor: pointer;
+}
+.mode-tile input { position: absolute; opacity: 0; pointer-events: none; }
+.mode-tile .mode-icon { font-size: 1.75rem; }
+.mode-tile:has(input:checked) { border-color: var(--einig-accent); background: rgba(255, 201, 77, 0.15); }
+.mode-tile:has(input:focus-visible) { outline: 3px solid var(--einig-accent-2); outline-offset: 2px; }
