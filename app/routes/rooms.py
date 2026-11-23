@@ -28,7 +28,7 @@ from app.services import options as option_rules
 from app.services import results as result_rules
 from app.services import rooms as room_rules
 from app.services import voting as voting_rules
-from app.services.scoring import pick_winner
+from app.services.scoring import POINTS, pick_winner
 
 bp = Blueprint("rooms", __name__)
 
@@ -1294,6 +1294,10 @@ def render_vote_page(room, participant, errors: list[str] | None = None):
         own_veto=own_veto,
         own_veto_name=own_veto_name,
         time_left=time_left_for(room),
+        # U4 (D27): the small labels under the icons only while this participant has rated
+        # nothing yet in this room (participants belong to one room, so own_ratings is per room).
+        first_card=not own_ratings,
+        points=POINTS,
     )
 
 

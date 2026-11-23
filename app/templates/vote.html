@@ -34,6 +34,31 @@
   {% endif %}
 {% endmacro %}
 
+{# U4 (D27): the one-card page shows the same two forms as a row of icon buttons. The icons are
+   decoration (aria-hidden); the words stay in the HTML for screen readers and are only shown
+   on the first card. The CSS puts the joker between "Rather not" and "Fine with me". #}
+{% macro icon_word(text) %}<span class="icon-word{% if not first_card %} visually-hidden{% endif %}">{{ text }}</span>{% endmacro %}
+
+{% macro icon_rating_form(option_id) %}
+  <form action="{{ url_for('rooms.save_vote', room_id=room.id) }}" method="post" class="rating-buttons">
+    <input type="hidden" name="option_id" value="{{ option_id }}">
+    {% set rating_icons = {"no": "✕", "ok": "🤷", "yes": "♥"} %}
+    {% for value in ["yes", "ok", "no"] %}
+      <button type="submit" name="rating" value="{{ value }}" class="icon-button"><span class="icon" aria-hidden="true">{{ rating_icons[value] }}</span>{{ icon_word(rating_labels[value]) }}</button>
+    {% endfor %}
+  </form>
+{% endmacro %}
+
+{% macro icon_joker_form(option_id) %}
+  {# Still its own form without name="rating", so a swipe can never use the joker (B4, D20). #}
+  {% if own_veto is none %}
+    <form action="{{ url_for('rooms.save_veto', room_id=room.id) }}" method="post">
+      <input type="hidden" name="option_id" value="{{ option_id }}">
+      <button type="submit" class="icon-button secondary"><span class="icon" aria-hidden="true">🚫</span>{{ icon_word("Joker") }}<span class="visually-hidden">Use my joker on this option (cannot be undone)</span></button>
+    </form>
+  {% endif %}
+{% endmacro %}
+
 {% macro option_heading(option_id) %}
   {# C2c: a Google option as its card (name, photo, facts), a manual option by its label. #}
   {% set card = cards[option_id] %}
@@ -70,6 +95,17 @@
     {# C11: a slim line with the position and one small menu (lobby link, creator's close button). #}
     <div class="card-line">
       <span>Option {{ position }} of {{ order|length }}</span>
+      {# U4 (D27): a short explanation of the buttons and swipes, no JavaScript needed. #}
+      <details data-rating-help>
+        <summary class="menu-button" aria-label="How rating works"><span aria-hidden="true">?</span></summary>
+        <div class="menu-panel">
+          <p>✕ Rather not – counts −{{ points["no"]|abs }}</p>
+          <p>🤷 Fine with me – counts +{{ points["ok"] }}</p>
+          <p>♥ Rather yes – counts +{{ points["yes"] }}</p>
+          {% if own_veto is none %}<p>🚫 Joker – rules this option out; once per room</p>{% endif %}
+          <p>Swipe: right = Rather yes, up = Fine with me, left = Rather not{% if own_veto is none %}, down = Joker{% endif %}</p>
+        </div>
+      </details>
       <details data-card-menu>
         <summary class="menu-button" aria-label="Menu"><span aria-hidden="true">⋯</span></summary>
         <div class="menu-panel">
@@ -102,9 +138,12 @@
       {% elif menu_url %}
         <p><a href="{{ menu_url }}" target="_blank" rel="noopener noreferrer">Menu &amp; reviews on Google Maps</a></p>
       {% endif %}
-      {# The buttons stay in the page, visually hidden but focusable (app.css). #}
-      {{ rating_form(next_option) }}
-      {{ joker_form(next_option) }}
+      {% if first_card %}<p class="rating-first-hint">Tap a button or swipe the card.</p>{% endif %}
+      {# U4 (D27): the rating and joker buttons as one visible row of icons; swipe.js presses them. #}
+      <div class="rating-row" data-rating-row data-rating-labels="{{ 'shown' if first_card else 'hidden' }}">
+        {{ icon_rating_form(next_option) }}
+        {{ icon_joker_form(next_option) }}
+      </div>
       {% if own_veto is none %}
         {# D20: a swipe down only asks; "Use joker" presses the joker button above. #}
         <div data-joker-question hidden>
@@ -115,14 +154,6 @@
         </div>
       {% endif %}
     </article>
-    {# D1b: what each swipe does. Text only and aria-hidden, because the hidden rating buttons already
-       serve the keyboard and screen readers (D20). app.css shows it only once swipe.js is running. #}
-    <div class="swipe-legend" data-swipe-legend aria-hidden="true">
-      <span>← Rather not</span>
-      <span>↑ Fine with me</span>
-      <span>Rather yes →</span>
-      {% if own_veto is none %}<span>↓ Joker</span>{% endif %}
-    </div>
     <script src="{{ url_for('static', filename='js/swipe.js') }}" defer></script>
 
   {% else %}
